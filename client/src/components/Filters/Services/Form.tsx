@@ -184,7 +184,11 @@ export const Form = ({
                                                         data-testid={`blocked_services_${service.id}`}
                                                         data-groupid={`blocked_services_${service.group_id}`}
                                                         placeholder={service.name}
-                                                        disabled={isServiceDisabled(processing, processingSet) || !masterEnabled}
+                                                        disabled={
+                                                        isServiceDisabled(
+                                                                processing, processingSet
+                                                            ) || !masterEnabled
+                                                        }
                                                         icon={service.icon_svg}
                                                     />
                                                 )}
