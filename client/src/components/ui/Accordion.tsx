@@ -3,27 +3,27 @@ import './Accordion.css';
 import '../Settings/Clients/Service.css';
 
 export interface AccordionItemProps {
-  id: string;
-  title: string;
-  children: ReactNode;
-  defaultOpen?: boolean;
-  className?: string;
-  disabled?: boolean;
+    id: string;
+    title: string;
+    children: ReactNode;
+    defaultOpen?: boolean;
+    className?: string;
+    disabled?: boolean;
 }
 
 export interface AccordionProps {
-  items: AccordionItemProps[];
-  allowMultiple?: boolean;
-  className?: string;
-  onGroupToggle?: (groupId: string, enabled: boolean) => void;
-  groupEnabledStates?: Record<string, boolean>;
+    items: AccordionItemProps[];
+    allowMultiple?: boolean;
+    className?: string;
+    onGroupToggle?: (groupId: string, enabled: boolean) => void;
+    groupEnabledStates?: Record<string, boolean>;
 }
 
 const AccordionItem: React.FC<AccordionItemProps & { 
-  isOpen: boolean; 
-  onToggle: () => void; 
-  onGroupToggle?: (groupId: string, enabled: boolean) => void;
-  groupEnabled?: boolean;
+    isOpen: boolean;
+    onToggle: () => void;
+    onGroupToggle?: (groupId: string, enabled: boolean) => void;
+    groupEnabled?: boolean;
 }> = ({ id, title, children, isOpen, onToggle, onGroupToggle, groupEnabled = true, className = '', disabled = false }) => {
     return (
         <section className={`accordion-item ${className}`} data-testid={`accordion-item-${id}`}>
