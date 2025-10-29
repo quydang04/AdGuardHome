@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 
 import { Trans, useTranslation } from 'react-i18next';
 
@@ -55,6 +55,8 @@ export const Form = ({
 
     const watchedBlocked = useWatch({ control, name: 'blocked_services' });
 
+    const [masterEnabled, setMasterEnabled] = useState<boolean>(true);
+
     const groupToggleDisabled = useMemo(() => {
         return serviceGroups.reduce<Record<string, boolean>>(
             (groupDisabledMap, group) => {
@@ -64,7 +66,7 @@ export const Form = ({
 
                 const isGroupDisabled =
                     servicesInGroup.length > 0 &&
-                    isServiceDisabled(processing, processingSet);
+                    (isServiceDisabled(processing, processingSet) || !masterEnabled);
 
                 return {
                     ...groupDisabledMap,
@@ -73,7 +75,7 @@ export const Form = ({
             },
             {}
         );
-    }, [serviceGroups, blockedServices, processing, processingSet]);
+    }, [serviceGroups, blockedServices, processing, processingSet, masterEnabled]);
 
 
     const handleToggleAllServices = async (isSelected: boolean) => {
@@ -91,7 +93,7 @@ export const Form = ({
 
         const groupServices = blockedServices.filter((service) => service.group_id === groupId);
         groupServices.forEach((service) => {
-            if (!isServiceDisabled(processing, processingSet)) {
+            if (!isServiceDisabled(processing, processingSet) && masterEnabled) {
                 setValue(`blocked_services.${service.id}`, enabled);
             }
         });
@@ -106,7 +108,7 @@ export const Form = ({
 
                 const groupIsEnabled =
                     servicesInGroup.length > 0 &&
-                    servicesInGroup.every(
+                    servicesInGroup.some(
                         (service) => Boolean(watchedBlocked?.[service.id])
                     );
 
@@ -119,17 +121,29 @@ export const Form = ({
         );
     }, [serviceGroups, blockedServices, watchedBlocked]);
 
+    const handleMasterToggle = (next: boolean) => {
+        setMasterEnabled(next);
+    };
 
     return (
         <form onSubmit={handleSubmit(onSubmit)}>
             <div className="form__group">
+                <ServiceField
+                    name="blocked_services_master"
+                    value={masterEnabled}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleMasterToggle(e.target.checked)}
+                    onBlur={() => {}}
+                    placeholder={t('blocked_services_global')}
+                    className="service--global"
+                    disabled={processing || processingSet}
+                />
                 <div className="row mb-4">
                     <div className="col-6">
                         <button
                             type="button"
                             data-testid="blocked_services_block_all"
                             className="btn btn-secondary btn-block"
-                            disabled={processing || processingSet}
+                            disabled={processing || processingSet || !masterEnabled}
                             onClick={() => handleToggleAllServices(true)}>
                             <Trans>block_all</Trans>
                         </button>
@@ -140,7 +154,7 @@ export const Form = ({
                             type="button"
                             data-testid="blocked_services_unblock_all"
                             className="btn btn-secondary btn-block"
-                            disabled={processing || processingSet}
+                            disabled={processing || processingSet || !masterEnabled}
                             onClick={() => handleToggleAllServices(false)}>
                             <Trans>unblock_all</Trans>
                         </button>
@@ -170,7 +184,7 @@ export const Form = ({
                                                         data-testid={`blocked_services_${service.id}`}
                                                         data-groupid={`blocked_services_${service.group_id}`}
                                                         placeholder={service.name}
-                                                        disabled={isServiceDisabled(processing, processingSet)}
+                                                        disabled={isServiceDisabled(processing, processingSet) || !masterEnabled}
                                                         icon={service.icon_svg}
                                                     />
                                                 )}
