@@ -758,5 +758,17 @@
     "saturday_short": "Sat",
     "upstream_dns_cache_configuration": "Upstream DNS cache configuration",
     "enable_upstream_dns_cache": "Enable DNS caching for this client's custom upstream configuration",
-    "dns_cache_size": "DNS cache size, in bytes"
+    "dns_cache_size": "DNS cache size, in bytes",
+    "ai": "Artificial intelligence",
+    "cdn": "Content delivery networks (CDN)",
+    "dating": "Dating services",
+    "gambling": "Gambling and betting",
+    "gaming": "Gaming",
+    "hosting": "Web hosting",
+    "messenger": "Messaging services",
+    "privacy": "Privacy tools",
+    "shopping": "Shopping",
+    "social_network": "Social networks",
+    "software": "Software development",
+    "streaming": "Streaming services"
 }
