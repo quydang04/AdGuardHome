@@ -1,8 +1,8 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 
 import { Trans, useTranslation } from 'react-i18next';
 
-import { Controller, useForm, useWatch } from 'react-hook-form';
+import { Controller, useForm } from 'react-hook-form';
 
 import { ServiceField } from './ServiceField';
 import { Accordion } from '../../ui/Accordion';
@@ -53,9 +53,26 @@ export const Form = ({
         defaultValues: { blocked_services: initialValues }
     });
 
-    const watchedBlocked = useWatch({ control, name: 'blocked_services' });
-
     const [masterEnabled, setMasterEnabled] = useState<boolean>(true);
+
+    const [groupEnabled, setGroupEnabled] = useState<Record<string, boolean>>(() =>
+        serviceGroups.reduce<Record<string, boolean>>((acc, group) => {
+            acc[group.id] = true;
+            return acc;
+        }, {})
+    );
+
+    useEffect(() => {
+        setGroupEnabled(prev => {
+            const missingGroups = serviceGroups.filter(group => !(group.id in prev));
+            if (missingGroups.length === 0) {
+                return prev;
+            }
+
+            const newGroups = Object.fromEntries(missingGroups.map(group => [group.id, true]));
+            return { ...prev, ...newGroups };
+        });
+    }, [serviceGroups]);
 
     const groupToggleDisabled = useMemo(() => {
         return serviceGroups.reduce<Record<string, boolean>>(
@@ -91,42 +108,34 @@ export const Form = ({
             return;
         }
 
-        const groupServices = blockedServices.filter((service) => service.group_id === groupId);
-        groupServices.forEach((service) => {
-            if (!isServiceDisabled(processing, processingSet) && masterEnabled) {
-                setValue(`blocked_services.${service.id}`, enabled);
-            }
-        });
+        setGroupEnabled((prev) => ({ ...prev, [groupId]: enabled }));
     };
 
-    const computedGroupStates = useMemo(() => {
-        return serviceGroups.reduce<Record<string, boolean>>(
-            (accumulatedStates, group) => {
-                const servicesInGroup = blockedServices.filter(
-                    (service) => service.group_id === group.id
-                );
-
-                const groupIsEnabled =
-                    servicesInGroup.length > 0 &&
-                    servicesInGroup.some(
-                        (service) => Boolean(watchedBlocked?.[service.id])
-                    );
-
-                return {
-                    ...accumulatedStates,
-                    [group.id]: groupIsEnabled,
-                };
-            },
-            {}
-        );
-    }, [serviceGroups, blockedServices, watchedBlocked]);
+    const computedGroupStates = groupEnabled;
 
     const handleMasterToggle = (next: boolean) => {
         setMasterEnabled(next);
     };
 
+    const handleSubmitWithGroups = (values: FormValues) => {
+        if (!values || !values.blocked_services) {
+            return onSubmit(values);
+        }
+        if (!masterEnabled) {
+            return onSubmit({ blocked_services: {} });
+        }
+
+        const enabledIdsMap = Object.fromEntries(
+            blockedServices
+                .filter(service => values.blocked_services?.[service.id] && groupEnabled[service.group_id])
+                .map(service => [service.id, true] as const)
+        );
+
+        return onSubmit({ blocked_services: enabledIdsMap });
+    };
+
     return (
-        <form onSubmit={handleSubmit(onSubmit)}>
+        <form onSubmit={handleSubmit(handleSubmitWithGroups)}>
             <div className="form__group">
                 <ServiceField
                     name="blocked_services_master"
@@ -170,7 +179,7 @@ export const Form = ({
                             title: t(group.id),
                             disabled,
                             children: (
-                                <div className={`services${disabled ? ' is-group-disabled' : ''}`}>
+                                <div className={`services${disabled || !groupEnabled[group.id] ? ' is-group-disabled' : ''}`}>
                                     {blockedServices
                                         .filter((service) => service.group_id === group.id)
                                         .map((service) => (
@@ -185,9 +194,9 @@ export const Form = ({
                                                         data-groupid={`blocked_services_${service.group_id}`}
                                                         placeholder={service.name}
                                                         disabled={
-                                                        isServiceDisabled(
-                                                                processing, processingSet
-                                                            ) || !masterEnabled
+                                                            isServiceDisabled(processing, processingSet) ||
+                                                            !masterEnabled ||
+                                                            !groupEnabled[service.group_id]
                                                         }
                                                         icon={service.icon_svg}
                                                     />
