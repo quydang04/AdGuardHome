@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useState } from 'react';
 
 import { Trans, useTranslation } from 'react-i18next';
 
@@ -55,44 +55,7 @@ export const Form = ({
 
     const [masterEnabled, setMasterEnabled] = useState<boolean>(true);
 
-    const [groupEnabled, setGroupEnabled] = useState<Record<string, boolean>>(() =>
-        serviceGroups.reduce<Record<string, boolean>>((acc, group) => {
-            acc[group.id] = true;
-            return acc;
-        }, {})
-    );
-
-    useEffect(() => {
-        setGroupEnabled(prev => {
-            const missingGroups = serviceGroups.filter(group => !(group.id in prev));
-            if (missingGroups.length === 0) {
-                return prev;
-            }
-
-            const newGroups = Object.fromEntries(missingGroups.map(group => [group.id, true]));
-            return { ...prev, ...newGroups };
-        });
-    }, [serviceGroups]);
-
-    const groupToggleDisabled = useMemo(() => {
-        return serviceGroups.reduce<Record<string, boolean>>(
-            (groupDisabledMap, group) => {
-                const servicesInGroup = blockedServices.filter(
-                    (service) => service.group_id === group.id
-                );
-
-                const isGroupDisabled =
-                    servicesInGroup.length > 0 &&
-                    (isServiceDisabled(processing, processingSet) || !masterEnabled);
-
-                return {
-                    ...groupDisabledMap,
-                    [group.id]: isGroupDisabled,
-                };
-            },
-            {}
-        );
-    }, [serviceGroups, blockedServices, processing, processingSet, masterEnabled]);
+    // Group-level freeze switch removed; groups are always active. Buttons allow mass toggle.
 
 
     const handleToggleAllServices = async (isSelected: boolean) => {
@@ -103,15 +66,16 @@ export const Form = ({
         });
     };
 
-    const handleGroupToggle = (groupId: string, enabled: boolean) => {
-        if (groupToggleDisabled[groupId]) {
+    const handleToggleGroupServices = (groupId: string, isSelected: boolean) => {
+        if (isServiceDisabled(processing, processingSet)) {
             return;
         }
-
-        setGroupEnabled((prev) => ({ ...prev, [groupId]: enabled }));
+        blockedServices
+            .filter((s) => s.group_id === groupId)
+            .forEach((service) => {
+                setValue(`blocked_services.${service.id}`, isSelected);
+            });
     };
-
-    const computedGroupStates = groupEnabled;
 
     const handleMasterToggle = (next: boolean) => {
         setMasterEnabled(next);
@@ -127,7 +91,7 @@ export const Form = ({
 
         const enabledIdsMap = Object.fromEntries(
             blockedServices
-                .filter(service => values.blocked_services?.[service.id] && groupEnabled[service.group_id])
+                .filter(service => values.blocked_services?.[service.id])
                 .map(service => [service.id, true] as const)
         );
 
@@ -146,7 +110,7 @@ export const Form = ({
                     className="service--global"
                     disabled={processing || processingSet}
                 />
-                <div className="row mb-4">
+                <div className="blocked_services row mb-4">
                     <div className="col-6">
                         <button
                             type="button"
@@ -172,47 +136,60 @@ export const Form = ({
 
                 <Accordion
                     items={serviceGroups.map((group) => {
-                        const disabled = groupToggleDisabled[group.id];
-
                         return {
                             id: group.id,
                             title: t(group.id),
-                            disabled,
                             children: (
-                                <div className={`services${disabled || !groupEnabled[group.id] ? ' is-group-disabled' : ''}`}>
-                                    {blockedServices
-                                        .filter((service) => service.group_id === group.id)
-                                        .map((service) => (
-                                            <Controller
-                                                key={service.id}
-                                                name={`blocked_services.${service.id}`}
-                                                control={control}
-                                                render={({ field }) => (
-                                                    <ServiceField
-                                                        {...field}
-                                                        data-testid={`blocked_services_${service.id}`}
-                                                        data-groupid={`blocked_services_${service.group_id}`}
-                                                        placeholder={service.name}
-                                                        disabled={
-                                                            isServiceDisabled(processing, processingSet) ||
-                                                            !masterEnabled ||
-                                                            !groupEnabled[service.group_id]
-                                                        }
-                                                        icon={service.icon_svg}
-                                                    />
-                                                )}
-                                            />
-                                        ))}
+                                <div className="services__wrapper">
+                                    <div className="row mb-3">
+                                        <div className="col-6">
+                                            <button
+                                                type="button"
+                                                className="btn btn-secondary btn-block"
+                                                disabled={processing || processingSet || !masterEnabled}
+                                                onClick={() => handleToggleGroupServices(group.id, true)}
+                                            >
+                                                <Trans>block_all</Trans>
+                                            </button>
+                                        </div>
+                                        <div className="col-6">
+                                            <button
+                                                type="button"
+                                                className="btn btn-secondary btn-block"
+                                                disabled={processing || processingSet || !masterEnabled}
+                                                onClick={() => handleToggleGroupServices(group.id, false)}
+                                            >
+                                                <Trans>unblock_all</Trans>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div className="services">
+                                        {blockedServices
+                                            .filter((service) => service.group_id === group.id)
+                                            .map((service) => (
+                                                <Controller
+                                                    key={service.id}
+                                                    name={`blocked_services.${service.id}`}
+                                                    control={control}
+                                                    render={({ field }) => (
+                                                        <ServiceField
+                                                            {...field}
+                                                            data-testid={`blocked_services_${service.id}`}
+                                                            data-groupid={`blocked_services_${service.group_id}`}
+                                                            placeholder={service.name}
+                                                            disabled={isServiceDisabled(processing, processingSet) || !masterEnabled}
+                                                            icon={service.icon_svg} />
+                                                    )} />
+                                            ))}
+                                    </div>
                                 </div>
                             ),
                             defaultOpen: true,
                         };
                     })}
                     allowMultiple
-                    onGroupToggle={handleGroupToggle}
-                    groupEnabledStates={computedGroupStates}
-                    className="services-accordion"
-                />
+
+                    className="services-accordion" onGroupToggle={undefined}                />
             </div>
 
             <div className="btn-list">

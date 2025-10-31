@@ -11,20 +11,25 @@ export interface AccordionItemProps {
     disabled?: boolean;
 }
 
-export interface AccordionProps {
-    items: AccordionItemProps[];
-    allowMultiple?: boolean;
-    className?: string;
-    onGroupToggle?: (groupId: string, enabled: boolean) => void;
-    groupEnabledStates?: Record<string, boolean>;
-}
+type Props = AccordionItemProps & {
+  isOpen: boolean;
+  onToggle: () => void;
+  onGroupToggle?: (groupId: string, enabled: boolean) => void;
+  groupEnabled?: boolean;
+};
 
-const AccordionItem: React.FC<AccordionItemProps & { 
-    isOpen: boolean;
-    onToggle: () => void;
-    onGroupToggle?: (groupId: string, enabled: boolean) => void;
-    groupEnabled?: boolean;
-}> = ({ id, title, children, isOpen, onToggle, onGroupToggle, groupEnabled = true, className = '', disabled = false }) => {
+const AccordionItem = (props: Props) => {
+    const {
+        id,
+        title,
+        children,
+        isOpen,
+        onToggle,
+        onGroupToggle,
+        groupEnabled = true,
+        className = '',
+        disabled = false
+    } = props;
     return (
         <section className={`accordion-item ${className}`} data-testid={`accordion-item-${id}`}>
             <header className="accordion-item__header">
@@ -72,7 +77,7 @@ const AccordionItem: React.FC<AccordionItemProps & {
     );
 };
 
-export const Accordion: React.FC<AccordionProps> = ({ 
+export const Accordion = ({ 
     items,
     allowMultiple = false,
     className = '',
