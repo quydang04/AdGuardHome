@@ -55,9 +55,6 @@ export const Form = ({
 
     const [masterEnabled, setMasterEnabled] = useState<boolean>(true);
 
-    // Group-level freeze switch removed; groups are always active. Buttons allow mass toggle.
-
-
     const handleToggleAllServices = async (isSelected: boolean) => {
         blockedServices.forEach((service) => {
             if (!isServiceDisabled(processing, processingSet)) {
