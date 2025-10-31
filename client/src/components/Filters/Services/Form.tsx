@@ -191,8 +191,8 @@ export const Form = ({
                         };
                     })}
                     allowMultiple
-
-                    className="services-accordion" onGroupToggle={undefined}                />
+                    className="services-accordion" onGroupToggle={undefined}
+                />
             </div>
 
             <div className="btn-list">
