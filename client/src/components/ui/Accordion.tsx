@@ -23,6 +23,7 @@ const AccordionItem = (props: Props) => {
         children,
         isOpen,
         onToggle,
+        disabled,
         className = '',
     } = props;
     return (
@@ -32,9 +33,11 @@ const AccordionItem = (props: Props) => {
                     <button
                         type="button"
                         className={`accordion-item__toggle ${isOpen ? 'accordion-item__toggle--open' : ''}`}
-                        onClick={onToggle}
+                        onClick={() => { if (!disabled) { onToggle(); } }}
                         aria-expanded={isOpen}
                         aria-controls={`accordion-content-${id}`}
+                        aria-disabled={disabled}
+                        disabled={disabled}
                     >
                         <span className="accordion-item__icon" aria-hidden="true">
                             <svg width="24" height="24" viewBox="0 0 24 24">
@@ -106,6 +109,7 @@ export const Accordion: React.FC<AccordionProps> = ({
                     title={item.title}
                     isOpen={openItems.has(item.id)}
                     onToggle={() => toggleItem(item.id)}
+                    disabled={item.disabled}
                 >
                     {item.children}
                 </AccordionItem>
