@@ -93,6 +93,38 @@ func (c *twoskyClient) downloadTo(
 	return nil
 }
 
+func normalizeServicesJSON(data []byte) []byte {
+	if b, err := unwrapMessageJSON(data); err == nil {
+		data = b
+	}
+	if b, err := indentJSON(data); err == nil {
+		data = b
+	}
+	return data
+}
+
+func unwrapMessageJSON(data []byte) ([]byte, error) {
+	var wrapped map[string]struct {
+		Message string `json:"message"`
+	}
+	if err := json.Unmarshal(data, &wrapped); err != nil {
+		return nil, err
+	}
+	flat := make(map[string]string, len(wrapped))
+	for k, v := range wrapped {
+		flat[k] = v.Message
+	}
+	return json.Marshal(flat)
+}
+
+func indentJSON(data []byte) ([]byte, error) {
+	var buf bytes.Buffer
+	if err := json.Indent(&buf, data, "", "    "); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
 // printFailedLocales prints sorted list of failed downloads, if any.  l and
 // failed must not be nil.
 func printFailedLocales(
@@ -159,22 +191,7 @@ func saveToFile(
 	}
 
 	if baseFile == servicesBaseFile {
-		var wrapped map[string]struct {
-			Message string `json:"message"`
-		}
-		if err := json.Unmarshal(data, &wrapped); err == nil {
-			flat := make(map[string]string, len(wrapped))
-			for k, v := range wrapped {
-				flat[k] = v.Message
-			}
-			if b, mErr := json.Marshal(flat); mErr == nil {
-				data = b
-			}
-		}
-		var buf bytes.Buffer
-		if err := json.Indent(&buf, data, "", "    "); err == nil {
-			data = buf.Bytes()
-		}
+		data = normalizeServicesJSON(data)
 	}
 
 	name := filepath.Join(outputDir, code+".json")
