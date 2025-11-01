@@ -14,8 +14,6 @@ export interface AccordionItemProps {
 type Props = AccordionItemProps & {
   isOpen: boolean;
   onToggle: () => void;
-  onGroupToggle?: (groupId: string, enabled: boolean) => void;
-  groupEnabled?: boolean;
 };
 
 const AccordionItem = (props: Props) => {
@@ -25,10 +23,7 @@ const AccordionItem = (props: Props) => {
         children,
         isOpen,
         onToggle,
-        onGroupToggle,
-        groupEnabled = true,
         className = '',
-        disabled = false
     } = props;
     return (
         <section className={`accordion-item ${className}`} data-testid={`accordion-item-${id}`}>
@@ -48,19 +43,6 @@ const AccordionItem = (props: Props) => {
                         </span>
                         <h3 className="accordion-item__title">{title}</h3>
                     </button>
-
-                    {onGroupToggle && (
-                        <label className="accordion-item__group-switch">
-                            <input
-                                type="checkbox"
-                                checked={groupEnabled}
-                                onChange={(e) => onGroupToggle(id, e.target.checked)}
-                                className="custom-switch-input"
-                                disabled={disabled}
-                            />
-                            <span className="service__switch custom-switch-indicator"></span>
-                        </label>
-                    )}
                 </div>
             </header>
 
@@ -77,59 +59,59 @@ const AccordionItem = (props: Props) => {
     );
 };
 
-export class Accordion extends React.Component<{
-    items: any;
-    allowMultiple: boolean;
-    className: string;
-    onGroupToggle: any;
-    groupEnabledStates: object;
-}> {
-    static defaultProps = { allowMultiple: false, className: '', groupEnabledStates: {} };
+type AccordionProps = {
+    items: any[];
+    allowMultiple?: boolean;
+    className?: string;
+};
 
-    render() {
-        const { items, allowMultiple, className, onGroupToggle, groupEnabledStates } = this.props;
-        const [openItems, setOpenItems] = useState<Set<string>>(() => {
-            const defaultOpen = new Set<string>();
-            items.forEach((item: { defaultOpen: any; id: string }) => {
-                if (item.defaultOpen) {
-                    defaultOpen.add(item.id);
-                }
-            });
-            return defaultOpen;
+export const Accordion: React.FC<AccordionProps> = ({
+    items,
+    allowMultiple = false,
+    className = '',
+}) => {
+    const [openItems, setOpenItems] = useState<Set<string>>(() => {
+        const defaultOpen = new Set<string>();
+        items.forEach((item) => {
+            if (item.defaultOpen) {
+                defaultOpen.add(item.id);
+            }
         });
+        return defaultOpen;
+    });
 
-        const toggleItem = (itemId: string) => {
-            setOpenItems((prev) => {
-                const newOpenItems = new Set(prev);
+    const toggleItem = (itemId: string) => {
+        setOpenItems((prev) => {
+            const newOpenItems = new Set(prev);
 
-                if (newOpenItems.has(itemId)) {
-                    newOpenItems.delete(itemId);
-                } else {
-                    if (!allowMultiple) {
-                        newOpenItems.clear();
-                    }
-                    newOpenItems.add(itemId);
+            if (newOpenItems.has(itemId)) {
+                newOpenItems.delete(itemId);
+            } else {
+                if (!allowMultiple) {
+                    newOpenItems.clear();
                 }
+                newOpenItems.add(itemId);
+            }
 
-                return newOpenItems;
-            });
-        };
+            return newOpenItems;
+        });
+    };
 
-        return (
-            <div className={`accordion ${className}`}>
-                {items.map((item) => (
-                    <AccordionItem
-                        key={item.id}
-                        {...item}
-                        isOpen={openItems.has(item.id)}
-                        onToggle={() => toggleItem(item.id)}
-                        onGroupToggle={onGroupToggle}
-                        groupEnabled={groupEnabledStates[item.id] ?? true}
-                    />
-                ))}
-            </div>
-        );
-    }
-}
+    return (
+        <div className={`accordion ${className}`}>
+            {items.map((item) => (
+                <AccordionItem
+                    key={item.id}
+                    id={item.id}
+                    title={item.title}
+                    isOpen={openItems.has(item.id)}
+                    onToggle={() => toggleItem(item.id)}
+                >
+                    {item.children}
+                </AccordionItem>
+            ))}
+        </div>
+    );
+};
 
 export default Accordion;

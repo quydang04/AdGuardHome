@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 
 import { Trans, useTranslation } from 'react-i18next';
 
@@ -31,8 +31,7 @@ interface FormProps {
     processingSet: boolean;
 }
 
-const isServiceDisabled = (processing: boolean, processingSet: boolean) =>
-  processing || processingSet;
+const isServiceDisabled = (processing: boolean, processingSet: boolean) => processing || processingSet;
 
 export const Form = ({
     initialValues,
@@ -53,9 +52,7 @@ export const Form = ({
         defaultValues: { blocked_services: initialValues }
     });
 
-    const [masterEnabled, setMasterEnabled] = useState<boolean>(true);
-
-    const handleToggleAllServices = async (isSelected: boolean) => {
+    const setAllServicesState = (isSelected: boolean) => {
         blockedServices.forEach((service) => {
             if (!isServiceDisabled(processing, processingSet)) {
                 setValue(`blocked_services.${service.id}`, isSelected);
@@ -63,7 +60,7 @@ export const Form = ({
         });
     };
 
-    const handleToggleGroupServices = (groupId: string, isSelected: boolean) => {
+    const setGroupServicesState = (groupId: string, isSelected: boolean) => {
         if (isServiceDisabled(processing, processingSet)) {
             return;
         }
@@ -74,16 +71,9 @@ export const Form = ({
             });
     };
 
-    const handleMasterToggle = (next: boolean) => {
-        setMasterEnabled(next);
-    };
-
     const handleSubmitWithGroups = (values: FormValues) => {
         if (!values || !values.blocked_services) {
             return onSubmit(values);
-        }
-        if (!masterEnabled) {
-            return onSubmit({ blocked_services: {} });
         }
 
         const enabledIdsMap = Object.fromEntries(
@@ -98,23 +88,14 @@ export const Form = ({
     return (
         <form onSubmit={handleSubmit(handleSubmitWithGroups)}>
             <div className="form__group">
-                <ServiceField
-                    name="blocked_services_master"
-                    value={masterEnabled}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleMasterToggle(e.target.checked)}
-                    onBlur={() => {}}
-                    placeholder={t('blocked_services_global')}
-                    className="service--global"
-                    disabled={processing || processingSet}
-                />
                 <div className="blocked_services row mb-4">
                     <div className="col-6">
                         <button
                             type="button"
                             data-testid="blocked_services_block_all"
                             className="btn btn-secondary btn-block"
-                            disabled={processing || processingSet || !masterEnabled}
-                            onClick={() => handleToggleAllServices(true)}>
+                            disabled={processing || processingSet}
+                            onClick={() => setAllServicesState(true)}>
                             <Trans>block_all</Trans>
                         </button>
                     </div>
@@ -124,8 +105,8 @@ export const Form = ({
                             type="button"
                             data-testid="blocked_services_unblock_all"
                             className="btn btn-secondary btn-block"
-                            disabled={processing || processingSet || !masterEnabled}
-                            onClick={() => handleToggleAllServices(false)}>
+                            disabled={processing || processingSet}
+                            onClick={() => setAllServicesState(false)}>
                             <Trans>unblock_all</Trans>
                         </button>
                     </div>
@@ -143,8 +124,8 @@ export const Form = ({
                                             <button
                                                 type="button"
                                                 className="btn btn-secondary btn-block"
-                                                disabled={processing || processingSet || !masterEnabled}
-                                                onClick={() => handleToggleGroupServices(group.id, true)}
+                                                disabled={processing || processingSet}
+                                                onClick={() => setGroupServicesState(group.id, true)}
                                             >
                                                 <Trans>block_all</Trans>
                                             </button>
@@ -153,8 +134,8 @@ export const Form = ({
                                             <button
                                                 type="button"
                                                 className="btn btn-secondary btn-block"
-                                                disabled={processing || processingSet || !masterEnabled}
-                                                onClick={() => handleToggleGroupServices(group.id, false)}
+                                                disabled={processing || processingSet}
+                                                onClick={() => setGroupServicesState(group.id, false)}
                                             >
                                                 <Trans>unblock_all</Trans>
                                             </button>
@@ -174,12 +155,10 @@ export const Form = ({
                                                             data-testid={`blocked_services_${service.id}`}
                                                             data-groupid={`blocked_services_${service.group_id}`}
                                                             placeholder={service.name}
-                                                            disabled={
-                                                                isServiceDisabled(processing, processingSet)
-                                                                || !masterEnabled
-                                                            }
-                                                            icon={service.icon_svg} />
-                                                    )} />
+                                                            disabled={isServiceDisabled(processing, processingSet)}
+                                                            icon={service.icon_svg} 
+                                                        />
+                                                )} />
                                             ))}
                                     </div>
                                 </div>
@@ -188,7 +167,7 @@ export const Form = ({
                         };
                     })}
                     allowMultiple
-                    className="services-accordion" onGroupToggle={undefined}
+                    className="services-accordion"
                 />
             </div>
 
