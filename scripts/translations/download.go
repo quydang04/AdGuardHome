@@ -1,12 +1,12 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
-	"encoding/json"
-	"bytes"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -65,7 +65,7 @@ func (c *twoskyClient) downloadTo(
 		client: &http.Client{
 			Timeout: 10 * time.Second,
 		},
-		uriCh: uriCh,
+		uriCh:     uriCh,
 		outputDir: outputDir,
 		baseFile:  baseFile,
 	}
@@ -118,11 +118,11 @@ func printFailedLocales(
 // received from the channel to download translations and save them to files.
 // Failures are stored in the failed map.  All fields must not be nil.
 type downloadWorker struct {
-	ctx    context.Context
-	l      *slog.Logger
-	failed *syncutil.Map[string, struct{}]
-	client *http.Client
-	uriCh  <-chan *url.URL
+	ctx       context.Context
+	l         *slog.Logger
+	failed    *syncutil.Map[string, struct{}]
+	client    *http.Client
+	uriCh     <-chan *url.URL
 	outputDir string
 	baseFile  string
 }
@@ -158,8 +158,10 @@ func saveToFile(
 		return fmt.Errorf("getting translation %q: %s", code, err)
 	}
 
-	if baseFile == "services.json" {
-		var wrapped map[string]struct{ Message string `json:"message"` }
+	if baseFile == servicesBaseFile {
+		var wrapped map[string]struct {
+			Message string `json:"message"`
+		}
 		if err := json.Unmarshal(data, &wrapped); err == nil {
 			flat := make(map[string]string, len(wrapped))
 			for k, v := range wrapped {
