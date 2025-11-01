@@ -1,0 +1,14 @@
+{
+    "servicesgroup.ai.name": "ปัญญาประดิษฐ์",
+    "servicesgroup.cdn.name": "เครือข่ายการจัดส่งเนื้อหา (CDN)",
+    "servicesgroup.dating.name": "บริการหาคู่",
+    "servicesgroup.gambling.name": "การพนันและการเดิมพัน",
+    "servicesgroup.gaming.name": "การเล่นเกม",
+    "servicesgroup.hosting.name": "เว็บโฮสติ้ง",
+    "servicesgroup.messenger.name": "บริการส่งข้อความ",
+    "servicesgroup.privacy.name": "เครื่องมือความเป็นส่วนตัว",
+    "servicesgroup.shopping.name": "ช้อปปิ้ง",
+    "servicesgroup.social_network.name": "สังคมออนไลน์",
+    "servicesgroup.software.name": "การพัฒนาซอฟต์แวร์",
+    "servicesgroup.streaming.name": "บริการสตรีมมิ่ง"
+}

@@ -1,0 +1,14 @@
+{
+    "servicesgroup.ai.name": "කෘතිම බුද්ධිය",
+    "servicesgroup.cdn.name": "අන්තර්ගත බෙදාහැරීමේ ජාල (CDN)",
+    "servicesgroup.dating.name": "ආලය සේවා",
+    "servicesgroup.gambling.name": "සූදුව සහ ඔට්ටු ඇල්ලීම",
+    "servicesgroup.gaming.name": "ක්‍රීඩා කිරීම",
+    "servicesgroup.hosting.name": "වෙබ් සත්කාරකත්වය",
+    "servicesgroup.messenger.name": "පණිවිඩ සේවා",
+    "servicesgroup.privacy.name": "රහස්‍යතා මෙවලම්",
+    "servicesgroup.shopping.name": "සාප්පුයාම",
+    "servicesgroup.social_network.name": "සමාජ ජාල",
+    "servicesgroup.software.name": "මෘදුකාංග සංවර්ධනය",
+    "servicesgroup.streaming.name": "ප්‍රවාහ සේවා"
+}

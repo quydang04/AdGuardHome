@@ -28,7 +28,9 @@ import (
 const (
 	twoskyConfFile   = "./.twosky.json"
 	localesDir       = "./client/src/__locales"
+	servicesLocalesDir = "./client/src/__locales-services"
 	defaultBaseFile  = "en.json"
+	servicesBaseFile = "services.json"
 	defaultProjectID = "home"
 	srcDir           = "./client/src"
 	twoskyURI        = "https://twosky.int.agrd.dev/api/v1"
@@ -88,6 +90,11 @@ func main() {
 		cli = errors.Must(conf.toClient())
 
 		errors.Check(cli.download(ctx, l))
+	case "download-services":
+		cli = errors.Must(conf.toClient())
+
+		cli.projectID = "hostlists-registry"
+		errors.Check(cli.downloadTo(ctx, l, servicesLocalesDir, servicesBaseFile))
 	case "unused":
 		err := unused(ctx, l, conf.LocalizableFiles[0])
 		errors.Check(err)
@@ -114,6 +121,9 @@ Commands:
         Print summary.
   download [-n <count>]
         Download translations.  count is a number of concurrent downloads.
+  download-services [-n <count>]
+        Download services translations from 'hostlists-registry' project into
+        client/src/__locales-services.
   unused
         Print unused strings.
   upload

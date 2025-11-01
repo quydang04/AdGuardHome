@@ -85,7 +85,45 @@ const resources = {
 
 const availableLanguages = Object.keys(LANGUAGES);
 
-i18n.use(langDetect)
+const loadServicesTranslations = async (lng: string) => {
+    const currentLocale = lng.toLowerCase();
+    const baseLocale = BASE_LOCALE.toLowerCase();
+
+    const orderedLocales = ['en', baseLocale, currentLocale]
+        .filter(Boolean)
+        .filter((locale, idx, arr) => arr.indexOf(locale) === idx);
+
+    const localeDictionaries = await Promise.all(
+        orderedLocales.map(async (locale) => {
+            try {
+                const mod = await import(`./__locales-services/${locale}.json`);
+                const dictionary = (mod as any).default ?? (mod as any);
+                return dictionary && typeof dictionary === 'object'
+                    ? (dictionary as Record<string, string>)
+                    : null;
+            } catch {
+                return null;
+            }
+        })
+    );
+
+    const mergedDictionary = localeDictionaries.reduce<Record<string, string>>(
+        (acc, dictionary) => {
+            if (dictionary) Object.assign(acc, dictionary);
+            return acc;
+        },
+        {}
+    );
+
+    if (Object.keys(mergedDictionary).length > 0) {
+        i18n.addResourceBundle(currentLocale, 'translation', mergedDictionary, true, true);
+        await i18n.reloadResources([currentLocale], ['translation']);
+        (i18n as any).emit?.('loaded', { lng: currentLocale, ns: 'translation' });
+    }
+};
+
+i18n
+    .use(langDetect)
     .use(initReactI18next)
     .init(
         {
@@ -100,6 +138,7 @@ i18n.use(langDetect)
             },
             react: {
                 wait: true,
+                bindI18n: 'languageChanged loaded',
             },
             whitelist: availableLanguages,
         },
@@ -108,7 +147,13 @@ i18n.use(langDetect)
                 i18n.changeLanguage(BASE_LOCALE);
             }
             setHtmlLangAttr(i18n.language);
-        },
+
+            loadServicesTranslations(i18n.language).catch(() => {});
+        }
     );
+
+i18n.on('languageChanged', (lng) => {
+    loadServicesTranslations(lng).catch(() => {});
+});
 
 export default i18n;

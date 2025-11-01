@@ -1,0 +1,14 @@
+{
+    "servicesgroup.ai.name": "Inteligenţă artificială",
+    "servicesgroup.cdn.name": "Rețele de livrare a conținutului (CDN)",
+    "servicesgroup.dating.name": "Servicii de întâlniri",
+    "servicesgroup.gambling.name": "Jocuri de noroc și pariuri",
+    "servicesgroup.gaming.name": "Jocuri",
+    "servicesgroup.hosting.name": "Găzduire web",
+    "servicesgroup.messenger.name": "Servicii de mesagerie",
+    "servicesgroup.privacy.name": "Instrumente de confidențialitate",
+    "servicesgroup.shopping.name": "Cumpărături",
+    "servicesgroup.social_network.name": "Rețele sociale",
+    "servicesgroup.software.name": "Dezvoltare de program",
+    "servicesgroup.streaming.name": "Servicii de streaming"
+}

@@ -5,6 +5,8 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"encoding/json"
+	"bytes"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -22,6 +24,17 @@ import (
 
 // download and save all translations.
 func (c *twoskyClient) download(ctx context.Context, l *slog.Logger) (err error) {
+	return c.downloadTo(ctx, l, localesDir, defaultBaseFile)
+}
+
+// downloadTo downloads and saves all translations to the specified outputDir
+// using the specified baseFile name.
+func (c *twoskyClient) downloadTo(
+	ctx context.Context,
+	l *slog.Logger,
+	outputDir string,
+	baseFile string,
+) (err error) {
 	var numWorker int
 
 	flagSet := flag.NewFlagSet("download", flag.ExitOnError)
@@ -53,6 +66,13 @@ func (c *twoskyClient) download(ctx context.Context, l *slog.Logger) (err error)
 			Timeout: 10 * time.Second,
 		},
 		uriCh: uriCh,
+		outputDir: outputDir,
+		baseFile:  baseFile,
+	}
+
+	// Ensure output directory exists.
+	if err = os.MkdirAll(outputDir, 0o775); err != nil {
+		return fmt.Errorf("creating output dir: %w", err)
 	}
 
 	for range numWorker {
@@ -60,7 +80,7 @@ func (c *twoskyClient) download(ctx context.Context, l *slog.Logger) (err error)
 	}
 
 	for _, lang := range c.langs {
-		uri := translationURL(downloadURI, defaultBaseFile, c.projectID, lang)
+		uri := translationURL(downloadURI, baseFile, c.projectID, lang)
 
 		uriCh <- uri
 	}
@@ -103,6 +123,8 @@ type downloadWorker struct {
 	failed *syncutil.Map[string, struct{}]
 	client *http.Client
 	uriCh  <-chan *url.URL
+	outputDir string
+	baseFile  string
 }
 
 // run handles the channel of URLs, one by one.  It returns when the channel is
@@ -112,7 +134,7 @@ func (w *downloadWorker) run() {
 		q := uri.Query()
 		code := q.Get("language")
 
-		err := saveToFile(w.ctx, w.l, w.client, uri, code)
+		err := saveToFile(w.ctx, w.l, w.client, uri, code, w.outputDir, w.baseFile)
 		if err != nil {
 			w.l.ErrorContext(w.ctx, "download worker", slogutil.KeyError, err)
 			w.failed.Store(code, struct{}{})
@@ -128,13 +150,32 @@ func saveToFile(
 	client *http.Client,
 	uri *url.URL,
 	code string,
+	outputDir string,
+	baseFile string,
 ) (err error) {
 	data, err := getTranslation(ctx, l, client, uri.String())
 	if err != nil {
 		return fmt.Errorf("getting translation %q: %s", code, err)
 	}
 
-	name := filepath.Join(localesDir, code+".json")
+	if baseFile == "services.json" {
+		var wrapped map[string]struct{ Message string `json:"message"` }
+		if err := json.Unmarshal(data, &wrapped); err == nil {
+			flat := make(map[string]string, len(wrapped))
+			for k, v := range wrapped {
+				flat[k] = v.Message
+			}
+			if b, mErr := json.Marshal(flat); mErr == nil {
+				data = b
+			}
+		}
+		var buf bytes.Buffer
+		if err := json.Indent(&buf, data, "", "    "); err == nil {
+			data = buf.Bytes()
+		}
+	}
+
+	name := filepath.Join(outputDir, code+".json")
 	err = os.WriteFile(name, data, 0o664)
 	if err != nil {
 		return fmt.Errorf("writing file: %s", err)

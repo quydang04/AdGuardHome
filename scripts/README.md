@@ -208,6 +208,8 @@ Optional environment:
 
 - `go run ./scripts/translations download [-n <count>]`: download and save all translations. `n` is optional flag where count is a number of concurrent downloads.
 
+- `go run ./scripts/translations download-services [-n <count>]`: download and save service names translations (services.json) from the `hostlists-registry` project into `client/src/__locales-services`. `n` is an optional flag where count is the number of concurrent downloads.
+
 - `go run ./scripts/translations upload`: upload the base `en` locale.
 
 - `go run ./scripts/translations summary`: show the current locales summary.

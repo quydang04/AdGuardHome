@@ -1,0 +1,14 @@
+{
+    "servicesgroup.ai.name": "Umělá inteligence",
+    "servicesgroup.cdn.name": "Sítě pro doručování obsahu (CDN)",
+    "servicesgroup.dating.name": "Seznamovací služby",
+    "servicesgroup.gambling.name": "Hazardní hry a sázení",
+    "servicesgroup.gaming.name": "Hraní",
+    "servicesgroup.hosting.name": "Webhosting",
+    "servicesgroup.messenger.name": "Služby pro zasílání zpráv",
+    "servicesgroup.privacy.name": "Nástroje pro ochranu soukromí",
+    "servicesgroup.shopping.name": "Nakupování",
+    "servicesgroup.social_network.name": "Sociální sítě",
+    "servicesgroup.software.name": "Vývoj softwaru",
+    "servicesgroup.streaming.name": "Streamovací služby"
+}

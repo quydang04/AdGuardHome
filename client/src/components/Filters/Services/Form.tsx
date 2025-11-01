@@ -6,6 +6,7 @@ import { Controller, useForm } from 'react-hook-form';
 
 import { ServiceField } from './ServiceField';
 import { Accordion } from '../../ui/Accordion';
+import { preloadServicesLocale } from '../../../helpers/servicesI18n';
 
 export type BlockedService = {
     id: string;
@@ -41,7 +42,10 @@ export const Form = ({
     processingSet,
     onSubmit,
 }: FormProps) => {
-    const { t } = useTranslation();
+    const { t, i18n } = useTranslation();
+    React.useEffect(() => {
+        preloadServicesLocale(i18n.language).catch(() => {});
+    }, [i18n.language]);
     const {
         handleSubmit,
         control,
@@ -116,7 +120,7 @@ export const Form = ({
                     items={serviceGroups.map((group) => {
                         return {
                             id: group.id,
-                            title: t(group.id),
+                            title: t(`servicesgroup.${group.id}.name`),
                             children: (
                                 <div className="services__wrapper">
                                     <div className="row mb-3">
