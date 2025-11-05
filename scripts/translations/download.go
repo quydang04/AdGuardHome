@@ -22,19 +22,15 @@ import (
 	"github.com/AdguardTeam/golibs/syncutil"
 )
 
+const (
+	hostlistRegistryProjectID = "hostlists-registry"
+	jsonMessageKey            = "message"
+	jsonIndentPrefix          = ""
+	jsonIndentString          = "    "
+)
+
 // download and save all translations.
 func (c *twoskyClient) download(ctx context.Context, l *slog.Logger) (err error) {
-	return c.downloadTo(ctx, l, localesDir, defaultBaseFile)
-}
-
-// downloadTo downloads and saves all translations to the specified outputDir
-// using the specified baseFile name.
-func (c *twoskyClient) downloadTo(
-	ctx context.Context,
-	l *slog.Logger,
-	outputDir string,
-	baseFile string,
-) (err error) {
 	var numWorker int
 
 	flagSet := flag.NewFlagSet("download", flag.ExitOnError)
@@ -53,6 +49,29 @@ func (c *twoskyClient) downloadTo(
 		usage("count must be positive")
 	}
 
+	// download locales from AdGuard Home crowdin project
+	if err = c.downloadTo(ctx, l, localesDir, defaultBaseFile, numWorker); err != nil {
+		return err
+	}
+
+	// download services from AdGuard Hostlist Registry crowdin project
+	c.projectID = hostlistRegistryProjectID
+	if err = c.downloadTo(ctx, l, servicesLocalesDir, servicesBaseFile, numWorker); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// downloads and saves all translations to the specified outputDir
+// using the specified baseFile name.
+func (c *twoskyClient) downloadTo(
+	ctx context.Context,
+	l *slog.Logger,
+	outputDir string,
+	baseFile string,
+	numWorker int,
+) (err error) {
 	downloadURI := c.uri.JoinPath("download")
 
 	wg := &sync.WaitGroup{}
@@ -68,11 +87,6 @@ func (c *twoskyClient) downloadTo(
 		uriCh:     uriCh,
 		outputDir: outputDir,
 		baseFile:  baseFile,
-	}
-
-	// Ensure output directory exists.
-	if err = os.MkdirAll(outputDir, 0o775); err != nil {
-		return fmt.Errorf("creating output dir: %w", err)
 	}
 
 	for range numWorker {
@@ -93,40 +107,65 @@ func (c *twoskyClient) downloadTo(
 	return nil
 }
 
-func normalizeServicesJSON(data []byte) []byte {
-	if b, err := unwrapMessageJSON(data); err == nil {
-		data = b
+// extracts the "message" values into a flat map and returns the result
+// formatted with consistent JSON indentation
+func normalizeServicesJSON(data []byte) ([]byte, error) {
+	unwrapped, err := extractMessagesJSON(data)
+	if err != nil {
+		return nil, fmt.Errorf("normalize services json: extraction failed: %w", err)
 	}
-	if b, err := indentJSON(data); err == nil {
-		data = b
+
+	indented, err := indentJSON(unwrapped)
+	if err != nil {
+		return nil, fmt.Errorf("normalize services json: indentation failed: %w", err)
 	}
-	return data
+
+	return indented, nil
 }
 
-func unwrapMessageJSON(data []byte) ([]byte, error) {
-	var wrapped map[string]struct {
-		Message string `json:"message"`
+// converts a wrapped services JSON of shape
+// {"key": {"message": "..."}} into a flat {"key": "..."}
+func extractMessagesJSON(input []byte) ([]byte, error) {
+	var wrapped map[string]map[string]any
+	if err := json.Unmarshal(input, &wrapped); err != nil {
+		return nil, fmt.Errorf("extract json: unmarshal wrapped payload: %w", err)
 	}
-	if err := json.Unmarshal(data, &wrapped); err != nil {
-		return nil, err
+
+	flattened := make(map[string]string, len(wrapped))
+	for key, inner := range wrapped {
+		rawValue, ok := inner[jsonMessageKey]
+		if !ok {
+			return nil, fmt.Errorf("extract json: missing %q field for key %q", jsonMessageKey, key)
+		}
+
+		message, ok := rawValue.(string)
+		if !ok {
+			return nil, fmt.Errorf("extract json: %q field for key %q is not a string", jsonMessageKey, key)
+		}
+
+		flattened[key] = message
 	}
-	flat := make(map[string]string, len(wrapped))
-	for k, v := range wrapped {
-		flat[k] = v.Message
+
+	result, err := json.Marshal(flattened)
+	if err != nil {
+		return nil, fmt.Errorf("extract json: marshal flattened map: %w", err)
 	}
-	return json.Marshal(flat)
+
+	return result, nil
 }
 
-func indentJSON(data []byte) ([]byte, error) {
-	var buf bytes.Buffer
-	if err := json.Indent(&buf, data, "", "    "); err != nil {
-		return nil, err
+// formats JSON using the configured prefix and indent
+func indentJSON(data []byte) (b []byte, err error) {
+	var buffer bytes.Buffer
+
+	err = json.Indent(&buffer, data, jsonIndentPrefix, jsonIndentString)
+	if err != nil {
+		return nil, fmt.Errorf("indent json: formatting failed: %w", err)
 	}
-	return buf.Bytes(), nil
+
+	return buffer.Bytes(), nil
 }
 
-// printFailedLocales prints sorted list of failed downloads, if any.  l and
-// failed must not be nil.
 func printFailedLocales(
 	ctx context.Context,
 	l *slog.Logger,
@@ -191,7 +230,10 @@ func saveToFile(
 	}
 
 	if baseFile == servicesBaseFile {
-		data = normalizeServicesJSON(data)
+		data, err = normalizeServicesJSON(data)
+		if err != nil {
+			return fmt.Errorf("normalize services JSON for %q: %w", code, err)
+		}
 	}
 
 	name := filepath.Join(outputDir, code+".json")

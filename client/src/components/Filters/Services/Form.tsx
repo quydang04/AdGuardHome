@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 import { Trans, useTranslation } from 'react-i18next';
 
@@ -43,7 +43,7 @@ export const Form = ({
     onSubmit,
 }: FormProps) => {
     const { t, i18n } = useTranslation();
-    React.useEffect(() => {
+    useEffect(() => {
         preloadServicesLocale(i18n.language).catch(() => {});
     }, [i18n.language]);
     const {
