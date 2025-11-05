@@ -23,10 +23,9 @@ import (
 )
 
 const (
-	hostlistRegistryProjectID = "hostlists-registry"
-	jsonMessageKey            = "message"
-	jsonIndentPrefix          = ""
-	jsonIndentString          = "    "
+	jsonMessageKey   = "message"
+	jsonIndentPrefix = ""
+	jsonIndentString = "    "
 )
 
 // download and save all translations.

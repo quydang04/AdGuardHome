@@ -26,14 +26,15 @@ import (
 )
 
 const (
-	twoskyConfFile     = "./.twosky.json"
-	localesDir         = "./client/src/__locales"
-	servicesLocalesDir = "./client/src/__locales-services"
-	defaultBaseFile    = "en.json"
-	servicesBaseFile   = "services.json"
-	defaultProjectID   = "home"
-	srcDir             = "./client/src"
-	twoskyURI          = "https://twosky.int.agrd.dev/api/v1"
+	twoskyConfFile            = "./.twosky.json"
+	localesDir                = "./client/src/__locales"
+	servicesLocalesDir        = "./client/src/__locales-services"
+	defaultBaseFile           = "en.json"
+	servicesBaseFile          = "services.json"
+	defaultProjectID          = "home"
+	hostlistRegistryProjectID = "hostlists-registry"
+	srcDir                    = "./client/src"
+	twoskyURI                 = "https://twosky.int.agrd.dev/api/v1"
 
 	readLimit     = 1 * 1024 * 1024
 	uploadTimeout = 20 * time.Second
