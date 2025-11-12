@@ -1,14 +1,38 @@
 {
-    "servicesgroup.ai.name": "الذكاء الاصطناعي",
-    "servicesgroup.cdn.name": "شبكات توصيل المحتوى (CDN)",
-    "servicesgroup.dating.name": "خدمات المواعدة",
-    "servicesgroup.gambling.name": "القمار والمراهنة",
-    "servicesgroup.gaming.name": "الألعاب الرقمية",
-    "servicesgroup.hosting.name": "استضافة الويب",
-    "servicesgroup.messenger.name": "خدمات المراسلة",
-    "servicesgroup.privacy.name": "أدوات الخصوصية",
-    "servicesgroup.shopping.name": "التسوق",
-    "servicesgroup.social_network.name": "شبكات التواصل الإجتماعية",
-    "servicesgroup.software.name": "تطوير البرمجيات",
-    "servicesgroup.streaming.name": "خدمات البث المباشر"
+	"servicesgroup.ai.name": {
+		"message": "الذكاء الاصطناعي"
+	},
+	"servicesgroup.cdn.name": {
+		"message": "شبكات توصيل المحتوى (CDN)"
+	},
+	"servicesgroup.dating.name": {
+		"message": "خدمات المواعدة"
+	},
+	"servicesgroup.gambling.name": {
+		"message": "القمار والمراهنة"
+	},
+	"servicesgroup.gaming.name": {
+		"message": "الألعاب الرقمية"
+	},
+	"servicesgroup.hosting.name": {
+		"message": "استضافة الويب"
+	},
+	"servicesgroup.messenger.name": {
+		"message": "خدمات المراسلة"
+	},
+	"servicesgroup.privacy.name": {
+		"message": "أدوات الخصوصية"
+	},
+	"servicesgroup.shopping.name": {
+		"message": "التسوق"
+	},
+	"servicesgroup.social_network.name": {
+		"message": "شبكات التواصل الإجتماعية"
+	},
+	"servicesgroup.software.name": {
+		"message": "تطوير البرمجيات"
+	},
+	"servicesgroup.streaming.name": {
+		"message": "خدمات البث المباشر"
+	}
 }

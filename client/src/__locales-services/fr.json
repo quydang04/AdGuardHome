@@ -1,14 +1,38 @@
 {
-    "servicesgroup.ai.name": "Intelligence artificielle",
-    "servicesgroup.cdn.name": "Réseaux de distribution de contenu (CDN)",
-    "servicesgroup.dating.name": "Services de rencontres",
-    "servicesgroup.gambling.name": "Jeux de hasard et paris sportifs",
-    "servicesgroup.gaming.name": "Jeux vidéo",
-    "servicesgroup.hosting.name": "Hébergement Web",
-    "servicesgroup.messenger.name": "Services de messagerie",
-    "servicesgroup.privacy.name": "Outils de confidentialité",
-    "servicesgroup.shopping.name": "Shopping",
-    "servicesgroup.social_network.name": "Réseaux sociaux",
-    "servicesgroup.software.name": "Développement de logiciels",
-    "servicesgroup.streaming.name": "Services de streaming"
+	"servicesgroup.ai.name": {
+		"message": "Intelligence artificielle"
+	},
+	"servicesgroup.cdn.name": {
+		"message": "Réseaux de distribution de contenu (CDN)"
+	},
+	"servicesgroup.dating.name": {
+		"message": "Services de rencontres"
+	},
+	"servicesgroup.gambling.name": {
+		"message": "Jeux de hasard et paris sportifs"
+	},
+	"servicesgroup.gaming.name": {
+		"message": "Jeux vidéo"
+	},
+	"servicesgroup.hosting.name": {
+		"message": "Hébergement Web"
+	},
+	"servicesgroup.messenger.name": {
+		"message": "Services de messagerie"
+	},
+	"servicesgroup.privacy.name": {
+		"message": "Outils de confidentialité"
+	},
+	"servicesgroup.shopping.name": {
+		"message": "Shopping"
+	},
+	"servicesgroup.social_network.name": {
+		"message": "Réseaux sociaux"
+	},
+	"servicesgroup.software.name": {
+		"message": "Développement de logiciels"
+	},
+	"servicesgroup.streaming.name": {
+		"message": "Services de streaming"
+	}
 }

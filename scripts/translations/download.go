@@ -1,9 +1,7 @@
 package main
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
@@ -19,62 +17,22 @@ import (
 	"github.com/AdguardTeam/golibs/errors"
 	"github.com/AdguardTeam/golibs/ioutil"
 	"github.com/AdguardTeam/golibs/logutil/slogutil"
+	"github.com/AdguardTeam/golibs/netutil"
 	"github.com/AdguardTeam/golibs/syncutil"
-)
-
-const (
-	jsonMessageKey   = "message"
-	jsonIndentPrefix = ""
-	jsonIndentString = "    "
+	"github.com/AdguardTeam/golibs/validate"
 )
 
 // download and save all translations.
-func (c *twoskyClient) download(ctx context.Context, l *slog.Logger) (err error) {
-	var numWorker int
-
-	flagSet := flag.NewFlagSet("download", flag.ExitOnError)
-	flagSet.Usage = func() {
-		usage("download command error")
-	}
-	flagSet.IntVar(&numWorker, "n", 1, "number of concurrent downloads")
-
-	err = flagSet.Parse(os.Args[2:])
+func (c *twoskyClient) download(ctx context.Context, l *slog.Logger) {
+	numWorker, err := parseDownloadArgs()
 	if err != nil {
-		// Don't wrap the error since it's informative enough as is.
-		return err
+		usage(err.Error())
 	}
 
-	if numWorker < 1 {
-		usage("count must be positive")
-	}
-
-	// download locales from AdGuard Home crowdin project
-	if err = c.downloadTo(ctx, l, localesDir, defaultBaseFile, numWorker); err != nil {
-		return err
-	}
-
-	// download services from AdGuard Hostlist Registry crowdin project
-	c.projectID = hostlistRegistryProjectID
-	if err = c.downloadTo(ctx, l, servicesLocalesDir, servicesBaseFile, numWorker); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// downloads and saves all translations to the specified outputDir
-// using the specified baseFile name.
-func (c *twoskyClient) downloadTo(
-	ctx context.Context,
-	l *slog.Logger,
-	outputDir string,
-	baseFile string,
-	numWorker int,
-) (err error) {
 	downloadURI := c.uri.JoinPath("download")
 
 	wg := &sync.WaitGroup{}
-	uriCh := make(chan *url.URL, len(c.langs))
+	reqCh := make(chan downloadRequest, numWorker)
 
 	dw := &downloadWorker{
 		ctx:    ctx,
@@ -83,88 +41,48 @@ func (c *twoskyClient) downloadTo(
 		client: &http.Client{
 			Timeout: 10 * time.Second,
 		},
-		uriCh:     uriCh,
-		outputDir: outputDir,
-		baseFile:  baseFile,
+		reqCh: reqCh,
 	}
 
 	for range numWorker {
 		wg.Go(dw.run)
 	}
 
-	for _, lang := range c.langs {
-		uri := translationURL(downloadURI, baseFile, c.projectID, lang)
+	for _, baseFile := range c.localizableFiles {
+		dir, file := filepath.Split(baseFile)
 
-		uriCh <- uri
+		for _, lang := range c.langs {
+			uri := translationURL(downloadURI, file, c.projectID, lang)
+
+			reqCh <- downloadRequest{
+				uri: uri,
+				dir: dir,
+			}
+		}
 	}
 
-	close(uriCh)
+	close(reqCh)
 	wg.Wait()
 
 	printFailedLocales(ctx, l, dw.failed)
-
-	return nil
 }
 
-// extracts the "message" values into a flat map and returns the result
-// formatted with consistent JSON indentation
-func normalizeServicesJSON(data []byte) ([]byte, error) {
-	unwrapped, err := extractMessagesJSON(data)
+// parseDownloadArgs parses command-line arguments for the download command.
+func parseDownloadArgs() (numWorker int, err error) {
+	flagSet := flag.NewFlagSet("download", flag.ExitOnError)
+	flagSet.IntVar(&numWorker, "n", 1, "number of concurrent downloads")
+
+	err = flagSet.Parse(os.Args[2:])
 	if err != nil {
-		return nil, fmt.Errorf("normalize services json: extraction failed: %w", err)
+		// Don't wrap the error since it's informative enough as is.
+		return 0, err
 	}
 
-	indented, err := indentJSON(unwrapped)
-	if err != nil {
-		return nil, fmt.Errorf("normalize services json: indentation failed: %w", err)
-	}
-
-	return indented, nil
+	return numWorker, validate.Positive("count", numWorker)
 }
 
-// converts a wrapped services JSON of shape
-// {"key": {"message": "..."}} into a flat {"key": "..."}
-func extractMessagesJSON(input []byte) ([]byte, error) {
-	var wrapped map[string]map[string]any
-	if err := json.Unmarshal(input, &wrapped); err != nil {
-		return nil, fmt.Errorf("extract json: unmarshal wrapped payload: %w", err)
-	}
-
-	flattened := make(map[string]string, len(wrapped))
-	for key, inner := range wrapped {
-		rawValue, ok := inner[jsonMessageKey]
-		if !ok {
-			return nil, fmt.Errorf("extract json: missing %q field for key %q", jsonMessageKey, key)
-		}
-
-		message, ok := rawValue.(string)
-		if !ok {
-			return nil, fmt.Errorf("extract json: %q field for key %q is not a string", jsonMessageKey, key)
-		}
-
-		flattened[key] = message
-	}
-
-	result, err := json.Marshal(flattened)
-	if err != nil {
-		return nil, fmt.Errorf("extract json: marshal flattened map: %w", err)
-	}
-
-	return result, nil
-}
-
-// formats JSON using the configured prefix and indent
-func indentJSON(data []byte) (b []byte, err error) {
-	var buffer bytes.Buffer
-
-	err = json.Indent(&buffer, data, jsonIndentPrefix, jsonIndentString)
-	if err != nil {
-		return nil, fmt.Errorf("indent json: formatting failed: %w", err)
-	}
-
-	return buffer.Bytes(), nil
-}
-
+// printFailedLocales prints sorted list of failed downloads, if any.  l and
+// failed must not be nil.
 func printFailedLocales(
 	ctx context.Context,
 	l *slog.Logger,
@@ -188,23 +106,28 @@ func printFailedLocales(
 // received from the channel to download translations and save them to files.
 // Failures are stored in the failed map.  All fields must not be nil.
 type downloadWorker struct {
-	ctx       context.Context
-	l         *slog.Logger
-	failed    *syncutil.Map[string, struct{}]
-	client    *http.Client
-	uriCh     <-chan *url.URL
-	outputDir string
-	baseFile  string
+	ctx    context.Context
+	l      *slog.Logger
+	failed *syncutil.Map[string, struct{}]
+	client *http.Client
+	reqCh  <-chan downloadRequest
+}
+
+// downloadRequest is a request to download a translation.  All fields must not
+// be empty.
+type downloadRequest struct {
+	uri *url.URL
+	dir string
 }
 
 // run handles the channel of URLs, one by one.  It returns when the channel is
 // closed.  It's used to be run in a separate goroutine.
 func (w *downloadWorker) run() {
-	for uri := range w.uriCh {
-		q := uri.Query()
+	for req := range w.reqCh {
+		q := req.uri.Query()
 		code := q.Get("language")
 
-		err := saveToFile(w.ctx, w.l, w.client, uri, code, w.outputDir, w.baseFile)
+		err := saveToFile(w.ctx, w.l, w.client, req.uri, code, req.dir)
 		if err != nil {
 			w.l.ErrorContext(w.ctx, "download worker", slogutil.KeyError, err)
 			w.failed.Store(code, struct{}{})
@@ -220,22 +143,18 @@ func saveToFile(
 	client *http.Client,
 	uri *url.URL,
 	code string,
-	outputDir string,
-	baseFile string,
+	localesDir string,
 ) (err error) {
 	data, err := getTranslation(ctx, l, client, uri.String())
 	if err != nil {
 		return fmt.Errorf("getting translation %q: %s", code, err)
 	}
 
-	if baseFile == servicesBaseFile {
-		data, err = normalizeServicesJSON(data)
-		if err != nil {
-			return fmt.Errorf("normalize services JSON for %q: %w", code, err)
-		}
+	if data[len(data)-1] != '\n' {
+		data = append(data, '\n')
 	}
 
-	name := filepath.Join(outputDir, code+".json")
+	name := filepath.Join(localesDir, code+".json")
 	err = os.WriteFile(name, data, 0o664)
 	if err != nil {
 		return fmt.Errorf("writing file: %s", err)
@@ -247,7 +166,8 @@ func saveToFile(
 }
 
 // getTranslation returns received translation data and error.  If err is not
-// nil, data may contain a response from server for inspection.
+// nil, data may contain a response from server for inspection.  Otherwise, the
+// data is guaranteed to be non-empty.
 func getTranslation(
 	ctx context.Context,
 	l *slog.Logger,
@@ -267,17 +187,19 @@ func getTranslation(
 		// Go on and download the body for inspection.
 	}
 
-	limitReader := ioutil.LimitReader(resp.Body, readLimit)
+	limitReader := ioutil.LimitReader(resp.Body, readLimit.Bytes())
 
 	data, readErr := io.ReadAll(limitReader)
+	if readErr != nil {
+		return nil, errors.WithDeferred(err, readErr)
+	}
 
-	return data, errors.WithDeferred(err, readErr)
+	return data, validate.NotEmptySlice("response", data)
 }
 
 // translationURL returns a new url.URL with provided query parameters.
-func translationURL(oldURL *url.URL, baseFile, projectID string, lang langCode) (uri *url.URL) {
-	uri = &url.URL{}
-	*uri = *oldURL
+func translationURL(baseURL *url.URL, baseFile, projectID string, lang langCode) (uri *url.URL) {
+	uri = netutil.CloneURL(baseURL)
 
 	q := uri.Query()
 	q.Set("format", "json")

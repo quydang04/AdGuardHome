@@ -1,14 +1,38 @@
 {
-    "servicesgroup.ai.name": "Kunstmatige intelligentie",
-    "servicesgroup.cdn.name": "Content Delivery Networks (CDN)",
-    "servicesgroup.dating.name": "Datingdiensten",
-    "servicesgroup.gambling.name": "Gokken en wedden",
-    "servicesgroup.gaming.name": "Gamen",
-    "servicesgroup.hosting.name": "Webhosting",
-    "servicesgroup.messenger.name": "Berichtendiensten",
-    "servicesgroup.privacy.name": "Privacyhulpmiddelen",
-    "servicesgroup.shopping.name": "Winkelen",
-    "servicesgroup.social_network.name": "Sociale netwerken",
-    "servicesgroup.software.name": "Softwareontwikkeling",
-    "servicesgroup.streaming.name": "Streamingdiensten"
+	"servicesgroup.ai.name": {
+		"message": "Kunstmatige intelligentie"
+	},
+	"servicesgroup.cdn.name": {
+		"message": "Content Delivery Networks (CDN)"
+	},
+	"servicesgroup.dating.name": {
+		"message": "Datingdiensten"
+	},
+	"servicesgroup.gambling.name": {
+		"message": "Gokken en wedden"
+	},
+	"servicesgroup.gaming.name": {
+		"message": "Gamen"
+	},
+	"servicesgroup.hosting.name": {
+		"message": "Webhosting"
+	},
+	"servicesgroup.messenger.name": {
+		"message": "Berichtendiensten"
+	},
+	"servicesgroup.privacy.name": {
+		"message": "Privacyhulpmiddelen"
+	},
+	"servicesgroup.shopping.name": {
+		"message": "Winkelen"
+	},
+	"servicesgroup.social_network.name": {
+		"message": "Sociale netwerken"
+	},
+	"servicesgroup.software.name": {
+		"message": "Softwareontwikkeling"
+	},
+	"servicesgroup.streaming.name": {
+		"message": "Streamingdiensten"
+	}
 }

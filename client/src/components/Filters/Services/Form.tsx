@@ -186,7 +186,7 @@ export const Form = ({
                                                                 !masterEnabled
                                                                 || isServiceDisabled(processing, processingSet)
                                                             }
-                                                            icon={service.icon_svg} 
+                                                            icon={service.icon_svg}
                                                         />
                                                 )} />
                                             ))}

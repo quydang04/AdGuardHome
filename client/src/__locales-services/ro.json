@@ -1,14 +1,38 @@
 {
-    "servicesgroup.ai.name": "Inteligenţă artificială",
-    "servicesgroup.cdn.name": "Rețele de livrare a conținutului (CDN)",
-    "servicesgroup.dating.name": "Servicii de întâlniri",
-    "servicesgroup.gambling.name": "Jocuri de noroc și pariuri",
-    "servicesgroup.gaming.name": "Jocuri",
-    "servicesgroup.hosting.name": "Găzduire web",
-    "servicesgroup.messenger.name": "Servicii de mesagerie",
-    "servicesgroup.privacy.name": "Instrumente de confidențialitate",
-    "servicesgroup.shopping.name": "Cumpărături",
-    "servicesgroup.social_network.name": "Rețele sociale",
-    "servicesgroup.software.name": "Dezvoltare de program",
-    "servicesgroup.streaming.name": "Servicii de streaming"
+	"servicesgroup.ai.name": {
+		"message": "Inteligenţă artificială"
+	},
+	"servicesgroup.cdn.name": {
+		"message": "Rețele de livrare a conținutului (CDN)"
+	},
+	"servicesgroup.dating.name": {
+		"message": "Servicii de întâlniri"
+	},
+	"servicesgroup.gambling.name": {
+		"message": "Jocuri de noroc și pariuri"
+	},
+	"servicesgroup.gaming.name": {
+		"message": "Jocuri"
+	},
+	"servicesgroup.hosting.name": {
+		"message": "Găzduire web"
+	},
+	"servicesgroup.messenger.name": {
+		"message": "Servicii de mesagerie"
+	},
+	"servicesgroup.privacy.name": {
+		"message": "Instrumente de confidențialitate"
+	},
+	"servicesgroup.shopping.name": {
+		"message": "Cumpărături"
+	},
+	"servicesgroup.social_network.name": {
+		"message": "Rețele sociale"
+	},
+	"servicesgroup.software.name": {
+		"message": "Dezvoltare de program"
+	},
+	"servicesgroup.streaming.name": {
+		"message": "Servicii de streaming"
+	}
 }

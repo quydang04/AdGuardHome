@@ -1,14 +1,38 @@
 {
-    "servicesgroup.ai.name": "Artificiell intelligens",
-    "servicesgroup.cdn.name": "Innehållsleveransnätverk (CDN)",
-    "servicesgroup.dating.name": "Dejtingtjänster",
-    "servicesgroup.gambling.name": "Spel och vadslagning",
-    "servicesgroup.gaming.name": "Gaming",
-    "servicesgroup.hosting.name": "Webbhotell",
-    "servicesgroup.messenger.name": "Meddelandetjänster",
-    "servicesgroup.privacy.name": "Integritetsverktyg",
-    "servicesgroup.shopping.name": "Shopping",
-    "servicesgroup.social_network.name": "Sociala nätverk",
-    "servicesgroup.software.name": "Programvaruutveckling",
-    "servicesgroup.streaming.name": "Streamingtjänster"
+	"servicesgroup.ai.name": {
+		"message": "Artificiell intelligens"
+	},
+	"servicesgroup.cdn.name": {
+		"message": "Innehållsleveransnätverk (CDN)"
+	},
+	"servicesgroup.dating.name": {
+		"message": "Dejtingtjänster"
+	},
+	"servicesgroup.gambling.name": {
+		"message": "Spel och vadslagning"
+	},
+	"servicesgroup.gaming.name": {
+		"message": "Gaming"
+	},
+	"servicesgroup.hosting.name": {
+		"message": "Webbhotell"
+	},
+	"servicesgroup.messenger.name": {
+		"message": "Meddelandetjänster"
+	},
+	"servicesgroup.privacy.name": {
+		"message": "Integritetsverktyg"
+	},
+	"servicesgroup.shopping.name": {
+		"message": "Shopping"
+	},
+	"servicesgroup.social_network.name": {
+		"message": "Sociala nätverk"
+	},
+	"servicesgroup.software.name": {
+		"message": "Programvaruutveckling"
+	},
+	"servicesgroup.streaming.name": {
+		"message": "Streamingtjänster"
+	}
 }
