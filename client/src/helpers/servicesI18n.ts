@@ -39,18 +39,17 @@ export const getServiceTranslation = (t: (key: string) => any, key: string): str
     const currentLang = i18next.language?.toLowerCase() || 'en';
     const fallbackLangs = ['en', BASE_LOCALE.toLowerCase(), currentLang].filter((lang, idx, arr) => arr.indexOf(lang) === idx);
         
-    for (const lang of fallbackLangs) {
-        const servicesDict = cache[lang];
-        console.log('Checking cache for lang:', { lang, hasDict: !!servicesDict, hasKey: servicesDict?.[key] });
-        if (servicesDict && servicesDict[key]) {
-            const translation = servicesDict[key] as TranslationObject;
-            console.log('Found in cache:', { lang, key, translation });
-            if (typeof translation === 'string') {
-                return translation;
-            }
-            if (translation && typeof translation === 'object' && 'message' in translation) {
-                return translation.message;
-            }
+    const foundTranslation = fallbackLangs
+        .map(lang => ({ lang, servicesDict: cache[lang] }))
+        .find(({ servicesDict }) => servicesDict && servicesDict[key]);
+    
+    if (foundTranslation) {
+        const translation = foundTranslation.servicesDict[key] as TranslationObject;
+        if (typeof translation === 'string') {
+            return translation;
+        }
+        if (translation && typeof translation === 'object' && 'message' in translation) {
+            return translation.message;
         }
     }
     
