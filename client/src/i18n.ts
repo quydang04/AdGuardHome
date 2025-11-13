@@ -99,7 +99,7 @@ const loadServicesTranslations = async (lng: string) => {
                 const mod = await import(`./__locales-services/${locale}.json`);
                 const dictionary = (mod as any).default ?? (mod as any);
                 return dictionary && typeof dictionary === 'object'
-                    ? (dictionary as Record<string, string>)
+                    ? dictionary
                     : null;
             } catch {
                 return null;
@@ -107,7 +107,7 @@ const loadServicesTranslations = async (lng: string) => {
         })
     );
 
-    const mergedDictionary = localeDictionaries.reduce<Record<string, string>>(
+    const mergedDictionary = localeDictionaries.reduce<Record<string, any>>(
         (acc, dictionary) => {
             if (dictionary) Object.assign(acc, dictionary);
             return acc;
