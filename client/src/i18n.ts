@@ -94,13 +94,9 @@ import zhTWServices from './__locales-services/zh-tw.json';
 const convertServicesFormat = (
     services: Record<string, { message: string }>,
 ): Record<string, string> => {
-    const result: Record<string, string> = {};
-
-    for (const key in services) {
-        result[key] = services[key].message;
-    }
-
-    return result;
+    return Object.fromEntries(
+        Object.entries(services).map(([key, value]) => [key, value.message])
+    );
 };
 
 // Resources
