@@ -6,7 +6,6 @@ import { Controller, useForm } from 'react-hook-form';
 
 import { ServiceField } from './ServiceField';
 import { Accordion } from '../../ui/Accordion';
-import { preloadServicesLocale, getServiceTranslation } from '../../../helpers/servicesI18n';
 
 export type BlockedService = {
     id: string;
@@ -41,12 +40,10 @@ export const Form = ({
     onSubmit,
 }: FormProps) => {
     const { t, i18n } = useTranslation();
-    const [servicesLoaded, setServicesLoaded] = useState(false);
-    
+    const [servicesLoaded, setServicesLoaded] = useState(true);
+
     useEffect(() => {
-        preloadServicesLocale(i18n.language)
-            .then(() => setServicesLoaded(true))
-            .catch(() => setServicesLoaded(true)); // Still render even if loading fails
+        setServicesLoaded(true);
     }, [i18n.language]);
     const {
         handleSubmit,
@@ -128,23 +125,22 @@ export const Form = ({
                     className="service--global"
                     disabled={isBasicDisabled}
                 />
-                <div className="blocked_services row mb-4">
-                    <div className="col-6">
+                <div className="blocked_services row mb-3">
+                    <div className="col-12 col-md-6 mb-4 mb-md-0">
                         <button
                             type="button"
                             data-testid="blocked_services_block_all"
-                            className="btn btn-secondary btn-block"
+                            className="btn btn-secondary btn-block font-weight-normal"
                             disabled={isControlsDisabled}
                             onClick={() => handleToggleAllServices(true)}>
                             <Trans>block_all</Trans>
                         </button>
                     </div>
-
-                    <div className="col-6">
+                    <div className="col-12 col-md-6">
                         <button
                             type="button"
                             data-testid="blocked_services_unblock_all"
-                            className="btn btn-secondary btn-block"
+                            className="btn btn-secondary btn-block font-weight-normal"
                             disabled={isControlsDisabled}
                             onClick={() => handleToggleAllServices(false)}>
                             <Trans>unblock_all</Trans>
@@ -157,25 +153,25 @@ export const Form = ({
                         items={serviceGroups.map((group) => {
                             return {
                                 id: group.id,
-                                title: getServiceTranslation(t, `servicesgroup.${group.id}.name`),
+                                title: t(`servicesgroup.${group.id}.name`, { ns: 'services' }),
                                 disabled: processing || processingSet || !masterEnabled,
                             children: (
                                 <div className="services__wrapper">
                                     <div className="row mb-3">
-                                        <div className="col-6">
+                                        <div className="col-12 col-md-6 mb-4 mb-md-0">
                                             <button
                                                 type="button"
-                                                className="btn btn-secondary btn-block"
+                                                className="btn btn-secondary btn-block font-weight-normal"
                                                 disabled={isControlsDisabled}
                                                 onClick={() => handleToggleGroupServices(group.id, true)}
                                             >
                                                 <Trans>block_all</Trans>
                                             </button>
                                         </div>
-                                        <div className="col-6">
+                                        <div className="col-12 col-md-6">
                                             <button
                                                 type="button"
-                                                className="btn btn-secondary btn-block"
+                                                className="btn btn-secondary btn-block font-weight-normal"
                                                 disabled={isControlsDisabled}
                                                 onClick={() => handleToggleGroupServices(group.id, false)}
                                             >

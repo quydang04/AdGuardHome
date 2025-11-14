@@ -15,6 +15,10 @@
     overflow: hidden;
 }
 
+.services__wrapper {
+    padding: 8px;
+}
+
 @media screen and (min-width: 768px) {
     .services {
         display: flex;
