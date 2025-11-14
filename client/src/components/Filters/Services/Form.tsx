@@ -55,10 +55,9 @@ export const Form = ({
         defaultValues: { blocked_services: initialValues }
     });
 
-    const [masterEnabled, setMasterEnabled] = useState<boolean>(true);
+    const [masterEnabled] = useState<boolean>(true);
 
     const isBasicDisabled = processing || processingSet;
-    const isControlsDisabled = processing || processingSet || !masterEnabled;
     const isSubmitDisabled = processing || processingSet || isSubmitting;
 
     const servicesByGroup = useMemo(() => {
@@ -91,10 +90,6 @@ export const Form = ({
         });
     };
 
-    const handleMasterToggle = (next: boolean) => {
-        setMasterEnabled(next);
-    };
-
     const handleSubmitWithGroups = (values: FormValues) => {
         if (!values || !values.blocked_services) {
             return onSubmit(values);
@@ -116,22 +111,13 @@ export const Form = ({
     return (
         <form onSubmit={handleSubmit(handleSubmitWithGroups)}>
             <div className="form__group">
-                <ServiceField
-                    name="blocked_services_master"
-                    value={masterEnabled}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleMasterToggle(e.target.checked)}
-                    onBlur={() => {}}
-                    placeholder={t('blocked_services_global')}
-                    className="service--global"
-                    disabled={isBasicDisabled}
-                />
                 <div className="blocked_services row mb-3">
                     <div className="col-12 col-md-6 mb-4 mb-md-0">
                         <button
                             type="button"
                             data-testid="blocked_services_block_all"
                             className="btn btn-secondary btn-block font-weight-normal"
-                            disabled={isControlsDisabled}
+                            disabled={isBasicDisabled}
                             onClick={() => handleToggleAllServices(true)}>
                             <Trans>block_all</Trans>
                         </button>
@@ -141,7 +127,7 @@ export const Form = ({
                             type="button"
                             data-testid="blocked_services_unblock_all"
                             className="btn btn-secondary btn-block font-weight-normal"
-                            disabled={isControlsDisabled}
+                            disabled={isBasicDisabled}
                             onClick={() => handleToggleAllServices(false)}>
                             <Trans>unblock_all</Trans>
                         </button>
@@ -162,7 +148,7 @@ export const Form = ({
                                             <button
                                                 type="button"
                                                 className="btn btn-secondary btn-block font-weight-normal"
-                                                disabled={isControlsDisabled}
+                                                disabled={isBasicDisabled}
                                                 onClick={() => handleToggleGroupServices(group.id, true)}
                                             >
                                                 <Trans>block_all</Trans>
@@ -172,7 +158,7 @@ export const Form = ({
                                             <button
                                                 type="button"
                                                 className="btn btn-secondary btn-block font-weight-normal"
-                                                disabled={isControlsDisabled}
+                                                disabled={isBasicDisabled}
                                                 onClick={() => handleToggleGroupServices(group.id, false)}
                                             >
                                                 <Trans>unblock_all</Trans>
