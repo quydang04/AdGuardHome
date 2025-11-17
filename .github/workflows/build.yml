@@ -153,7 +153,7 @@ jobs:
             **Notice**: This development build is provided as-is and may contain unfinished changes.
 
       - name: Upload distribution artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: adguardhome-dist
           path: |
