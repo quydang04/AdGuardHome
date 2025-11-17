@@ -25,34 +25,13 @@ type topAddrsFloat = map[string]float64
 
 // StatsResp is a response to the GET /control/stats.
 type StatsResp struct {
-	TimeUnits string `json:"time_units"`
+	NumDNSQueries           uint64  `json:"num_dns_queries"`
+	NumBlockedFiltering     uint64  `json:"num_blocked_filtering"`
+	NumReplacedSafebrowsing uint64  `json:"num_replaced_safebrowsing"`
+	NumReplacedSafesearch   uint64  `json:"num_replaced_safesearch"`
+	NumReplacedParental     uint64  `json:"num_replaced_parental"`
+	AvgProcessingTime       float64 `json:"avg_processing_time"`
 
-	TopQueried []topAddrs `json:"top_queried_domains"`
-	TopClients []topAddrs `json:"top_clients"`
-	TopBlocked []topAddrs `json:"top_blocked_domains"`
-
-	TopUpstreamsResponses []topAddrs      `json:"top_upstreams_responses"`
-	TopUpstreamsAvgTime   []topAddrsFloat `json:"top_upstreams_avg_time"`
-
-	DNSQueries []uint64 `json:"dns_queries"`
-
-	BlockedFiltering     []uint64 `json:"blocked_filtering"`
-	ReplacedSafebrowsing []uint64 `json:"replaced_safebrowsing"`
-	ReplacedParental     []uint64 `json:"replaced_parental"`
-
-	NumDNSQueries           uint64 `json:"num_dns_queries"`
-	NumBlockedFiltering     uint64 `json:"num_blocked_filtering"`
-	NumReplacedSafebrowsing uint64 `json:"num_replaced_safebrowsing"`
-	NumReplacedSafesearch   uint64 `json:"num_replaced_safesearch"`
-	NumReplacedParental     uint64 `json:"num_replaced_parental"`
-
-	AvgProcessingTime float64 `json:"avg_processing_time"`
-}
-
-// StatsLiveResp is a lightweight statistics response used for frequent polling
-// by the UI outside of the dashboard.  It intentionally omits heavyweight
-// collections like top domains to keep the payload small.
-type StatsLiveResp struct {
 	TimeUnits string `json:"time_units"`
 
 	DNSQueries           []uint64 `json:"dns_queries"`
@@ -60,14 +39,31 @@ type StatsLiveResp struct {
 	ReplacedSafebrowsing []uint64 `json:"replaced_safebrowsing"`
 	ReplacedParental     []uint64 `json:"replaced_parental"`
 
-	NumDNSQueries           uint64 `json:"num_dns_queries"`
-	NumBlockedFiltering     uint64 `json:"num_blocked_filtering"`
-	NumReplacedSafebrowsing uint64 `json:"num_replaced_safebrowsing"`
-	NumReplacedSafesearch   uint64 `json:"num_replaced_safesearch"`
-	NumReplacedParental     uint64 `json:"num_replaced_parental"`
+	TopQueried            []topAddrs      `json:"top_queried_domains"`
+	TopClients            []topAddrs      `json:"top_clients"`
+	TopBlocked            []topAddrs      `json:"top_blocked_domains"`
+	TopUpstreamsResponses []topAddrs      `json:"top_upstreams_responses"`
+	TopUpstreamsAvgTime   []topAddrsFloat `json:"top_upstreams_avg_time"`
+}
 
-	AvgProcessingTime float64   `json:"avg_processing_time"`
-	GeneratedAt       time.Time `json:"generated_at"`
+// StatsLiveResp is a lightweight statistics response used for frequent polling
+// by the UI outside of the dashboard.  It intentionally omits heavyweight
+// collections like top domains to keep the payload small.
+type StatsLiveResp struct {
+	NumDNSQueries           uint64    `json:"num_dns_queries"`
+	NumBlockedFiltering     uint64    `json:"num_blocked_filtering"`
+	NumReplacedSafebrowsing uint64    `json:"num_replaced_safebrowsing"`
+	NumReplacedSafesearch   uint64    `json:"num_replaced_safesearch"`
+	NumReplacedParental     uint64    `json:"num_replaced_parental"`
+	AvgProcessingTime       float64   `json:"avg_processing_time"`
+	GeneratedAt             time.Time `json:"generated_at"`
+
+	TimeUnits string `json:"time_units"`
+
+	DNSQueries           []uint64 `json:"dns_queries"`
+	BlockedFiltering     []uint64 `json:"blocked_filtering"`
+	ReplacedSafebrowsing []uint64 `json:"replaced_safebrowsing"`
+	ReplacedParental     []uint64 `json:"replaced_parental"`
 }
 
 // newStatsLiveResp builds StatsLiveResp with fresh timestamps and slice copies.

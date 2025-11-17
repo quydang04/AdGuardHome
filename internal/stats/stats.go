@@ -105,6 +105,15 @@ type Interface interface {
 // StatsCtx collects the statistics and flushes it to the database.  Its default
 // flushing interval is one hour.
 type StatsCtx struct {
+	// limit is an upper limit for collecting statistics.
+	limit time.Duration
+
+	// watcherSeq generates unique identifiers for live statistics subscribers.
+	watcherSeq int64
+
+	// enabled tells if the statistics are enabled.
+	enabled bool
+
 	// logger is used for logging the operation of the statistics management.
 	// It must not be nil.
 	logger *slog.Logger
@@ -140,20 +149,11 @@ type StatsCtx struct {
 	// filename is the name of database file.
 	filename string
 
-	// limit is an upper limit for collecting statistics.
-	limit time.Duration
-
-	// enabled tells if the statistics are enabled.
-	enabled bool
-
 	// watchersMu protects watchers.
 	watchersMu *sync.RWMutex
 
 	// watchers stores notification channels for live statistics subscribers.
 	watchers map[int64]chan struct{}
-
-	// watcherSeq generates unique identifiers for live statistics subscribers.
-	watcherSeq int64
 }
 
 // New creates s from conf and properly initializes it.  Don't use s before
