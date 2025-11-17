@@ -65,6 +65,63 @@ export const addFilter =
         }
     };
 
+type BulkFilterConfig = {
+    url: string;
+    name?: string;
+};
+
+export const addFiltersBulk =
+    (filters: BulkFilterConfig[], whitelist = false) =>
+    async (dispatch: any, getState: any) => {
+        const normalizedFilters = filters
+            .map((filter) => ({
+                url: filter.url?.trim(),
+                name: filter.name?.trim() ?? '',
+            }))
+            .filter((filter) => !!filter.url);
+
+        if (normalizedFilters.length === 0) {
+            return;
+        }
+
+        dispatch(addFilterRequest());
+
+        const succeeded: BulkFilterConfig[] = [];
+
+        for (const filter of normalizedFilters) {
+            try {
+                await apiClient.addFilter({ url: filter.url, name: filter.name, whitelist });
+                succeeded.push(filter);
+            } catch (error) {
+                dispatch(addErrorToast({ error }));
+            }
+        }
+
+        if (succeeded.length > 0) {
+            const lastSuccess = succeeded[succeeded.length - 1];
+            dispatch(addFilterSuccess(lastSuccess.url));
+
+            if (getState().filtering.isModalOpen) {
+                dispatch(toggleFilteringModal());
+            }
+
+            if (succeeded.length === 1) {
+                dispatch(addSuccessToast('filter_added_successfully'));
+            } else {
+                dispatch(
+                    addSuccessToast({
+                        message: 'filters_added_successfully',
+                        options: { count: succeeded.length },
+                    }),
+                );
+            }
+
+            dispatch(getFilteringStatus());
+        } else {
+            dispatch(addFilterFailure());
+        }
+    };
+
 export const removeFilterRequest = createAction('REMOVE_FILTER_REQUEST');
 export const removeFilterFailure = createAction('REMOVE_FILTER_FAILURE');
 export const removeFilterSuccess = createAction('REMOVE_FILTER_SUCCESS');

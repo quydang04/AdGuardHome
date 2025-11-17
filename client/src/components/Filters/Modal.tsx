@@ -15,6 +15,7 @@ ReactModal.setAppElement('#root');
 const MODAL_TYPE_TO_TITLE_TYPE_MAP = {
     [MODAL_TYPE.EDIT_FILTERS]: 'edit',
     [MODAL_TYPE.ADD_FILTERS]: 'new',
+    [MODAL_TYPE.ADD_FILTERS_BULK]: 'new',
     [MODAL_TYPE.EDIT_CLIENT]: 'edit',
     [MODAL_TYPE.ADD_CLIENT]: 'new',
     [MODAL_TYPE.SELECT_MODAL_TYPE]: 'new',

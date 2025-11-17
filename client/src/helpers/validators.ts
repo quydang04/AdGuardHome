@@ -22,6 +22,7 @@ import {
 import { ip4ToInt, isValidAbsolutePath } from './form';
 
 import { isIpInCidr, parseSubnetMask } from './helpers';
+import { parseBulkFiltersInput } from './filteringBulk';
 
 // Validation functions
 // If the value is valid, the validation function should return undefined.
@@ -315,6 +316,23 @@ export const validatePath = (value: any) => {
     if (value && !isValidAbsolutePath(value) && !R_URL_REQUIRES_PROTOCOL.test(value)) {
         return i18next.t('form_error_url_or_path_format');
     }
+    return undefined;
+};
+
+export const validateBulkFilterUrls = (value: any) => {
+    if (!value) {
+        return undefined;
+    }
+
+    const entries = parseBulkFiltersInput(value);
+
+    for (const entry of entries) {
+        const error = validatePath(entry.url);
+        if (error) {
+            return error;
+        }
+    }
+
     return undefined;
 };
 

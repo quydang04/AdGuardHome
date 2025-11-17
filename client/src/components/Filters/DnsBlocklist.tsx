@@ -10,6 +10,7 @@ import Table from './Table';
 import { MODAL_TYPE } from '../../helpers/constants';
 
 import { getCurrentFilter } from '../../helpers/helpers';
+import { parseBulkFiltersInput } from '../../helpers/filteringBulk';
 
 import filtersCatalog from '../../helpers/filters/filters';
 import { FilteringData } from '../../initialState';
@@ -20,6 +21,7 @@ interface DnsBlocklistProps {
     removeFilter: (...args: unknown[]) => unknown;
     toggleFilterStatus: (...args: unknown[]) => unknown;
     addFilter: (...args: unknown[]) => unknown;
+    addFiltersBulk: (...args: unknown[]) => unknown;
     toggleFilteringModal: (...args: unknown[]) => unknown;
     handleRulesChange: (...args: unknown[]) => unknown;
     refreshFilters: (...args: unknown[]) => unknown;
@@ -32,7 +34,7 @@ class DnsBlocklist extends Component<DnsBlocklistProps> {
         this.props.getFilteringStatus();
     }
 
-    handleSubmit = (values: any) => {
+    handleSubmit = async (values: any) => {
         const { modalFilterUrl, modalType } = this.props.filtering;
 
         switch (modalType) {
@@ -43,6 +45,15 @@ class DnsBlocklist extends Component<DnsBlocklistProps> {
                 const { name, url } = values;
 
                 this.props.addFilter(url, name);
+                break;
+            }
+            case MODAL_TYPE.ADD_FILTERS_BULK: {
+                const { bulkUrls } = values;
+                const entries = parseBulkFiltersInput(bulkUrls);
+
+                if (entries.length > 0) {
+                    await this.props.addFiltersBulk(entries);
+                }
                 break;
             }
             case MODAL_TYPE.CHOOSE_FILTERING_LIST: {

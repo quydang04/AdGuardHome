@@ -22,9 +22,18 @@ const toasts = handleActions(
             return newState;
         },
         [addSuccessToast.toString()]: (state: any, { payload }: any) => {
+            const { message, options } =
+                typeof payload === 'string'
+                    ? { message: payload, options: undefined }
+                    : {
+                          message: payload?.message,
+                          options: payload?.options,
+                      };
+
             const successToast = {
                 id: nanoid(),
-                message: payload,
+                message,
+                options,
                 type: TOAST_TYPES.SUCCESS,
             };
 
