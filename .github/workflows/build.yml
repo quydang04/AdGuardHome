@@ -133,9 +133,11 @@ jobs:
           make SIGN=0 VERBOSE=1 VERSION="${{ env.VERSION }}" build-release
           rm -rf "${{ env.DIST_FOLDER }}/AdGuardHome_frontend.tar.gz"
       - name: Create development release
-        if: ${{ env.VERSION != env.DEV_VERSION_NAME && contains(env.VERSION, env.DEV_VERSION_CHECK) }}
+        if: ${{ contains(env.VERSION, env.DEV_VERSION_CHECK) }}
         uses: ncipollo/release-action@v1
         with:
+          tag: ${{ env.DEV_VERSION_NAME }}
+          allowUpdates: true
           prerelease: true
           artifacts: "${{ env.DIST_FOLDER }}/*.tar.gz,${{ env.DIST_FOLDER }}/*.zip,${{ env.DIST_FOLDER }}/checksums.txt"
           body: |
