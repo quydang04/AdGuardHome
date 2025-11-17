@@ -8,7 +8,7 @@ Run `make init` from the project root.
 
 ## `make/`: Makefile scripts
 
-The release channels are: `development` (the default), `edge`, `beta`, and `release`. If verbosity levels aren’t documented here, there are only two: `0`, don’t print anything, and `1`, be verbose.
+The release channels are: `release` (the default) and `development`. If verbosity levels aren’t documented here, there are only two: `0`, don’t print anything, and `1`, be verbose.
 
 ### `build-docker.sh`: Build a multi-architecture Docker image
 

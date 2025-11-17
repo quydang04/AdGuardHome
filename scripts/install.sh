@@ -6,6 +6,13 @@
 # expansion (-f), and consider undefined variables as errors (-u).
 set -e -f -u
 
+# Repository-specific defaults for the quydang04/AdGuardHome fork.
+repo_owner='quydang04'
+repo_name='AdGuardHome'
+repo_branch='master'
+dev_release_tag='dev-latest'
+readonly repo_owner repo_name repo_branch dev_release_tag
+
 # Function log is an echo wrapper that writes to stderr if the caller
 # requested verbosity level greater than 0.  Otherwise, it does nothing.
 log() {
@@ -169,15 +176,16 @@ parse_opts() {
 }
 
 # Function set_channel sets the channel if needed and validates the value.
+supported values are 'development', 'edge', 'beta', and 'release'"
 set_channel() {
 	# Validate.
 	case "$channel" in
-	'development' | 'edge' | 'beta' | 'release')
+	'development' | 'release')
 		# All is well, go on.
 		;;
 	*)
 		error_exit "invalid channel '$channel'
-supported values are 'development', 'edge', 'beta', and 'release'"
+supported values are 'development' and 'release'"
 		;;
 	esac
 
@@ -385,9 +393,17 @@ configure() {
 	check_out_dir
 
 	pkg_name="AdGuardHome_${os}_${cpu}.${pkg_ext}"
-	url="https://static.adtidy.org/adguardhome/${channel}/${pkg_name}"
+	release_base_url="https://github.com/${repo_owner}/${repo_name}/releases"
+	case "$channel" in
+	'release')
+		url="${release_base_url}/latest/download/${pkg_name}"
+		;;
+	'development')
+		url="${release_base_url}/download/${dev_release_tag}/${pkg_name}"
+		;;
+	esac
 	agh_dir="${out_dir}/AdGuardHome"
-	readonly pkg_name url agh_dir
+	readonly pkg_name url agh_dir release_base_url
 
 	log "AdGuard Home will be installed into $agh_dir"
 }
@@ -417,7 +433,7 @@ please, restart it with root privileges'
 #
 # TODO(e.burkov): Try to avoid restarting.
 rerun_with_root() {
-	script_url='https://raw.githubusercontent.com/AdguardTeam/AdGuardHome/master/scripts/install.sh'
+	script_url="https://raw.githubusercontent.com/${repo_owner}/${repo_name}/${repo_branch}/scripts/install.sh"
 	readonly script_url
 
 	r='-R'

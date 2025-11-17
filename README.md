@@ -74,24 +74,24 @@ It operates as a DNS server that re-routes tracking domains to a â€œblack holeâ€
 To install with `curl` run the following command:
 
 ```sh
-curl -s -S -L https://raw.githubusercontent.com/AdguardTeam/AdGuardHome/master/scripts/install.sh | sh -s -- -v
+curl -s -S -L https://raw.githubusercontent.com/quydang04/AdGuardHome/master/scripts/install.sh | sh -s -- -v
 ```
 
 To install with `wget` run the following command:
 
 ```sh
-wget --no-verbose -O - https://raw.githubusercontent.com/AdguardTeam/AdGuardHome/master/scripts/install.sh | sh -s -- -v
+wget --no-verbose -O - https://raw.githubusercontent.com/quydang04/AdGuardHome/master/scripts/install.sh | sh -s -- -v
 ```
 
 To install with `fetch` run the following command:
 
 ```sh
-fetch -o - https://raw.githubusercontent.com/AdguardTeam/AdGuardHome/master/scripts/install.sh | sh -s -- -v
+fetch -o - https://raw.githubusercontent.com/quydang04/AdGuardHome/master/scripts/install.sh | sh -s -- -v
 ```
 
 The script also accepts some options:
 
-- `-c <channel>` to use specified channel;
+- `-c <channel>` to select the channel (`release` or `development`);
 - `-r` to reinstall AdGuard Home;
 - `-u` to uninstall AdGuard Home;
 - `-v` for verbose output.
@@ -317,33 +317,17 @@ Please note that we don't expect people to contribute to both UI and backend par
 
 ### <a href="#test-unstable-versions" id="test-unstable-versions" name="test-unstable-versions">Test unstable versions</a>
 
-There are two update channels that you can use:
+There are two update channels that you can use with this fork:
 
-- `beta`: beta versions of AdGuard Home. More or less stable versions, usually released every two weeks or more often.
+- `release`: stable builds published via GitHub Releases.
 
-- `edge`: the newest version of AdGuard Home from the development branch. New updates are pushed to this channel daily.
+- `development`: rolling snapshots tagged as `dev-latest`.
 
-There are three options how you can install an unstable version:
+Install the development build with:
 
-1. [Snap Store]: look for the `beta` and `edge` channels.
-
-2. [Docker Hub]: look for the `beta` and `edge` tags.
-
-3. Standalone builds. Use the automated installation script or look for the available builds [on the Wiki][wiki-platf].
-
-   Script to install a beta version:
-
-   ```sh
-   curl -s -S -L https://raw.githubusercontent.com/AdguardTeam/AdGuardHome/master/scripts/install.sh | sh -s -- -c beta
-   ```
-
-   Script to install an edge version:
-
-   ```sh
-   curl -s -S -L https://raw.githubusercontent.com/AdguardTeam/AdGuardHome/master/scripts/install.sh | sh -s -- -c edge
-   ```
-
-[wiki-platf]: https://github.com/AdguardTeam/AdGuardHome/wiki/Platforms
+```sh
+curl -s -S -L https://raw.githubusercontent.com/quydang04/AdGuardHome/master/scripts/install.sh | sh -s -- -c development
+```
 
 ### <a href="#reporting-issues" id="reporting-issues" name="reporting-issues">Report issues</a>
 
