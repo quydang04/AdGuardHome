@@ -13,7 +13,7 @@ env:
   DIST_FOLDER: dist
   REGISTRY: ghcr.io
   DEV_VERSION_NAME: dev-latest
-  DEV_VERSION_CHECK: '-dev-'
+  DEV_VERSION_CHECK: 'dev-'
   BUILD_CHANNEL: release
 
 concurrency:
@@ -32,6 +32,7 @@ jobs:
       VERSION: ${{ github.ref_name }}
       NPM_CACHE_DIR: ''
       PREV_VERSION: master
+      PREV_VERSION_FOUND: 'false'
       CHANGE_LOGS: "* ${{ github.event.head_commit.message }}"
     steps:
       - uses: actions/checkout@v4.1.1
@@ -69,22 +70,31 @@ jobs:
           if git describe --tags --abbrev=0 >/tmp/prev_version 2>/dev/null; then
             PREV_VERSION=$(cat /tmp/prev_version)
             echo "PREV_VERSION=${PREV_VERSION}" >> "$GITHUB_ENV"
+            echo "PREV_VERSION_FOUND=true" >> "$GITHUB_ENV"
           else
             echo "PREV_VERSION=${{ env.PREV_VERSION }}" >> "$GITHUB_ENV"
+            echo "PREV_VERSION_FOUND=false" >> "$GITHUB_ENV"
             echo "No previous tag found; using fallback" >&2
           fi
       - name: Set change logs env
         if: ${{ !contains(env.VERSION, env.DEV_VERSION_CHECK) }}
         run: |
-          CHANGE_LOGS=$(git log --no-merges --pretty='format:* %h: %s' "${{ env.VERSION }}...${{ env.PREV_VERSION }}")
-          if [ -n "$CHANGE_LOGS" ]; then
-            {
-              echo 'CHANGE_LOGS<<EOF'
-              echo "$CHANGE_LOGS"
-              echo EOF
-            } >> "$GITHUB_ENV"
+          if git rev-parse -q --verify "${{ env.VERSION }}^{commit}" >/dev/null 2>&1 && \
+             git rev-parse -q --verify "${{ env.PREV_VERSION }}^{commit}" >/dev/null 2>&1; then
+            CHANGE_LOGS=$(git log --no-merges --pretty='format:* %h: %s' "${{ env.VERSION }}...${{ env.PREV_VERSION }}")
+            if [ -n "$CHANGE_LOGS" ]; then
+              {
+                echo 'CHANGE_LOGS<<EOF'
+                echo "$CHANGE_LOGS"
+                echo EOF
+              } >> "$GITHUB_ENV"
+            else
+              echo "CHANGE_LOGS=* $(git rev-parse --short HEAD): $(git log -1 --pretty=%s)" >> "$GITHUB_ENV"
+              echo "No log range entries; using latest commit message"
+            fi
           else
-            echo "Fallback to latest commit message for change log"
+            echo "CHANGE_LOGS=* $(git rev-parse --short HEAD): $(git log -1 --pretty=%s)" >> "$GITHUB_ENV"
+            echo "Unable to resolve range; using latest commit message"
           fi
 
       # Release build block
