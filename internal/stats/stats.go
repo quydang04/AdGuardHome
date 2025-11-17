@@ -108,9 +108,6 @@ type StatsCtx struct {
 	// limit is an upper limit for collecting statistics.
 	limit time.Duration
 
-	// watcherSeq generates unique identifiers for live statistics subscribers.
-	watcherSeq int64
-
 	// enabled tells if the statistics are enabled.
 	enabled bool
 
@@ -154,6 +151,9 @@ type StatsCtx struct {
 
 	// watchers stores notification channels for live statistics subscribers.
 	watchers map[int64]chan struct{}
+
+	// watcherSeq generates unique identifiers for live statistics subscribers.
+	watcherSeq int64
 }
 
 // New creates s from conf and properly initializes it.  Don't use s before
