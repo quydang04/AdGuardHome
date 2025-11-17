@@ -12,8 +12,8 @@ env:
   NODE_VERSION: '24.10.0'
   DIST_FOLDER: dist
   REGISTRY: ghcr.io
-  DEV_VERSION_NAME: v0.0.0-d.0
-  DEV_VERSION_CHECK: d.
+  DEV_VERSION_NAME: dev-latest
+  DEV_VERSION_CHECK: '-dev-'
   BUILD_CHANNEL: release
 
 concurrency:
@@ -45,9 +45,14 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-      - name: Normalize version for master branch
-        if: ${{ github.ref_name == 'master' }}
-        run: echo "VERSION=${{ env.DEV_VERSION_NAME }}" >> "$GITHUB_ENV"
+      - name: Compute version automatically
+        run: |
+          if git describe --tags --exact-match >/tmp/git_version 2>/dev/null; then
+            VERSION=$(cat /tmp/git_version)
+          else
+            VERSION="dev-$(date -u +%Y%m%d-%H%M%S)"
+          fi
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
       - name: Get npm cache directory
         id: npm-cache
         run: echo "NPM_CACHE_DIR=$(npm config get cache)" >> "$GITHUB_ENV"
@@ -59,7 +64,7 @@ jobs:
           key: ${{ format('{0}-node-{1}', runner.os, hashFiles('client/package-lock.json')) }}
           restore-keys: ${{ runner.os }}-node-
       - name: Set previous version env
-        if: ${{ env.VERSION != env.DEV_VERSION_NAME }}
+        if: ${{ !contains(env.VERSION, env.DEV_VERSION_CHECK) }}
         run: |
           PREV_VERSION=$(git describe --tags --abbrev=0 "${{ env.VERSION }}^")
           if [[ "$PREV_VERSION" == v* ]]; then
@@ -68,7 +73,7 @@ jobs:
             echo "Cannot find previous version. Using ${{ env.PREV_VERSION }} as fallback."
           fi
       - name: Set change logs env
-        if: ${{ env.VERSION != env.DEV_VERSION_NAME }}
+        if: ${{ !contains(env.VERSION, env.DEV_VERSION_CHECK) }}
         run: |
           CHANGE_LOGS=$(git log --no-merges --pretty='format:* %h: %s' "${{ env.VERSION }}...${{ env.PREV_VERSION }}")
           if [ -n "$CHANGE_LOGS" ]; then
