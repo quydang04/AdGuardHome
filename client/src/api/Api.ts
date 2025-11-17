@@ -565,42 +565,41 @@ class Api {
     }
 
     // Settings for statistics
-    GET_STATS = { path: 'stats', method: 'GET' };
-    GET_LIVE_STATS = { path: 'stats/live', method: 'GET' };
-    GET_LIVE_STATS_STREAM = { path: 'stats/live/stream', method: 'GET' };
-
-    GET_STATS_CONFIG = { path: 'stats/config', method: 'GET' };
-
-    UPDATE_STATS_CONFIG = { path: 'stats/config/update', method: 'PUT' };
-
-    STATS_RESET = { path: 'stats_reset', method: 'POST' };
+    STATS = {
+        GET: { path: 'stats', method: 'GET' },
+        LIVE: { path: 'stats/live', method: 'GET' },
+        LIVE_STREAM: { path: 'stats/live/stream', method: 'GET' },
+        CONFIG: { path: 'stats/config', method: 'GET' },
+        CONFIG_UPDATE: { path: 'stats/config/update', method: 'PUT' },
+        RESET: { path: 'stats_reset', method: 'POST' },
+    };
 
     getStats() {
-        const { path, method } = this.GET_STATS;
+        const { path, method } = this.STATS.GET;
 
         return this.makeRequest(path, method);
     }
 
     getLiveStats() {
-        const { path, method } = this.GET_LIVE_STATS;
+        const { path, method } = this.STATS.LIVE;
 
         return this.makeRequest(path, method);
     }
 
     getLiveStatsStreamUrl() {
-        const { path } = this.GET_LIVE_STATS_STREAM;
+        const { path } = this.STATS.LIVE_STREAM;
 
         return `${this.baseUrl}/${path}`;
     }
 
     getStatsConfig() {
-        const { path, method } = this.GET_STATS_CONFIG;
+        const { path, method } = this.STATS.CONFIG;
 
         return this.makeRequest(path, method);
     }
 
     setStatsConfig(data: any) {
-        const { path, method } = this.UPDATE_STATS_CONFIG;
+        const { path, method } = this.STATS.CONFIG_UPDATE;
         const config = {
             data,
         };
@@ -608,7 +607,7 @@ class Api {
     }
 
     resetStats() {
-        const { path, method } = this.STATS_RESET;
+        const { path, method } = this.STATS.RESET;
 
         return this.makeRequest(path, method);
     }

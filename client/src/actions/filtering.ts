@@ -86,16 +86,25 @@ export const addFiltersBulk =
 
         dispatch(addFilterRequest());
 
+        const settledResults = await Promise.allSettled(
+            normalizedFilters.map(async (filter) => {
+                await apiClient.addFilter({ url: filter.url, name: filter.name, whitelist });
+
+                return filter;
+            }),
+        );
+
         const succeeded: BulkFilterConfig[] = [];
 
-        for (const filter of normalizedFilters) {
-            try {
-                await apiClient.addFilter({ url: filter.url, name: filter.name, whitelist });
-                succeeded.push(filter);
-            } catch (error) {
-                dispatch(addErrorToast({ error }));
+        settledResults.forEach((result, index) => {
+            if (result.status === 'fulfilled') {
+                succeeded.push(normalizedFilters[index]);
+
+                return;
             }
-        }
+
+            dispatch(addErrorToast({ error: result.reason }));
+        });
 
         if (succeeded.length > 0) {
             const lastSuccess = succeeded[succeeded.length - 1];

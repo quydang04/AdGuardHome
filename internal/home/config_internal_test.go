@@ -3,6 +3,7 @@ package home
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/AdguardTeam/golibs/testutil"
@@ -25,10 +26,26 @@ func TestConfigFilePath(t *testing.T) {
 	brokenLinkPath := filepath.Join(workDir, brokenLinkConf)
 
 	err := os.Symlink(targetPath, linkPath)
-	require.NoError(t, err)
+	if err != nil {
+		if runtime.GOOS == "windows" {
+			t.Skipf("skipping symlink tests: %v", err)
+
+			return
+		}
+
+		require.NoError(t, err)
+	}
 
 	err = os.Symlink(missingPath, brokenLinkPath)
-	require.NoError(t, err)
+	if err != nil {
+		if runtime.GOOS == "windows" {
+			t.Skipf("skipping symlink tests: %v", err)
+
+			return
+		}
+
+		require.NoError(t, err)
+	}
 
 	f, err := os.Create(targetPath)
 	require.NoError(t, err)

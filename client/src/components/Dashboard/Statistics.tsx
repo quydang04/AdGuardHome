@@ -12,6 +12,39 @@ import { RootState } from '../../initialState';
 
 const getNormalizedHistory = (data: any, interval: any, id: any) => [{ data: normalizeHistory(data), id }];
 
+const BlocklistDomainsCard = () => {
+    const totalBlocklistDomains = useSelector<RootState, number>((state) =>
+        state.filtering.filters.reduce((acc: number, filter) => {
+            if (!filter.enabled) {
+                return acc;
+            }
+
+            return acc + (filter.rulesCount || 0);
+        }, 0),
+    );
+
+    const blocklistHistory = [
+        {
+            id: 'enabledBlocklistRules',
+            data: [
+                { x: 0, y: totalBlocklistDomains },
+                { x: 1, y: totalBlocklistDomains },
+            ],
+        },
+    ];
+
+    return (
+        <div className="col-sm-6 col-lg-3">
+            <StatsCard
+                total={totalBlocklistDomains}
+                lineData={blocklistHistory}
+                title={<Trans>domains_on_blocklists</Trans>}
+                color="purple"
+            />
+        </div>
+    );
+};
+
 interface StatisticsProps {
     interval: number;
     dnsQueries: number[];
@@ -101,36 +134,3 @@ const Statistics = ({
 );
 
 export default withTranslation()(Statistics);
-
-const BlocklistDomainsCard = () => {
-    const totalBlocklistDomains = useSelector<RootState, number>((state) =>
-        state.filtering.filters.reduce((acc: number, filter) => {
-            if (!filter.enabled) {
-                return acc;
-            }
-
-            return acc + (filter.rulesCount || 0);
-        }, 0),
-    );
-
-    const blocklistHistory = [
-        {
-            id: 'enabledBlocklistRules',
-            data: [
-                { x: 0, y: totalBlocklistDomains },
-                { x: 1, y: totalBlocklistDomains },
-            ],
-        },
-    ];
-
-    return (
-        <div className="col-sm-6 col-lg-3">
-            <StatsCard
-                total={totalBlocklistDomains}
-                lineData={blocklistHistory}
-                title={<Trans>domains_on_blocklists</Trans>}
-                color="purple"
-            />
-        </div>
-    );
-};

@@ -3,6 +3,7 @@
 package stats
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -87,6 +88,14 @@ func newStatsLiveResp(resp *StatsResp) *StatsLiveResp {
 	}
 }
 
+// currentLimit returns the current statistics retention limit.
+func (s *StatsCtx) currentLimit() time.Duration {
+	s.confMu.RLock()
+	defer s.confMu.RUnlock()
+
+	return s.limit
+}
+
 // handleStats is the handler for the GET /control/stats HTTP API.
 func (s *StatsCtx) handleStats(w http.ResponseWriter, r *http.Request) {
 	start := time.Now()
@@ -123,14 +132,7 @@ func (s *StatsCtx) handleStats(w http.ResponseWriter, r *http.Request) {
 func (s *StatsCtx) handleStatsLive(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	var limit time.Duration
-	func() {
-		s.confMu.RLock()
-		defer s.confMu.RUnlock()
-
-		limit = s.limit
-	}()
-
+	limit := s.currentLimit()
 	resp, ok := s.getData(uint32(limit.Hours()))
 	if !ok {
 		const msg = "Couldn't get statistics data"
@@ -162,44 +164,7 @@ func (s *StatsCtx) handleStatsStream(w http.ResponseWriter, r *http.Request) {
 	id, ch := s.registerWatcher()
 	defer s.unregisterWatcher(id)
 
-	send := func() bool {
-		var limit time.Duration
-		func() {
-			s.confMu.RLock()
-			defer s.confMu.RUnlock()
-
-			limit = s.limit
-		}()
-
-		resp, ok := s.getData(uint32(limit.Hours()))
-		if !ok {
-			aghhttp.ErrorAndLog(ctx, s.logger, r, w, http.StatusInternalServerError, "Couldn't get statistics data")
-
-			return false
-		}
-
-		live := newStatsLiveResp(resp)
-
-		data, err := json.Marshal(live)
-		if err != nil {
-			aghhttp.ErrorAndLog(ctx, s.logger, r, w, http.StatusInternalServerError, "json marshal: %s", err)
-
-			return false
-		}
-
-		_, err = fmt.Fprintf(w, "data: %s\n\n", data)
-		if err != nil {
-			s.logger.DebugContext(ctx, "writing stats stream", slogutil.KeyError, err)
-
-			return false
-		}
-
-		flusher.Flush()
-
-		return true
-	}
-
-	if !send() {
+	if !s.writeStatsStreamPayload(ctx, w, r, flusher) {
 		return
 	}
 
@@ -211,7 +176,7 @@ func (s *StatsCtx) handleStatsStream(w http.ResponseWriter, r *http.Request) {
 		case <-ctx.Done():
 			return
 		case <-ch:
-			if !send() {
+			if !s.writeStatsStreamPayload(ctx, w, r, flusher) {
 				return
 			}
 		case <-keepAlive.C:
@@ -223,6 +188,38 @@ func (s *StatsCtx) handleStatsStream(w http.ResponseWriter, r *http.Request) {
 			flusher.Flush()
 		}
 	}
+}
+
+// writeStatsStreamPayload prepares and sends the latest statistics payload via
+// Server-Sent Events.  It returns false if the caller should stop streaming.
+func (s *StatsCtx) writeStatsStreamPayload(ctx context.Context, w http.ResponseWriter, r *http.Request, flusher http.Flusher) bool {
+	limit := s.currentLimit()
+
+	resp, ok := s.getData(uint32(limit.Hours()))
+	if !ok {
+		aghhttp.ErrorAndLog(ctx, s.logger, r, w, http.StatusInternalServerError, "Couldn't get statistics data")
+
+		return false
+	}
+
+	live := newStatsLiveResp(resp)
+
+	data, err := json.Marshal(live)
+	if err != nil {
+		aghhttp.ErrorAndLog(ctx, s.logger, r, w, http.StatusInternalServerError, "json marshal: %s", err)
+
+		return false
+	}
+
+	if _, err = fmt.Fprintf(w, "data: %s\n\n", data); err != nil {
+		s.logger.DebugContext(ctx, "writing stats stream", slogutil.KeyError, err)
+
+		return false
+	}
+
+	flusher.Flush()
+
+	return true
 }
 
 // configResp is the response to the GET /control/stats_info.

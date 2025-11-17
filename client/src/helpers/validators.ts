@@ -326,7 +326,8 @@ export const validateBulkFilterUrls = (value: any) => {
 
     const entries = parseBulkFiltersInput(value);
 
-    for (const entry of entries) {
+    for (let index = 0; index < entries.length; index += 1) {
+        const entry = entries[index];
         const error = validatePath(entry.url);
         if (error) {
             return error;
