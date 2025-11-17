@@ -1,9 +1,7 @@
-name: Build and release
+name: Build dev and create development release
 
 on:
   push:
-    tags:
-      - 'v*'
     branches:
       - master
 
@@ -11,62 +9,37 @@ env:
   GO_VERSION: '1.25.3'
   NODE_VERSION: '24.10.0'
   DIST_FOLDER: dist
-  REGISTRY: ghcr.io
   DEV_VERSION_NAME: dev-latest
-  DEV_VERSION_CHECK: 'dev-'
-  BUILD_CHANNEL: release
-
-concurrency:
-  group: build_and_release
-  cancel-in-progress: true
 
 jobs:
-  build_and_release:
+  build_and_release_dev:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      packages: write
     env:
       GO111MODULE: on
       GOPROXY: https://proxy.golang.org,direct
-      VERSION: ${{ github.ref_name }}
-      NPM_CACHE_DIR: ''
-      PREV_VERSION: master
-      PREV_VERSION_FOUND: 'false'
+      VERSION: dev-${{ github.run_id }}
       CHANGE_LOGS: "* ${{ github.event.head_commit.message }}"
     steps:
       - uses: actions/checkout@v4.1.1
         with:
           fetch-depth: 0
+
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION }}
+
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-      - name: Compute version automatically
-        id: compute_version
-        run: |
-          if git describe --tags --exact-match >/tmp/git_version 2>/dev/null; then
-            VERSION=$(cat /tmp/git_version)
-            IS_DEV=false
-          else
-            VERSION="dev-$(date -u +%Y%m%d-%H%M%S)"
-            IS_DEV=true
-          fi
-          {
-            echo "VERSION=$VERSION"
-            echo "IS_DEV_BUILD=$IS_DEV"
-          } >> "$GITHUB_ENV"
-          {
-            echo "version=$VERSION"
-            echo "is_dev=$IS_DEV"
-          } >> "$GITHUB_OUTPUT"
+
       - name: Get npm cache directory
         id: npm-cache
         run: echo "NPM_CACHE_DIR=$(npm config get cache)" >> "$GITHUB_ENV"
+
       - name: Set up npm cache
         if: ${{ env.NPM_CACHE_DIR != '' }}
         uses: actions/cache@v4
@@ -74,92 +47,13 @@ jobs:
           path: ${{ env.NPM_CACHE_DIR }}
           key: ${{ format('{0}-node-{1}', runner.os, hashFiles('client/package-lock.json')) }}
           restore-keys: ${{ runner.os }}-node-
-      - name: Set previous version env
-        if: ${{ steps.compute_version.outputs.is_dev != 'true' }}
-        run: |
-          if git describe --tags --abbrev=0 >/tmp/prev_version 2>/dev/null; then
-            PREV_VERSION=$(cat /tmp/prev_version)
-            echo "PREV_VERSION=${PREV_VERSION}" >> "$GITHUB_ENV"
-            echo "PREV_VERSION_FOUND=true" >> "$GITHUB_ENV"
-          else
-            echo "PREV_VERSION=${{ env.PREV_VERSION }}" >> "$GITHUB_ENV"
-            echo "PREV_VERSION_FOUND=false" >> "$GITHUB_ENV"
-            echo "No previous tag found; using fallback" >&2
-          fi
-      - name: Set change logs env
-        if: ${{ steps.compute_version.outputs.is_dev != 'true' }}
-        run: |
-          if git rev-parse -q --verify "${{ env.VERSION }}^{commit}" >/dev/null 2>&1 && \
-             git rev-parse -q --verify "${{ env.PREV_VERSION }}^{commit}" >/dev/null 2>&1; then
-            CHANGE_LOGS=$(git log --no-merges --pretty='format:* %h: %s' "${{ env.VERSION }}...${{ env.PREV_VERSION }}")
-            if [ -n "$CHANGE_LOGS" ]; then
-              {
-                echo 'CHANGE_LOGS<<EOF'
-                echo "$CHANGE_LOGS"
-                echo EOF
-              } >> "$GITHUB_ENV"
-            else
-              echo "CHANGE_LOGS=* $(git rev-parse --short HEAD): $(git log -1 --pretty=%s)" >> "$GITHUB_ENV"
-              echo "No log range entries; using latest commit message"
-            fi
-          else
-            echo "CHANGE_LOGS=* $(git rev-parse --short HEAD): $(git log -1 --pretty=%s)" >> "$GITHUB_ENV"
-            echo "Unable to resolve range; using latest commit message"
-          fi
 
-      # Release build block
-      - name: Set up QEMU
-        if: ${{ steps.compute_version.outputs.is_dev != 'true' }}
-        uses: docker/setup-qemu-action@v3
-      - name: Set up Docker Buildx
-        if: ${{ steps.compute_version.outputs.is_dev != 'true' }}
-        uses: docker/setup-buildx-action@v3
-      - name: Log in to the Container registry
-        if: ${{ steps.compute_version.outputs.is_dev != 'true' }}
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Set beta build channel
-        if: ${{ contains(env.VERSION, 'b.') }}
-        run: echo "BUILD_CHANNEL=beta" >> "$GITHUB_ENV"
-      - name: Run release build
-        if: ${{ steps.compute_version.outputs.is_dev != 'true' }}
-        run: |
-          make SIGN=0 VERBOSE=1 CHANNEL="${{ env.BUILD_CHANNEL }}" DOCKER_IMAGE_NAME="${{ env.REGISTRY }}/quydang04/adguardhome" \
-            DOCKER_OUTPUT="type=image,name=${{ env.REGISTRY }}/quydang04/adguardhome,push=true" VERSION="${{ env.VERSION }}" \
-            build-release build-docker
-          rm -rf "${{ env.DIST_FOLDER }}/AdGuardHome_frontend.tar.gz"
-      - name: Create release
-        if: ${{ steps.compute_version.outputs.is_dev != 'true' }}
-        uses: ncipollo/release-action@v1
-        with:
-          prerelease: ${{ env.BUILD_CHANNEL != 'release' }}
-          artifacts: "${{ env.DIST_FOLDER }}/*.tar.gz,${{ env.DIST_FOLDER }}/*.zip,${{ env.DIST_FOLDER }}/checksums.txt"
-          body: |
-            ## ${{ env.BUILD_CHANNEL == 'release' && 'Stable' || 'Beta' }} release from quydang04/AdGuardHome
-
-            ### Build information:
-            * GO version: **${{ env.GO_VERSION }}**
-            * Node version: **${{ env.NODE_VERSION }}**
-            * Release version: **${{ env.VERSION }}**
-
-            ### What's changed:
-            ${{ env.CHANGE_LOGS }}
-
-            **Full Changelog**: https://github.com/quydang04/AdGuardHome/compare/${{ env.PREV_VERSION }}...${{ env.VERSION }}
-            **Notice**: This build is maintained in the quydang04 fork and may diverge from upstream AdGuardHome.
-
-
-      # Development build block
       - name: Run development build
-        if: ${{ steps.compute_version.outputs.is_dev == 'true' }}
         run: |
           make SIGN=0 VERBOSE=1 VERSION="${{ env.VERSION }}" build-release
           rm -rf "${{ env.DIST_FOLDER }}/AdGuardHome_frontend.tar.gz"
+
       - name: Create development release
-        if: ${{ steps.compute_version.outputs.is_dev == 'true' }}
         uses: ncipollo/release-action@v1
         with:
           tag: ${{ env.DEV_VERSION_NAME }}
@@ -177,7 +71,6 @@ jobs:
             ### What's changed:
             ${{ env.CHANGE_LOGS }}
 
-            **Full Changelog**: https://github.com/quydang04/AdGuardHome/compare/${{ env.PREV_VERSION }}...${{ env.VERSION }}
             **Notice**: This development build is provided as-is and may contain unfinished changes.
 
       - name: Upload distribution artifacts
