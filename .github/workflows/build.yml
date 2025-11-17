@@ -66,11 +66,12 @@ jobs:
       - name: Set previous version env
         if: ${{ !contains(env.VERSION, env.DEV_VERSION_CHECK) }}
         run: |
-          PREV_VERSION=$(git describe --tags --abbrev=0 "${{ env.VERSION }}^")
-          if [[ "$PREV_VERSION" == v* ]]; then
+          if git describe --tags --abbrev=0 >/tmp/prev_version 2>/dev/null; then
+            PREV_VERSION=$(cat /tmp/prev_version)
             echo "PREV_VERSION=${PREV_VERSION}" >> "$GITHUB_ENV"
           else
-            echo "Cannot find previous version. Using ${{ env.PREV_VERSION }} as fallback."
+            echo "PREV_VERSION=${{ env.PREV_VERSION }}" >> "$GITHUB_ENV"
+            echo "No previous tag found; using fallback" >&2
           fi
       - name: Set change logs env
         if: ${{ !contains(env.VERSION, env.DEV_VERSION_CHECK) }}
