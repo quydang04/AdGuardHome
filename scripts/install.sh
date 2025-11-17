@@ -2,9 +2,10 @@
 
 # AdGuard Home Installation Script
 
-# Exit the script if a pipeline fails (-e), prevent accidental filename
-# expansion (-f), and consider undefined variables as errors (-u).
-set -e -f -u
+# Exit the script if a pipeline fails (-e) and consider undefined variables as
+# errors (-u).  Dash on Debian/Ubuntu treats `set -f` differently when run via
+# `sh -s`, so we skip that flag to keep compatibility across shells.
+set -eu
 
 # Repository-specific defaults for the quydang04/AdGuardHome fork.
 repo_owner='quydang04'
