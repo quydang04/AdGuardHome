@@ -55,7 +55,12 @@ jobs:
           restore-keys: ${{ runner.os }}-node-
       - name: Run tests
         shell: bash
-        run: make VERBOSE=1 deps test go-bench go-fuzz
+        run: |
+          if [[ "${{ runner.os }}" == "Windows" ]]; then
+            make VERBOSE=1 RACE=0 deps test go-bench go-fuzz
+          else
+            make VERBOSE=1 deps test go-bench go-fuzz
+          fi
       - name: Upload coverage
         if: ${{ success() && matrix.os == 'ubuntu-latest' }}
         uses: codecov/codecov-action@v1

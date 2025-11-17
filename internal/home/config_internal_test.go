@@ -11,6 +11,26 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// requireSymlinkOrSkip tries to create a symlink and skips the test on Windows
+// when the operation is not permitted (for instance, on CI runners without
+// developer mode).
+func requireSymlinkOrSkip(t *testing.T, target, link string) {
+	t.Helper()
+
+	err := os.Symlink(target, link)
+	if err == nil {
+		return
+	}
+
+	if runtime.GOOS == "windows" {
+		t.Skipf("skipping symlink tests: %v", err)
+
+		return
+	}
+
+	require.NoError(t, err)
+}
+
 func TestConfigFilePath(t *testing.T) {
 	const (
 		realConf       = "real.yaml"
@@ -25,27 +45,8 @@ func TestConfigFilePath(t *testing.T) {
 	missingPath := filepath.Join(workDir, missingConf)
 	brokenLinkPath := filepath.Join(workDir, brokenLinkConf)
 
-	err := os.Symlink(targetPath, linkPath)
-	if err != nil {
-		if runtime.GOOS == "windows" {
-			t.Skipf("skipping symlink tests: %v", err)
-
-			return
-		}
-
-		require.NoError(t, err)
-	}
-
-	err = os.Symlink(missingPath, brokenLinkPath)
-	if err != nil {
-		if runtime.GOOS == "windows" {
-			t.Skipf("skipping symlink tests: %v", err)
-
-			return
-		}
-
-		require.NoError(t, err)
-	}
+	requireSymlinkOrSkip(t, targetPath, linkPath)
+	requireSymlinkOrSkip(t, missingPath, brokenLinkPath)
 
 	f, err := os.Create(targetPath)
 	require.NoError(t, err)

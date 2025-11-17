@@ -172,20 +172,19 @@ func (s *StatsCtx) handleStatsStream(w http.ResponseWriter, r *http.Request) {
 	defer keepAlive.Stop()
 
 	for {
+		var stop bool
+
 		select {
 		case <-ctx.Done():
 			return
 		case <-ch:
-			if !s.writeStatsStreamPayload(ctx, w, r, flusher) {
-				return
-			}
+			stop = !s.writeStatsStreamPayload(ctx, w, r, flusher)
 		case <-keepAlive.C:
-			if _, err := fmt.Fprint(w, ": ping\n\n"); err != nil {
-				s.logger.DebugContext(ctx, "writing keep-alive", slogutil.KeyError, err)
+			stop = !s.writeStatsStreamKeepAlive(ctx, w, flusher)
+		}
 
-				return
-			}
-			flusher.Flush()
+		if stop {
+			return
 		}
 	}
 }
@@ -213,6 +212,20 @@ func (s *StatsCtx) writeStatsStreamPayload(ctx context.Context, w http.ResponseW
 
 	if _, err = fmt.Fprintf(w, "data: %s\n\n", data); err != nil {
 		s.logger.DebugContext(ctx, "writing stats stream", slogutil.KeyError, err)
+
+		return false
+	}
+
+	flusher.Flush()
+
+	return true
+}
+
+// writeStatsStreamKeepAlive emits keep-alive events for SSE clients.  The
+// caller should stop streaming if it returns false.
+func (s *StatsCtx) writeStatsStreamKeepAlive(ctx context.Context, w http.ResponseWriter, flusher http.Flusher) bool {
+	if _, err := fmt.Fprint(w, ": ping\n\n"); err != nil {
+		s.logger.DebugContext(ctx, "writing keep-alive", slogutil.KeyError, err)
 
 		return false
 	}
