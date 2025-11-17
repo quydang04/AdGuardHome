@@ -151,3 +151,12 @@ jobs:
 
             **Full Changelog**: https://github.com/quydang04/AdGuardHome/compare/${{ env.PREV_VERSION }}...${{ env.VERSION }}
             **Notice**: This development build is provided as-is and may contain unfinished changes.
+
+      - name: Upload distribution artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: adguardhome-dist
+          path: |
+            ${{ env.DIST_FOLDER }}/*.tar.gz
+            ${{ env.DIST_FOLDER }}/*.zip
+            ${{ env.DIST_FOLDER }}/checksums.txt
