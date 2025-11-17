@@ -66,6 +66,21 @@ export const getStats = () => async (dispatch: any) => {
     }
 };
 
+export const getLiveStatsRequest = createAction('GET_LIVE_STATS_REQUEST');
+export const getLiveStatsFailure = createAction('GET_LIVE_STATS_FAILURE');
+export const getLiveStatsSuccess = createAction('GET_LIVE_STATS_SUCCESS');
+
+export const getLiveStats = () => async (dispatch: any) => {
+    dispatch(getLiveStatsRequest());
+    try {
+        const stats = await apiClient.getLiveStats();
+        dispatch(getLiveStatsSuccess(stats));
+    } catch (error) {
+        dispatch(addErrorToast({ error }));
+        dispatch(getLiveStatsFailure());
+    }
+};
+
 export const resetStatsRequest = createAction('RESET_STATS_REQUEST');
 export const resetStatsFailure = createAction('RESET_STATS_FAILURE');
 export const resetStatsSuccess = createAction('RESET_STATS_SUCCESS');

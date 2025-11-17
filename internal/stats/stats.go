@@ -145,6 +145,15 @@ type StatsCtx struct {
 
 	// enabled tells if the statistics are enabled.
 	enabled bool
+
+	// watchersMu protects watchers.
+	watchersMu *sync.RWMutex
+
+	// watchers stores notification channels for live statistics subscribers.
+	watchers map[int64]chan struct{}
+
+	// watcherSeq generates unique identifiers for live statistics subscribers.
+	watcherSeq int64
 }
 
 // New creates s from conf and properly initializes it.  Don't use s before
@@ -173,6 +182,8 @@ func New(conf Config) (s *StatsCtx, err error) {
 		shouldCountClient: conf.ShouldCountClient,
 		limit:             conf.Limit,
 		enabled:           conf.Enabled,
+		watchersMu:        &sync.RWMutex{},
+		watchers:          map[int64]chan struct{}{},
 	}
 
 	if s.unitIDGen = newUnitID; conf.UnitID != nil {
@@ -272,11 +283,12 @@ func (s *StatsCtx) Close() (err error) {
 // nil.
 func (s *StatsCtx) Update(e *Entry) {
 	s.confMu.Lock()
-	defer s.confMu.Unlock()
-
 	if !s.enabled || s.limit == 0 {
+		s.confMu.Unlock()
 		return
 	}
+	limit := s.limit
+	s.confMu.Unlock()
 
 	err := e.validate()
 	if err != nil {
@@ -286,15 +298,21 @@ func (s *StatsCtx) Update(e *Entry) {
 	}
 
 	s.currMu.Lock()
-	defer s.currMu.Unlock()
-
 	if s.curr == nil {
 		s.logger.Error("current unit is nil")
+		s.currMu.Unlock()
 
 		return
 	}
 
 	s.curr.add(e)
+	s.currMu.Unlock()
+
+	// Notify subscribers after updating the current statistics unit to avoid
+	// blocking the writer while holding internal locks.
+	if limit > 0 {
+		s.notifyWatchers()
+	}
 }
 
 // WriteDiskConfig implements the [Interface] interface for *StatsCtx.
@@ -626,6 +644,44 @@ func (s *StatsCtx) ShouldCount(host string, _, _ uint16, ids []string) bool {
 	}
 
 	return !s.isIgnored(host)
+}
+
+// registerWatcher adds a new live statistics subscriber and returns its id and
+// notification channel.
+func (s *StatsCtx) registerWatcher() (id int64, ch <-chan struct{}) {
+	chInternal := make(chan struct{}, 1)
+
+	id = atomic.AddInt64(&s.watcherSeq, 1)
+
+	s.watchersMu.Lock()
+	s.watchers[id] = chInternal
+	s.watchersMu.Unlock()
+
+	return id, chInternal
+}
+
+// unregisterWatcher removes the subscriber with the provided id.
+func (s *StatsCtx) unregisterWatcher(id int64) {
+	s.watchersMu.Lock()
+	if ch, ok := s.watchers[id]; ok {
+		delete(s.watchers, id)
+		close(ch)
+	}
+	s.watchersMu.Unlock()
+}
+
+// notifyWatchers sends a non-blocking signal to all live statistics
+// subscribers.
+func (s *StatsCtx) notifyWatchers() {
+	s.watchersMu.RLock()
+	defer s.watchersMu.RUnlock()
+
+	for _, ch := range s.watchers {
+		select {
+		case ch <- struct{}{}:
+		default:
+		}
+	}
 }
 
 // isIgnored returns true if the host is in the ignored domains list.  It

@@ -37,7 +37,6 @@ const Statistics = ({
     numReplacedParental,
 }: StatisticsProps) => (
     <div className="row">
-        <BlocklistDomainsCard />
         <div className="col-sm-6 col-lg-3">
             <StatsCard
                 total={numDnsQueries}
@@ -97,6 +96,7 @@ const Statistics = ({
                 color="yellow"
             />
         </div>
+        <BlocklistDomainsCard />
     </div>
 );
 

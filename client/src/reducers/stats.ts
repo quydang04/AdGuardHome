@@ -20,6 +20,7 @@ const defaultStats = {
     numReplacedSafesearch: 0,
     avgProcessingTime: 0,
     timeUnits: TIME_UNITS.HOURS,
+    liveGeneratedAt: null,
 };
 
 const stats = handleActions(
@@ -108,6 +109,31 @@ const stats = handleActions(
             return newState;
         },
 
+        [actions.getLiveStatsRequest.toString()]: (state: any) => ({
+            ...state,
+            processingLiveStats: true,
+        }),
+        [actions.getLiveStatsFailure.toString()]: (state: any) => ({
+            ...state,
+            processingLiveStats: false,
+        }),
+        [actions.getLiveStatsSuccess.toString()]: (state: any, { payload }: any) => ({
+            ...state,
+            processingLiveStats: false,
+            dnsQueries: payload.dns_queries || [],
+            blockedFiltering: payload.blocked_filtering || [],
+            replacedParental: payload.replaced_parental || [],
+            replacedSafebrowsing: payload.replaced_safebrowsing || [],
+            numDnsQueries: payload.num_dns_queries || 0,
+            numBlockedFiltering: payload.num_blocked_filtering || 0,
+            numReplacedParental: payload.num_replaced_parental || 0,
+            numReplacedSafebrowsing: payload.num_replaced_safebrowsing || 0,
+            numReplacedSafesearch: payload.num_replaced_safesearch || 0,
+            avgProcessingTime: payload.avg_processing_time || 0,
+            timeUnits: payload.time_units || state.timeUnits,
+            liveGeneratedAt: payload.generated_at || null,
+        }),
+
         [actions.resetStatsRequest.toString()]: (state: any) => ({
             ...state,
             processingReset: true,
@@ -127,6 +153,7 @@ const stats = handleActions(
         processingSetConfig: false,
         processingStats: true,
         processingReset: false,
+        processingLiveStats: false,
         interval: DAY,
         customInterval: null,
         ...defaultStats,

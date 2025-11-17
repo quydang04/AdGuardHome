@@ -66,6 +66,7 @@ class DnsAllowlist extends Component<DnsAllowlistProps> {
                     await this.props.addFiltersBulk(entries, whitelist);
                 }
                 break;
+            }
             default:
                 break;
         }

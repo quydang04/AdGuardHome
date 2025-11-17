@@ -566,6 +566,8 @@ class Api {
 
     // Settings for statistics
     GET_STATS = { path: 'stats', method: 'GET' };
+    GET_LIVE_STATS = { path: 'stats/live', method: 'GET' };
+    GET_LIVE_STATS_STREAM = { path: 'stats/live/stream', method: 'GET' };
 
     GET_STATS_CONFIG = { path: 'stats/config', method: 'GET' };
 
@@ -577,6 +579,18 @@ class Api {
         const { path, method } = this.GET_STATS;
 
         return this.makeRequest(path, method);
+    }
+
+    getLiveStats() {
+        const { path, method } = this.GET_LIVE_STATS;
+
+        return this.makeRequest(path, method);
+    }
+
+    getLiveStatsStreamUrl() {
+        const { path } = this.GET_LIVE_STATS_STREAM;
+
+        return `${this.baseUrl}/${path}`;
     }
 
     getStatsConfig() {

@@ -195,6 +195,7 @@ export type StatsData = {
     processingSetConfig: boolean;
     processingStats: boolean;
     processingReset: boolean;
+    processingLiveStats: boolean;
     interval: number;
     customInterval?: number;
     dnsQueries: number[];
@@ -219,6 +220,7 @@ export type StatsData = {
     enabled: boolean;
     topUpstreamsAvgTime: { name: string; count: number }[];
     topUpstreamsResponses: { name: string; count: number }[];
+    liveGeneratedAt: string | null;
 };
 
 export type ClientsData = {
@@ -603,6 +605,7 @@ export const initialState: RootState = {
         processingSetConfig: false,
         processingStats: true,
         processingReset: false,
+        processingLiveStats: false,
         interval: DAY,
         customInterval: null,
         dnsQueries: [],
@@ -622,6 +625,7 @@ export const initialState: RootState = {
         enabled: true,
         topUpstreamsAvgTime: [],
         topUpstreamsResponses: [],
+        liveGeneratedAt: null,
     },
     toasts: { notices: [] },
     loadingBar: {},
