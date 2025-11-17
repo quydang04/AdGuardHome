@@ -23,7 +23,7 @@ describe('parseBulkFiltersInput', () => {
         ]);
     });
 
-    it('keeps commas inside custom names', ()n => {
+    it('keeps commas inside custom names', () => {
         const input = 'https://example.org/ads.txt, Example, Ads';
         expect(parseBulkFiltersInput(input)).toStrictEqual([
             { url: 'https://example.org/ads.txt', name: 'Example, Ads' },

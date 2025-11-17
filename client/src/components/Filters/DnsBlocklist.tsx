@@ -7,9 +7,10 @@ import Card from '../ui/Card';
 import Modal from './Modal';
 import Actions from './Actions';
 import Table from './Table';
+import Summary from './Summary';
 import { MODAL_TYPE } from '../../helpers/constants';
 
-import { getCurrentFilter } from '../../helpers/helpers';
+import { Filter, getCurrentFilter } from '../../helpers/helpers';
 import { parseBulkFiltersInput } from '../../helpers/filteringBulk';
 
 import filtersCatalog from '../../helpers/filters/filters';
@@ -118,6 +119,13 @@ class DnsBlocklist extends Component<DnsBlocklistProps> {
             },
         } = this.props;
         const currentFilterData = getCurrentFilter(modalFilterUrl, filters);
+        const enabledFiltersRulesCount = filters.reduce((acc: number, filter: Filter) => {
+            if (!filter?.enabled) {
+                return acc;
+            }
+
+            return acc + (filter?.rulesCount || 0);
+        }, 0);
         const loading =
             processingConfigFilter ||
             processingFilters ||
@@ -133,6 +141,12 @@ class DnsBlocklist extends Component<DnsBlocklistProps> {
                     <div className="row">
                         <div className="col-md-12">
                             <Card subtitle={t('filters_and_hosts_hint')}>
+                                <Summary
+                                    label={t('domains_on_blocklists')}
+                                    hint={t('domains_on_blocklists_hint')}
+                                    total={enabledFiltersRulesCount}
+                                />
+
                                 <Table
                                     filters={filters}
                                     loading={loading}

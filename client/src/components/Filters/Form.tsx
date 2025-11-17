@@ -33,6 +33,7 @@ type Props = {
     toggleFilteringModal: ({ type }: { type?: keyof typeof MODAL_TYPE }) => void;
     selectedSources?: Record<string, boolean>;
     initialValues?: FormValues;
+    canChooseFromCatalog?: boolean;
 };
 
 export const Form = ({
@@ -45,6 +46,7 @@ export const Form = ({
     selectedSources,
     onSubmit,
     initialValues,
+    canChooseFromCatalog = true,
 }: Props) => {
     const { t } = useTranslation();
 
@@ -62,7 +64,12 @@ export const Form = ({
         setTimeout(() => toggleFilteringModal({ type: modalType }), timeout);
     };
 
-    const openFilteringListModal = () => openModal('CHOOSE_FILTERING_LIST');
+    const openFilteringListModal = () => {
+        if (!canChooseFromCatalog) {
+            return;
+        }
+        openModal('CHOOSE_FILTERING_LIST');
+    };
 
     const openAddFiltersModal = () => openModal('ADD_FILTERS');
 
@@ -75,19 +82,29 @@ export const Form = ({
 
     const showBulkFilterFields = modalType === MODAL_TYPE.ADD_FILTERS_BULK;
 
+    const bulkButtonKey = whitelist ? 'add_multiple_allowlists' : 'add_multiple_blocklists';
+    const bulkHintKey = whitelist ? 'bulk_allowlist_hint' : 'bulk_blocklist_hint';
+    const bulkPlaceholderKey = whitelist ? 'bulk_allowlist_placeholder' : 'bulk_blocklist_placeholder';
+
     return (
         <FormProvider {...methods}>
             <form onSubmit={handleSubmit(onSubmit)}>
                 <div className="modal-body modal-body--filters">
                     {modalType === MODAL_TYPE.SELECT_MODAL_TYPE && (
                         <div className="d-flex justify-content-around flex-wrap">
-                            <button
-                                onClick={openFilteringListModal}
-                                className="btn btn-success btn-standard mr-2 btn-large">
-                                {t('choose_from_list')}
-                            </button>
+                            {canChooseFromCatalog && (
+                                <button
+                                    type="button"
+                                    onClick={openFilteringListModal}
+                                    className="btn btn-success btn-standard mr-2 btn-large">
+                                    {t('choose_from_list')}
+                                </button>
+                            )}
 
-                            <button onClick={openAddFiltersModal} className="btn btn-primary btn-standard">
+                            <button
+                                type="button"
+                                onClick={openAddFiltersModal}
+                                className="btn btn-primary btn-standard">
                                 {t('add_custom_list')}
                             </button>
 
@@ -95,7 +112,7 @@ export const Form = ({
                                 type="button"
                                 onClick={openAddFiltersBulkModal}
                                 className="btn btn-secondary btn-standard mt-2">
-                                {t('add_multiple_blocklists')}
+                                {t(bulkButtonKey)}
                             </button>
                         </div>
                     )}
@@ -160,14 +177,14 @@ export const Form = ({
                                         {...field}
                                         rows={8}
                                         data-testid="filters_bulk_urls"
-                                        placeholder={t('bulk_blocklist_placeholder')}
+                                        placeholder={t(bulkPlaceholderKey)}
                                         error={fieldState.error?.message}
                                         trimOnBlur
                                     />
                                 )}
                             />
 
-                            <div className="form__description">{t('bulk_blocklist_hint')}</div>
+                            <div className="form__description">{t(bulkHintKey)}</div>
                         </div>
                     )}
                 </div>

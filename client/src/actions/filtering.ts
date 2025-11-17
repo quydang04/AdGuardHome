@@ -108,9 +108,13 @@ export const addFiltersBulk =
             if (succeeded.length === 1) {
                 dispatch(addSuccessToast('filter_added_successfully'));
             } else {
+                const successMessage = whitelist
+                    ? 'allowlists_added_successfully'
+                    : 'blocklists_added_successfully';
+
                 dispatch(
                     addSuccessToast({
-                        message: 'filters_added_successfully',
+                        message: successMessage,
                         options: { count: succeeded.length },
                     }),
                 );

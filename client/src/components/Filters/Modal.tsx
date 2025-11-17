@@ -66,6 +66,7 @@ interface ModalProps {
     whitelist?: boolean;
     filters: unknown[];
     filtersCatalog?: any;
+    canChooseFromCatalog?: boolean;
 }
 
 class Modal extends Component<ModalProps> {
@@ -86,6 +87,7 @@ class Modal extends Component<ModalProps> {
             filters,
             t,
             filtersCatalog,
+            canChooseFromCatalog = true,
         } = this.props;
 
         let initialValues;
@@ -95,6 +97,9 @@ class Modal extends Component<ModalProps> {
                 initialValues = currentFilterData;
                 break;
             case MODAL_TYPE.CHOOSE_FILTERING_LIST: {
+                if (!filtersCatalog) {
+                    break;
+                }
                 const catalogSourcesToIdMap = getMap(Object.values(filtersCatalog.filters), 'source', 'id');
 
                 const selectedValues = getSelectedValues(filters, catalogSourcesToIdMap);
@@ -133,6 +138,7 @@ class Modal extends Component<ModalProps> {
                         closeModal={this.closeModal}
                         whitelist={whitelist}
                         toggleFilteringModal={toggleFilteringModal}
+                        canChooseFromCatalog={canChooseFromCatalog}
                     />
                 </div>
             </ReactModal>

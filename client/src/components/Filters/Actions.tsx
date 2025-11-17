@@ -10,13 +10,13 @@ interface ActionsProps {
 
 const Actions = ({ handleAdd, handleRefresh, processingRefreshFilters, whitelist }: ActionsProps) => (
     <div className="card-actions">
-        <button className="btn btn-success btn-standard mr-2 btn-large mb-2" type="submit" onClick={handleAdd}>
+        <button className="btn btn-success btn-standard mr-2 btn-large mb-2" type="button" onClick={handleAdd}>
             {whitelist ? <Trans>add_allowlist</Trans> : <Trans>add_blocklist</Trans>}
         </button>
 
         <button
             className="btn btn-primary btn-standard mb-2"
-            type="submit"
+            type="button"
             onClick={handleRefresh}
             disabled={processingRefreshFilters}>
             <Trans>check_updates_btn</Trans>

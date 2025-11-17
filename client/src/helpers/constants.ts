@@ -57,6 +57,7 @@ export const STATUS_COLORS = {
     red: '#cd201f',
     green: '#5eba00',
     yellow: '#f1c40f',
+    purple: '#8e44ad',
 };
 
 export const REPOSITORY = {
@@ -483,6 +484,8 @@ export const TOAST_TIMEOUTS = {
     [TOAST_TYPES.ERROR]: FAILURE_TOAST_TIMEOUT,
     [TOAST_TYPES.NOTICE]: FAILURE_TOAST_TIMEOUT,
 };
+
+export const DASHBOARD_REFRESH_INTERVAL_MS = 5000;
 
 export const ADDRESS_TYPES = {
     IP: 'IP',

@@ -46,6 +46,7 @@ import Services from '../Filters/Services';
 import Logs from '../Logs';
 import ProtectionTimer from '../ProtectionTimer';
 import { RootState } from '../../initialState';
+import GlobalStatsWatcher from './GlobalStatsWatcher';
 
 const ROUTES = [
     {
@@ -186,6 +187,7 @@ const App = () => {
 
     return (
         <HashRouter hashType="noslash">
+            <GlobalStatsWatcher />
             {updateAvailable && (
                 <>
                     <UpdateTopline />

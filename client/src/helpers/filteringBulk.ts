@@ -5,8 +5,6 @@ export type BulkFilterEntry = {
     name?: string;
 };
 
-const splitLine = (line: string) => line.split(',').map((part) => part.trim());
-
 /**
  * Parses user-provided bulk filter input. Each line should contain a URL and an optional
  * name separated by a comma. Lines are trimmed, empty entries get removed.
@@ -22,21 +20,25 @@ export const parseBulkFiltersInput = (input?: string): BulkFilterEntry[] => {
         return [];
     }
 
-    return normalized.split('\n').reduce<BulkFilterEntry[]>((acc, rawLine) => {
+    return normalized.split('\n').reduce((acc, rawLine) => {
         if (!rawLine) {
             return acc;
         }
 
-        const [urlPart = '', ...nameParts] = splitLine(rawLine);
+        const commaIndex = rawLine.indexOf(',');
+
+        const urlPart = commaIndex >= 0 ? rawLine.slice(0, commaIndex) : rawLine;
+        const namePart = commaIndex >= 0 ? rawLine.slice(commaIndex + 1) : '';
+
         const url = urlPart.trim();
 
         if (!url) {
             return acc;
         }
 
-        const name = nameParts.join(',').trim();
+        const name = namePart.trim();
         acc.push({ url, name });
 
         return acc;
-    }, []);
+    }, [] as BulkFilterEntry[]);
 };

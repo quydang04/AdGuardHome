@@ -70,6 +70,15 @@ const Counters = ({ refreshButton, subtitle }: CountersProps) => {
         avgProcessingTime,
         timeUnits,
     } = useSelector<RootState, RootState['stats']>((state) => state.stats, shallowEqual);
+    const totalBlocklistDomains = useSelector<RootState, number>((state) =>
+        state.filtering.filters.reduce((acc: number, filter) => {
+            if (!filter.enabled) {
+                return acc;
+            }
+
+            return acc + (filter.rulesCount || 0);
+        }, 0),
+    );
     const { t } = useTranslation();
 
     const dnsQueryTooltip =
@@ -107,6 +116,11 @@ const Counters = ({ refreshButton, subtitle }: CountersProps) => {
             count: formatNumber(numReplacedParental),
             tooltipTitle: 'number_of_dns_query_blocked_24_hours_adult',
             response_status: RESPONSE_FILTER.BLOCKED_ADULT_WEBSITES.QUERY,
+        },
+        {
+            label: 'domains_on_blocklists',
+            count: formatNumber(totalBlocklistDomains),
+            tooltipTitle: 'domains_on_blocklists_hint',
         },
         {
             label: 'enforced_save_search',

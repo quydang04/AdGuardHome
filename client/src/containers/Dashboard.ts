@@ -3,6 +3,7 @@ import { connect } from 'react-redux';
 import { toggleProtection, getClients } from '../actions';
 import { getStats, getStatsConfig } from '../actions/stats';
 import { getAccessList } from '../actions/access';
+import { getFilteringStatus } from '../actions/filtering';
 
 import Dashboard from '../components/Dashboard';
 import { RootState } from '../initialState';
@@ -19,6 +20,7 @@ type DispatchProps = {
     getStats: (...args: unknown[]) => unknown;
     getStatsConfig: (...args: unknown[]) => unknown;
     getAccessList: () => (dispatch: any) => void;
+    getFilteringStatus: (...args: unknown[]) => unknown;
 };
 
 const mapDispatchToProps: DispatchProps = {
@@ -27,6 +29,7 @@ const mapDispatchToProps: DispatchProps = {
     getStats,
     getStatsConfig,
     getAccessList,
+    getFilteringStatus,
 };
 
 export default connect(mapStateToProps, mapDispatchToProps)(Dashboard);

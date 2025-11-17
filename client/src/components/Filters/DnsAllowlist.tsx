@@ -6,10 +6,12 @@ import Card from '../ui/Card';
 import Modal from './Modal';
 import Actions from './Actions';
 import Table from './Table';
+import Summary from './Summary';
 
 import { MODAL_TYPE } from '../../helpers/constants';
 
-import { getCurrentFilter } from '../../helpers/helpers';
+import { Filter, getCurrentFilter } from '../../helpers/helpers';
+import { parseBulkFiltersInput } from '../../helpers/filteringBulk';
 
 interface DnsAllowlistProps {
     getFilteringStatus: (...args: unknown[]) => unknown;
@@ -28,6 +30,7 @@ interface DnsAllowlistProps {
     removeFilter: (...args: unknown[]) => unknown;
     toggleFilterStatus: (...args: unknown[]) => unknown;
     addFilter: (...args: unknown[]) => unknown;
+    addFiltersBulk: (...args: unknown[]) => unknown;
     toggleFilteringModal: (...args: unknown[]) => unknown;
     handleRulesChange: (...args: unknown[]) => unknown;
     refreshFilters: (...args: unknown[]) => unknown;
@@ -35,21 +38,36 @@ interface DnsAllowlistProps {
     t: (...args: unknown[]) => string;
 }
 
+const canChooseFromCatalog = false;
+
 class DnsAllowlist extends Component<DnsAllowlistProps> {
     componentDidMount() {
         this.props.getFilteringStatus();
     }
 
-    handleSubmit = (values: any) => {
-        const { name, url } = values;
-
+    handleSubmit = async (values: any) => {
         const { filtering } = this.props;
         const whitelist = true;
 
-        if (filtering.modalType === MODAL_TYPE.EDIT_FILTERS) {
-            this.props.editFilter(filtering.modalFilterUrl, values, whitelist);
-        } else {
-            this.props.addFilter(url, name, whitelist);
+        switch (filtering.modalType) {
+            case MODAL_TYPE.EDIT_FILTERS:
+                this.props.editFilter(filtering.modalFilterUrl, values, whitelist);
+                break;
+            case MODAL_TYPE.ADD_FILTERS: {
+                const { name, url } = values;
+                this.props.addFilter(url, name, whitelist);
+                break;
+            }
+            case MODAL_TYPE.ADD_FILTERS_BULK: {
+                const { bulkUrls } = values;
+                const entries = parseBulkFiltersInput(bulkUrls);
+
+                if (entries.length > 0) {
+                    await this.props.addFiltersBulk(entries, whitelist);
+                }
+                break;
+            default:
+                break;
         }
     };
 
@@ -71,8 +89,8 @@ class DnsAllowlist extends Component<DnsAllowlistProps> {
         this.props.refreshFilters({ whitelist: true });
     };
 
-    openAddFiltersModal = () => {
-        this.props.toggleFilteringModal({ type: MODAL_TYPE.ADD_FILTERS });
+    openSelectTypeModal = () => {
+        this.props.toggleFilteringModal({ type: MODAL_TYPE.SELECT_MODAL_TYPE });
     };
 
     render() {
@@ -94,6 +112,13 @@ class DnsAllowlist extends Component<DnsAllowlistProps> {
             },
         } = this.props;
         const currentFilterData = getCurrentFilter(modalFilterUrl, whitelistFilters);
+        const enabledAllowlistRulesCount = whitelistFilters.reduce((acc: number, filter: Filter) => {
+            if (!filter?.enabled) {
+                return acc;
+            }
+
+            return acc + (filter?.rulesCount || 0);
+        }, 0);
         const loading =
             processingConfigFilter ||
             processingFilters ||
@@ -110,6 +135,12 @@ class DnsAllowlist extends Component<DnsAllowlistProps> {
                     <div className="row">
                         <div className="col-md-12">
                             <Card subtitle={t('filters_and_hosts_hint')}>
+                                <Summary
+                                    label={t('domains_on_allowlists')}
+                                    hint={t('domains_on_allowlists_hint')}
+                                    total={enabledAllowlistRulesCount}
+                                />
+
                                 <Table
                                     filters={whitelistFilters}
                                     loading={loading}
@@ -121,7 +152,7 @@ class DnsAllowlist extends Component<DnsAllowlistProps> {
                                 />
 
                                 <Actions
-                                    handleAdd={this.openAddFiltersModal}
+                                    handleAdd={this.openSelectTypeModal}
                                     handleRefresh={this.handleRefresh}
                                     processingRefreshFilters={processingRefreshFilters}
                                     whitelist={whitelist}
@@ -143,6 +174,7 @@ class DnsAllowlist extends Component<DnsAllowlistProps> {
                     modalType={modalType}
                     currentFilterData={currentFilterData}
                     whitelist={whitelist}
+                    canChooseFromCatalog={canChooseFromCatalog}
                 />
             </>
         );

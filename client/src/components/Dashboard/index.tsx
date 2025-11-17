@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
 
 import { HashLink as Link } from 'react-router-hash-link';
 import { Trans, useTranslation } from 'react-i18next';
@@ -9,7 +9,13 @@ import Counters from './Counters';
 import Clients from './Clients';
 import QueriedDomains from './QueriedDomains';
 import BlockedDomains from './BlockedDomains';
-import { DISABLE_PROTECTION_TIMINGS, ONE_SECOND_IN_MS, SETTINGS_URLS, TIME_UNITS } from '../../helpers/constants';
+import {
+    DASHBOARD_REFRESH_INTERVAL_MS,
+    DISABLE_PROTECTION_TIMINGS,
+    ONE_SECOND_IN_MS,
+    SETTINGS_URLS,
+    TIME_UNITS,
+} from '../../helpers/constants';
 import { msToSeconds, msToMinutes, msToHours, msToDays } from '../../helpers/helpers';
 
 import PageTitle from '../ui/PageTitle';
@@ -29,6 +35,7 @@ interface DashboardProps {
     access: AccessData;
     getStats: (...args: unknown[]) => unknown;
     getStatsConfig: (...args: unknown[]) => unknown;
+    getFilteringStatus: (...args: unknown[]) => unknown;
     toggleProtection: (...args: unknown[]) => unknown;
     getClients: (...args: unknown[]) => unknown;
     getAccessList: () => (dispatch: any) => void;
@@ -38,6 +45,7 @@ const Dashboard = ({
     getAccessList,
     getStats,
     getStatsConfig,
+    getFilteringStatus,
     dashboard: { protectionEnabled, processingProtection, protectionDisabledDuration },
     toggleProtection,
     stats,
@@ -45,15 +53,16 @@ const Dashboard = ({
 }: DashboardProps) => {
     const { t } = useTranslation();
 
-    const getAllStats = () => {
+    const getAllStats = useCallback(() => {
         getAccessList();
         getStats();
+        getFilteringStatus();
         getStatsConfig();
-    };
+    }, [getAccessList, getStats, getFilteringStatus, getStatsConfig]);
 
     useEffect(() => {
         getAllStats();
-    }, []);
+    }, [getAllStats]);
     const getSubtitle = () => {
         if (!stats.enabled) {
             return t('stats_disabled_short');
@@ -88,6 +97,24 @@ const Dashboard = ({
     );
 
     const statsProcessing = stats.processingStats || stats.processingGetConfig || access.processing;
+
+    const statsProcessingRef = useRef(statsProcessing);
+
+    useEffect(() => {
+        statsProcessingRef.current = statsProcessing;
+    }, [statsProcessing]);
+
+    useEffect(() => {
+        const intervalId = window.setInterval(() => {
+            if (!statsProcessingRef.current) {
+                getAllStats();
+            }
+        }, DASHBOARD_REFRESH_INTERVAL_MS);
+
+        return () => {
+            window.clearInterval(intervalId);
+        };
+    }, [getAllStats]);
 
     const subtitle = getSubtitle();
 
