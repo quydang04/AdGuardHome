@@ -149,6 +149,7 @@ export const SETTINGS_URLS = {
     dns: '/dns',
     settings: '/settings',
     clients: '/clients',
+    notifications: '/notifications',
 };
 
 export const FILTERS_URLS = {
@@ -484,8 +485,6 @@ export const TOAST_TIMEOUTS = {
     [TOAST_TYPES.ERROR]: FAILURE_TOAST_TIMEOUT,
     [TOAST_TYPES.NOTICE]: FAILURE_TOAST_TIMEOUT,
 };
-
-export const DASHBOARD_REFRESH_INTERVAL_MS = 5000;
 
 export const ADDRESS_TYPES = {
     IP: 'IP',

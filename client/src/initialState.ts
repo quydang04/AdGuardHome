@@ -190,12 +190,52 @@ export type NormalizedTopClients = {
     configured: Record<string, number>;
 };
 
+export type SystemInfoData = {
+    os: string;
+    osVersion: string;
+    arch: string;
+    hostname: string;
+    numCpu: number;
+    cpuModel: string;
+    cpuUsage: number;
+    memoryTotal: number;
+    memoryUsed: number;
+    memoryUsage: number;
+    memoryFree: number;
+    diskPath: string;
+    diskTotal: number;
+    diskUsed: number;
+    diskUsage: number;
+    uptimeSeconds: number;
+    diskFree: number;
+    localIps: string[];
+    publicIp: string;
+};
+
+export type TelegramConfigState = {
+    enabled: boolean;
+    bot_token: string;
+    chat_id: string;
+    cpu_threshold: number;
+    memory_threshold: number;
+    disk_threshold: number;
+    check_interval: number;
+    cooldown: number;
+    custom_message: string;
+};
+
+export type NotificationsState = {
+    processingGet: boolean;
+    processingSave: boolean;
+    processingTest: boolean;
+    telegram: TelegramConfigState;
+};
+
 export type StatsData = {
     processingGetConfig: boolean;
     processingSetConfig: boolean;
     processingStats: boolean;
     processingReset: boolean;
-    processingLiveStats: boolean;
     interval: number;
     customInterval?: number;
     dnsQueries: number[];
@@ -220,7 +260,7 @@ export type StatsData = {
     enabled: boolean;
     topUpstreamsAvgTime: { name: string; count: number }[];
     topUpstreamsResponses: { name: string; count: number }[];
-    liveGeneratedAt: string | null;
+    systemInfo: SystemInfoData | null;
 };
 
 export type ClientsData = {
@@ -397,6 +437,7 @@ export type RootState = {
     services?: ServicesData;
     settings?: SettingsData;
     stats?: StatsData;
+    notifications?: NotificationsState;
     install?: InstallData;
     toasts: { notices: any[] };
     loadingBar: any;
@@ -605,7 +646,6 @@ export const initialState: RootState = {
         processingSetConfig: false,
         processingStats: true,
         processingReset: false,
-        processingLiveStats: false,
         interval: DAY,
         customInterval: null,
         dnsQueries: [],
@@ -625,7 +665,23 @@ export const initialState: RootState = {
         enabled: true,
         topUpstreamsAvgTime: [],
         topUpstreamsResponses: [],
-        liveGeneratedAt: null,
+        systemInfo: null,
+    },
+    notifications: {
+        processingGet: false,
+        processingSave: false,
+        processingTest: false,
+        telegram: {
+            enabled: false,
+            bot_token: '',
+            chat_id: '',
+            cpu_threshold: 90,
+            memory_threshold: 90,
+            disk_threshold: 90,
+            check_interval: 60 * 1000,
+            cooldown: 5 * 60 * 1000,
+            custom_message: '',
+        },
     },
     toasts: { notices: [] },
     loadingBar: {},

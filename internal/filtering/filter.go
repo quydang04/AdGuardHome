@@ -41,6 +41,26 @@ type FilterYAML struct {
 	Filter `yaml:",inline"`
 }
 
+// ListType distinguishes between blocking and allowing filter lists.
+type ListType string
+
+// List types used for notifications.
+const (
+	ListTypeBlock ListType = "blocklist"
+	ListTypeAllow ListType = "allowlist"
+)
+
+// ListUpdateEvent describes the outcome of a filter list refresh operation.
+type ListUpdateEvent struct {
+	ID           uint64
+	Name         string
+	URL          string
+	RulesCount   int
+	BytesWritten int
+	Enabled      bool
+	Type         ListType
+}
+
 // Clear filter rules
 func (filter *FilterYAML) unload() {
 	filter.RulesCount = 0
@@ -563,7 +583,35 @@ func (d *DNSFilter) finalizeUpdate(
 	flt.checksum = res.Checksum
 	flt.RulesCount = rulesCount
 
+	d.notifyListUpdate(ctx, flt, res)
+
 	return nil
+}
+
+func (d *DNSFilter) notifyListUpdate(ctx context.Context, flt *FilterYAML, res *rulelist.ParseResult) {
+	if res == nil {
+		return
+	}
+
+	notify := d.conf.ListUpdateNotifier
+	if notify == nil {
+		return
+	}
+
+	listType := ListTypeBlock
+	if flt.white {
+		listType = ListTypeAllow
+	}
+
+	notify(ctx, ListUpdateEvent{
+		ID:           uint64(flt.ID),
+		Name:         flt.Name,
+		URL:          flt.URL,
+		RulesCount:   res.RulesCount,
+		BytesWritten: res.BytesWritten,
+		Enabled:      flt.Enabled,
+		Type:         listType,
+	})
 }
 
 // reader returns an io.ReadCloser reading filtering-rule list data form either

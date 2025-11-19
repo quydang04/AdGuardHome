@@ -33,6 +33,7 @@ import SetupGuide from '../../containers/SetupGuide';
 import Settings from '../../containers/Settings';
 import Dns from '../../containers/Dns';
 import Encryption from '../../containers/Encryption';
+import Notifications from '../../containers/Notifications';
 
 import Dhcp from '../Settings/Dhcp';
 import Clients from '../../containers/Clients';
@@ -46,7 +47,6 @@ import Services from '../Filters/Services';
 import Logs from '../Logs';
 import ProtectionTimer from '../ProtectionTimer';
 import { RootState } from '../../initialState';
-import GlobalStatsWatcher from './GlobalStatsWatcher';
 
 const ROUTES = [
     {
@@ -73,6 +73,10 @@ const ROUTES = [
     {
         path: SETTINGS_URLS.encryption,
         component: Encryption,
+    },
+    {
+        path: SETTINGS_URLS.notifications,
+        component: Notifications,
     },
     {
         path: SETTINGS_URLS.dhcp,
@@ -187,7 +191,6 @@ const App = () => {
 
     return (
         <HashRouter hashType="noslash">
-            <GlobalStatsWatcher />
             {updateAvailable && (
                 <>
                     <UpdateTopline />

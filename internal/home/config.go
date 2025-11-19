@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"slices"
 	"sync"
+	"time"
 
 	"github.com/AdguardTeam/AdGuardHome/internal/agh"
 	"github.com/AdguardTeam/AdGuardHome/internal/aghalg"
@@ -133,10 +134,11 @@ type configuration struct {
 
 	// TODO(a.garipov): Make DNS and the fields below pointers and validate
 	// and/or reset on explicit nulling.
-	DNS      dnsConfig         `yaml:"dns"`
-	TLS      tlsConfigSettings `yaml:"tls"`
-	QueryLog queryLogConfig    `yaml:"querylog"`
-	Stats    statsConfig       `yaml:"statistics"`
+	DNS           dnsConfig           `yaml:"dns"`
+	TLS           tlsConfigSettings   `yaml:"tls"`
+	QueryLog      queryLogConfig      `yaml:"querylog"`
+	Stats         statsConfig         `yaml:"statistics"`
+	Notifications notificationsConfig `yaml:"notifications"`
 
 	// Filters reflects the filters from [filtering.Config].  It's cloned to the
 	// config used in the filtering module at the startup.  Afterwards it's
@@ -428,6 +430,67 @@ type statsConfig struct {
 	Enabled bool `yaml:"enabled"`
 }
 
+type notificationsConfig struct {
+	Telegram *telegramConfig `yaml:"telegram"`
+}
+
+type telegramConfig struct {
+	Enabled         bool              `yaml:"enabled" json:"enabled"`
+	BotToken        string            `yaml:"bot_token" json:"bot_token"`
+	ChatID          string            `yaml:"chat_id" json:"chat_id"`
+	CPUThreshold    float64           `yaml:"cpu_threshold" json:"cpu_threshold"`
+	MemoryThreshold float64           `yaml:"memory_threshold" json:"memory_threshold"`
+	DiskThreshold   float64           `yaml:"disk_threshold" json:"disk_threshold"`
+	CheckInterval   timeutil.Duration `yaml:"check_interval" json:"check_interval"`
+	Cooldown        timeutil.Duration `yaml:"cooldown" json:"cooldown"`
+	CustomMessage   string            `yaml:"custom_message" json:"custom_message"`
+}
+
+func defaultTelegramConfig() *telegramConfig {
+	return &telegramConfig{
+		Enabled:         false,
+		CPUThreshold:    90,
+		MemoryThreshold: 90,
+		DiskThreshold:   90,
+		CheckInterval:   timeutil.Duration(time.Minute),
+		Cooldown:        timeutil.Duration(5 * time.Minute),
+	}
+}
+
+func (c *telegramConfig) applyDefaults() {
+	if c == nil {
+		return
+	}
+
+	if c.CPUThreshold <= 0 {
+		c.CPUThreshold = 90
+	}
+
+	if c.MemoryThreshold <= 0 {
+		c.MemoryThreshold = 90
+	}
+
+	if c.DiskThreshold <= 0 {
+		c.DiskThreshold = 90
+	}
+
+	if c.CheckInterval <= 0 {
+		c.CheckInterval = timeutil.Duration(time.Minute)
+	}
+
+	if c.Cooldown <= 0 {
+		c.Cooldown = timeutil.Duration(5 * time.Minute)
+	}
+}
+
+func (c *configuration) normalize() {
+	if c.Notifications.Telegram == nil {
+		c.Notifications.Telegram = defaultTelegramConfig()
+	} else {
+		c.Notifications.Telegram.applyDefaults()
+	}
+}
+
 // Default block host constants.
 const (
 	defaultSafeBrowsingBlockHost = "standard-block.dns.adguard.com"
@@ -504,6 +567,9 @@ var config = &configuration{
 		Enabled:  true,
 		Interval: timeutil.Duration(1 * timeutil.Day),
 		Ignored:  []string{},
+	},
+	Notifications: notificationsConfig{
+		Telegram: defaultTelegramConfig(),
 	},
 	// NOTE: Keep these parameters in sync with the one put into
 	// client/src/helpers/filters/filters.ts by scripts/vetted-filters.
@@ -686,6 +752,8 @@ func parseConfig(ctx context.Context, l *slog.Logger, workDir, confPath string) 
 		// Don't wrap the error since it's informative enough as is.
 		return err
 	}
+
+	config.normalize()
 
 	err = validateConfig(ctx, l, config.fileData)
 	if err != nil {

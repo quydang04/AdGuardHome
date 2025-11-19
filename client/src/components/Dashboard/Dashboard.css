@@ -65,6 +65,15 @@
     white-space: nowrap;
 }
 
+.system-info__table {
+    max-height: 24rem;
+    overflow-y: auto;
+}
+
+.system-info__table table {
+    margin-bottom: 0;
+}
+
 @media screen and (min-width: 768px) {
     .counters__column {
         display: flex;

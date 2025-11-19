@@ -3,16 +3,14 @@
 package stats
 
 import (
-	"context"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"time"
 
 	"github.com/AdguardTeam/AdGuardHome/internal/aghalg"
 	"github.com/AdguardTeam/AdGuardHome/internal/aghhttp"
 	"github.com/AdguardTeam/AdGuardHome/internal/aghnet"
-	"github.com/AdguardTeam/golibs/logutil/slogutil"
+	"github.com/AdguardTeam/AdGuardHome/internal/systeminfo"
 	"github.com/AdguardTeam/golibs/timeutil"
 )
 
@@ -38,50 +36,13 @@ type StatsResp struct {
 	TopUpstreamsResponses []topAddrs      `json:"top_upstreams_responses"`
 	TopUpstreamsAvgTime   []topAddrsFloat `json:"top_upstreams_avg_time"`
 
-	NumDNSQueries           uint64  `json:"num_dns_queries"`
-	NumBlockedFiltering     uint64  `json:"num_blocked_filtering"`
-	NumReplacedSafebrowsing uint64  `json:"num_replaced_safebrowsing"`
-	NumReplacedSafesearch   uint64  `json:"num_replaced_safesearch"`
-	NumReplacedParental     uint64  `json:"num_replaced_parental"`
-	AvgProcessingTime       float64 `json:"avg_processing_time"`
-}
-
-// StatsLiveResp is a lightweight statistics response used for frequent polling
-// by the UI outside of the dashboard.  It intentionally omits heavyweight
-// collections like top domains to keep the payload small.
-type StatsLiveResp struct {
-	TimeUnits string `json:"time_units"`
-
-	DNSQueries           []uint64 `json:"dns_queries"`
-	BlockedFiltering     []uint64 `json:"blocked_filtering"`
-	ReplacedSafebrowsing []uint64 `json:"replaced_safebrowsing"`
-	ReplacedParental     []uint64 `json:"replaced_parental"`
-
-	NumDNSQueries           uint64    `json:"num_dns_queries"`
-	NumBlockedFiltering     uint64    `json:"num_blocked_filtering"`
-	NumReplacedSafebrowsing uint64    `json:"num_replaced_safebrowsing"`
-	NumReplacedSafesearch   uint64    `json:"num_replaced_safesearch"`
-	NumReplacedParental     uint64    `json:"num_replaced_parental"`
-	AvgProcessingTime       float64   `json:"avg_processing_time"`
-	GeneratedAt             time.Time `json:"generated_at"`
-}
-
-// newStatsLiveResp builds StatsLiveResp with fresh timestamps and slice copies.
-func newStatsLiveResp(resp *StatsResp) *StatsLiveResp {
-	return &StatsLiveResp{
-		TimeUnits:               resp.TimeUnits,
-		DNSQueries:              append([]uint64(nil), resp.DNSQueries...),
-		BlockedFiltering:        append([]uint64(nil), resp.BlockedFiltering...),
-		ReplacedSafebrowsing:    append([]uint64(nil), resp.ReplacedSafebrowsing...),
-		ReplacedParental:        append([]uint64(nil), resp.ReplacedParental...),
-		NumDNSQueries:           resp.NumDNSQueries,
-		NumBlockedFiltering:     resp.NumBlockedFiltering,
-		NumReplacedSafebrowsing: resp.NumReplacedSafebrowsing,
-		NumReplacedSafesearch:   resp.NumReplacedSafesearch,
-		NumReplacedParental:     resp.NumReplacedParental,
-		AvgProcessingTime:       resp.AvgProcessingTime,
-		GeneratedAt:             time.Now().UTC(),
-	}
+	NumDNSQueries           uint64          `json:"num_dns_queries"`
+	NumBlockedFiltering     uint64          `json:"num_blocked_filtering"`
+	NumReplacedSafebrowsing uint64          `json:"num_replaced_safebrowsing"`
+	NumReplacedSafesearch   uint64          `json:"num_replaced_safesearch"`
+	NumReplacedParental     uint64          `json:"num_replaced_parental"`
+	AvgProcessingTime       float64         `json:"avg_processing_time"`
+	System                  systeminfo.Info `json:"system"`
 }
 
 // currentLimit returns the current statistics retention limit.
@@ -121,114 +82,9 @@ func (s *StatsCtx) handleStats(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	resp.System = systeminfo.Collect()
+
 	aghhttp.WriteJSONResponseOK(ctx, l, w, r, resp)
-}
-
-// handleStatsLive is the handler for the GET /control/stats/live HTTP API.
-func (s *StatsCtx) handleStatsLive(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-
-	limit := s.currentLimit()
-	resp, ok := s.getData(uint32(limit.Hours()))
-	if !ok {
-		const msg = "Couldn't get statistics data"
-		aghhttp.ErrorAndLog(ctx, s.logger, r, w, http.StatusInternalServerError, msg)
-
-		return
-	}
-
-	live := newStatsLiveResp(resp)
-
-	aghhttp.WriteJSONResponseOK(ctx, s.logger, w, r, live)
-}
-
-// handleStatsStream streams live statistics updates using Server-Sent Events.
-func (s *StatsCtx) handleStatsStream(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-
-	flusher, ok := w.(http.Flusher)
-	if !ok {
-		aghhttp.ErrorAndLog(ctx, s.logger, r, w, http.StatusInternalServerError, "streaming unsupported")
-
-		return
-	}
-
-	w.Header().Set("Content-Type", "text/event-stream")
-	w.Header().Set("Cache-Control", "no-cache")
-	w.Header().Set("Connection", "keep-alive")
-
-	id, ch := s.registerWatcher()
-	defer s.unregisterWatcher(id)
-
-	if !s.writeStatsStreamPayload(ctx, w, r, flusher) {
-		return
-	}
-
-	keepAlive := time.NewTicker(30 * time.Second)
-	defer keepAlive.Stop()
-
-	for {
-		var stop bool
-
-		select {
-		case <-ctx.Done():
-			return
-		case <-ch:
-			stop = !s.writeStatsStreamPayload(ctx, w, r, flusher)
-		case <-keepAlive.C:
-			stop = !s.writeStatsStreamKeepAlive(ctx, w, flusher)
-		}
-
-		if stop {
-			return
-		}
-	}
-}
-
-// writeStatsStreamPayload prepares and sends the latest statistics payload via
-// Server-Sent Events.  It returns false if the caller should stop streaming.
-func (s *StatsCtx) writeStatsStreamPayload(ctx context.Context, w http.ResponseWriter, r *http.Request, flusher http.Flusher) bool {
-	limit := s.currentLimit()
-
-	resp, ok := s.getData(uint32(limit.Hours()))
-	if !ok {
-		aghhttp.ErrorAndLog(ctx, s.logger, r, w, http.StatusInternalServerError, "Couldn't get statistics data")
-
-		return false
-	}
-
-	live := newStatsLiveResp(resp)
-
-	data, err := json.Marshal(live)
-	if err != nil {
-		aghhttp.ErrorAndLog(ctx, s.logger, r, w, http.StatusInternalServerError, "json marshal: %s", err)
-
-		return false
-	}
-
-	if _, err = fmt.Fprintf(w, "data: %s\n\n", data); err != nil {
-		s.logger.DebugContext(ctx, "writing stats stream", slogutil.KeyError, err)
-
-		return false
-	}
-
-	flusher.Flush()
-
-	return true
-}
-
-// writeStatsStreamKeepAlive emits keep-alive events for SSE clients.  The
-// caller should stop streaming if it returns false.
-func (s *StatsCtx) writeStatsStreamKeepAlive(ctx context.Context, w http.ResponseWriter, flusher http.Flusher) bool {
-	if _, err := fmt.Fprint(w, ": ping\n\n"); err != nil {
-		s.logger.DebugContext(ctx, "writing keep-alive", slogutil.KeyError, err)
-
-		return false
-	}
-
-	flusher.Flush()
-
-	return true
 }
 
 // configResp is the response to the GET /control/stats_info.
@@ -396,15 +252,11 @@ func (s *StatsCtx) handleStatsReset(w http.ResponseWriter, r *http.Request) {
 
 		return
 	}
-
-	s.notifyWatchers()
 }
 
 // initWeb registers the handlers for web endpoints of statistics module.
 func (s *StatsCtx) initWeb() {
 	s.httpReg.Register(http.MethodGet, "/control/stats", s.handleStats)
-	s.httpReg.Register(http.MethodGet, "/control/stats/live", s.handleStatsLive)
-	s.httpReg.Register(http.MethodGet, "/control/stats/live/stream", s.handleStatsStream)
 	s.httpReg.Register(http.MethodPost, "/control/stats_reset", s.handleStatsReset)
 	s.httpReg.Register(http.MethodGet, "/control/stats/config", s.handleGetStatsConfig)
 	s.httpReg.Register(http.MethodPut, "/control/stats/config/update", s.handlePutStatsConfig)

@@ -567,8 +567,6 @@ class Api {
     // Settings for statistics
     STATS = {
         GET: { path: 'stats', method: 'GET' },
-        LIVE: { path: 'stats/live', method: 'GET' },
-        LIVE_STREAM: { path: 'stats/live/stream', method: 'GET' },
         CONFIG: { path: 'stats/config', method: 'GET' },
         CONFIG_UPDATE: { path: 'stats/config/update', method: 'PUT' },
         RESET: { path: 'stats_reset', method: 'POST' },
@@ -578,18 +576,6 @@ class Api {
         const { path, method } = this.STATS.GET;
 
         return this.makeRequest(path, method);
-    }
-
-    getLiveStats() {
-        const { path, method } = this.STATS.LIVE;
-
-        return this.makeRequest(path, method);
-    }
-
-    getLiveStatsStreamUrl() {
-        const { path } = this.STATS.LIVE_STREAM;
-
-        return `${this.baseUrl}/${path}`;
     }
 
     getStatsConfig() {
@@ -681,6 +667,31 @@ class Api {
         const config = { data: { theme, language } };
 
         return this.makeRequest(path, method, config);
+    }
+
+    // Notifications
+    NOTIFICATIONS_TELEGRAM_GET = { path: 'notifications/telegram', method: 'GET' };
+
+    NOTIFICATIONS_TELEGRAM_SET = { path: 'notifications/telegram', method: 'PUT' };
+
+    NOTIFICATIONS_TELEGRAM_TEST = { path: 'notifications/telegram/test', method: 'POST' };
+
+    getTelegramConfig() {
+        const { path, method } = this.NOTIFICATIONS_TELEGRAM_GET;
+
+        return this.makeRequest(path, method);
+    }
+
+    setTelegramConfig(data: any) {
+        const { path, method } = this.NOTIFICATIONS_TELEGRAM_SET;
+
+        return this.makeRequest(path, method, { data });
+    }
+
+    sendTelegramTest(data: any) {
+        const { path, method } = this.NOTIFICATIONS_TELEGRAM_TEST;
+
+        return this.makeRequest(path, method, { data });
     }
 
     // DNS config

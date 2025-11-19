@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef } from 'react';
+import React, { useCallback, useEffect } from 'react';
 
 import { HashLink as Link } from 'react-router-hash-link';
 import { Trans, useTranslation } from 'react-i18next';
@@ -9,13 +9,7 @@ import Counters from './Counters';
 import Clients from './Clients';
 import QueriedDomains from './QueriedDomains';
 import BlockedDomains from './BlockedDomains';
-import {
-    DASHBOARD_REFRESH_INTERVAL_MS,
-    DISABLE_PROTECTION_TIMINGS,
-    ONE_SECOND_IN_MS,
-    SETTINGS_URLS,
-    TIME_UNITS,
-} from '../../helpers/constants';
+import { DISABLE_PROTECTION_TIMINGS, ONE_SECOND_IN_MS, SETTINGS_URLS, TIME_UNITS } from '../../helpers/constants';
 import { msToSeconds, msToMinutes, msToHours, msToDays } from '../../helpers/helpers';
 
 import PageTitle from '../ui/PageTitle';
@@ -27,6 +21,7 @@ import Dropdown from '../ui/Dropdown';
 import UpstreamResponses from './UpstreamResponses';
 
 import UpstreamAvgTime from './UpstreamAvgTime';
+import SystemInfo from './SystemInfo';
 import { AccessData, DashboardData, StatsData } from '../../initialState';
 
 interface DashboardProps {
@@ -97,24 +92,6 @@ const Dashboard = ({
     );
 
     const statsProcessing = stats.processingStats || stats.processingGetConfig || access.processing;
-
-    const statsProcessingRef = useRef(statsProcessing);
-
-    useEffect(() => {
-        statsProcessingRef.current = statsProcessing;
-    }, [statsProcessing]);
-
-    useEffect(() => {
-        const intervalId = window.setInterval(() => {
-            if (!statsProcessingRef.current) {
-                getAllStats();
-            }
-        }, DASHBOARD_REFRESH_INTERVAL_MS);
-
-        return () => {
-            window.clearInterval(intervalId);
-        };
-    }, [getAllStats]);
 
     const subtitle = getSubtitle();
 
@@ -277,6 +254,10 @@ const Dashboard = ({
                             topUpstreamsAvgTime={stats.topUpstreamsAvgTime}
                             refreshButton={refreshButton}
                         />
+                    </div>
+
+                    <div className="col-lg-12">
+                        <SystemInfo info={stats.systemInfo} refreshButton={refreshButton} />
                     </div>
                 </div>
             )}

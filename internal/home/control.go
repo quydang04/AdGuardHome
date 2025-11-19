@@ -199,6 +199,8 @@ func (web *webAPI) registerControlHandlers() {
 	web.httpReg.Register(http.MethodGet, "/control/profile", web.handleGetProfile)
 	web.httpReg.Register(http.MethodPut, "/control/profile/update", web.handlePutProfile)
 
+	web.registerNotificationHandlers()
+
 	// No authentication is required for DoH/DoT configuration endpoints.
 	mux.Handle(
 		"/apple/doh.mobileconfig",

@@ -137,6 +137,7 @@ func TestStats(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/control/stats", nil)
 		assertSuccessAndUnmarshal(t, data, handlers["/control/stats"], req)
 
+		wantData.System = data.System
 		assert.Equal(t, wantData, data)
 	})
 
@@ -169,6 +170,7 @@ func TestStats(t *testing.T) {
 		data := &stats.StatsResp{}
 
 		assertSuccessAndUnmarshal(t, data, handlers["/control/stats"], req)
+		emptyData.System = data.System
 		assert.Equal(t, emptyData, data)
 	})
 }

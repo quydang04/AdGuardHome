@@ -50,6 +50,10 @@ const SETTINGS_ITEMS = [
         text: 'encryption_settings',
     },
     {
+        route: SETTINGS_URLS.notifications,
+        text: 'notifications_settings',
+    },
+    {
         route: SETTINGS_URLS.clients,
         text: 'client_settings',
     },

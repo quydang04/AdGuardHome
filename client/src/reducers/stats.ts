@@ -20,7 +20,35 @@ const defaultStats = {
     numReplacedSafesearch: 0,
     avgProcessingTime: 0,
     timeUnits: TIME_UNITS.HOURS,
-    liveGeneratedAt: null,
+    systemInfo: null,
+};
+
+const normalizeSystemInfo = (system: any) => {
+    if (!system) {
+        return null;
+    }
+
+    return {
+        os: system.os || '',
+        osVersion: system.os_version || '',
+        arch: system.arch || '',
+        hostname: system.hostname || '',
+        numCpu: system.num_cpu || 0,
+        cpuModel: system.cpu_model || '',
+        cpuUsage: system.cpu_usage || 0,
+        memoryTotal: system.memory_total || 0,
+        memoryUsed: system.memory_used || 0,
+        memoryUsage: system.memory_usage || 0,
+        memoryFree: system.memory_free || 0,
+        diskPath: system.disk_path || '',
+        diskTotal: system.disk_total || 0,
+        diskUsed: system.disk_used || 0,
+        diskUsage: system.disk_usage || 0,
+        diskFree: system.disk_free || 0,
+        uptimeSeconds: system.uptime_seconds || 0,
+        localIps: Array.isArray(system.local_ips) ? system.local_ips : [],
+        publicIp: system.public_ip || '',
+    };
 };
 
 const stats = handleActions(
@@ -82,6 +110,7 @@ const stats = handleActions(
                 top_upstreams_responses: topUpstreamsResponses,
                 top_upstrems_avg_time: topUpstreamsAvgTime,
                 time_units: timeUnits,
+                system,
             } = payload;
 
             const newState = {
@@ -104,36 +133,11 @@ const stats = handleActions(
                 topUpstreamsResponses,
                 topUpstreamsAvgTime,
                 timeUnits,
+                systemInfo: normalizeSystemInfo(system),
             };
 
             return newState;
         },
-
-        [actions.getLiveStatsRequest.toString()]: (state: any) => ({
-            ...state,
-            processingLiveStats: true,
-        }),
-        [actions.getLiveStatsFailure.toString()]: (state: any) => ({
-            ...state,
-            processingLiveStats: false,
-        }),
-        [actions.getLiveStatsSuccess.toString()]: (state: any, { payload }: any) => ({
-            ...state,
-            processingLiveStats: false,
-            dnsQueries: payload.dns_queries || [],
-            blockedFiltering: payload.blocked_filtering || [],
-            replacedParental: payload.replaced_parental || [],
-            replacedSafebrowsing: payload.replaced_safebrowsing || [],
-            numDnsQueries: payload.num_dns_queries || 0,
-            numBlockedFiltering: payload.num_blocked_filtering || 0,
-            numReplacedParental: payload.num_replaced_parental || 0,
-            numReplacedSafebrowsing: payload.num_replaced_safebrowsing || 0,
-            numReplacedSafesearch: payload.num_replaced_safesearch || 0,
-            avgProcessingTime: payload.avg_processing_time || 0,
-            timeUnits: payload.time_units || state.timeUnits,
-            liveGeneratedAt: payload.generated_at || null,
-        }),
-
         [actions.resetStatsRequest.toString()]: (state: any) => ({
             ...state,
             processingReset: true,
@@ -153,7 +157,6 @@ const stats = handleActions(
         processingSetConfig: false,
         processingStats: true,
         processingReset: false,
-        processingLiveStats: false,
         interval: DAY,
         customInterval: null,
         ...defaultStats,

@@ -115,6 +115,10 @@ type Config struct {
 	// HTTPClient is the client to use for updating the remote filters.
 	HTTPClient *http.Client `yaml:"-"`
 
+	// ListUpdateNotifier is called after a filter or allowlist has been
+	// refreshed successfully.
+	ListUpdateNotifier func(ctx context.Context, ev ListUpdateEvent) `yaml:"-"`
+
 	// filtersMu protects filter lists.
 	filtersMu *sync.RWMutex
 

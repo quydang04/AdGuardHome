@@ -2,12 +2,10 @@ package stats
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
@@ -134,115 +132,4 @@ func TestHandleStatsConfig(t *testing.T) {
 			assert.Equal(t, tc.body, ans)
 		})
 	}
-}
-
-func TestHandleStatsLive(t *testing.T) {
-	conf := Config{
-		Logger:            slogutil.NewDiscardLogger(),
-		UnitID:            func() (id uint32) { return 0 },
-		ConfigModifier:    agh.EmptyConfigModifier{},
-		ShouldCountClient: func([]string) bool { return true },
-		HTTPReg:           aghhttp.EmptyRegistrar{},
-		Filename:          filepath.Join(t.TempDir(), "stats.db"),
-		Limit:             24 * time.Hour,
-		Enabled:           true,
-	}
-
-	s, err := New(conf)
-	require.NoError(t, err)
-
-	s.Start()
-	testutil.CleanupAndRequireSuccess(t, s.Close)
-
-	s.Update(&Entry{
-		Client:         "127.0.0.1",
-		Domain:         "example.org",
-		Result:         RFiltered,
-		ProcessingTime: time.Millisecond,
-	})
-
-	req := httptest.NewRequest(http.MethodGet, "/control/stats/live", nil)
-	rw := httptest.NewRecorder()
-
-	s.handleStatsLive(rw, req)
-	require.Equal(t, http.StatusOK, rw.Code)
-
-	resp := &StatsLiveResp{}
-	err = json.Unmarshal(rw.Body.Bytes(), resp)
-	require.NoError(t, err)
-
-	assert.Equal(t, uint64(1), resp.NumDNSQueries)
-	assert.Equal(t, uint64(1), resp.NumBlockedFiltering)
-	assert.Equal(t, timeUnitsHours, resp.TimeUnits)
-	assert.False(t, resp.GeneratedAt.IsZero())
-	require.NotEmpty(t, resp.DNSQueries)
-	assert.Equal(t, uint64(1), resp.DNSQueries[len(resp.DNSQueries)-1])
-}
-
-func TestHandleStatsStream(t *testing.T) {
-	conf := Config{
-		Logger:            slogutil.NewDiscardLogger(),
-		UnitID:            func() (id uint32) { return 0 },
-		ConfigModifier:    agh.EmptyConfigModifier{},
-		ShouldCountClient: func([]string) bool { return true },
-		HTTPReg:           aghhttp.EmptyRegistrar{},
-		Filename:          filepath.Join(t.TempDir(), "stats.db"),
-		Limit:             24 * time.Hour,
-		Enabled:           true,
-	}
-
-	s, err := New(conf)
-	require.NoError(t, err)
-
-	s.Start()
-	testutil.CleanupAndRequireSuccess(t, s.Close)
-
-	s.Update(&Entry{
-		Client:         "127.0.0.1",
-		Domain:         "example.org",
-		Result:         RFiltered,
-		ProcessingTime: time.Millisecond,
-	})
-
-	req := httptest.NewRequest(http.MethodGet, "/control/stats/live/stream", nil)
-	ctx, cancel := context.WithCancel(req.Context())
-	defer cancel()
-	req = req.WithContext(ctx)
-
-	rw := httptest.NewRecorder()
-	done := make(chan struct{})
-
-	go func() {
-		s.handleStatsStream(rw, req)
-		close(done)
-	}()
-
-	require.Eventually(t, func() bool {
-		return strings.Count(rw.Body.String(), "data:") >= 1
-	}, time.Second, 10*time.Millisecond)
-
-	s.Update(&Entry{
-		Client:         "127.0.0.1",
-		Domain:         "example.com",
-		Result:         RFiltered,
-		ProcessingTime: time.Millisecond,
-	})
-
-	require.Eventually(t, func() bool {
-		return strings.Count(rw.Body.String(), "data:") >= 2
-	}, time.Second, 10*time.Millisecond)
-
-	cancel()
-	require.Eventually(t, func() bool {
-		select {
-		case <-done:
-			return true
-		default:
-			return false
-		}
-	}, time.Second, 10*time.Millisecond)
-
-	body := rw.Body.String()
-	require.GreaterOrEqual(t, strings.Count(body, "data:"), 2)
-	assert.Contains(t, body, "\"num_dns_queries\":2")
 }

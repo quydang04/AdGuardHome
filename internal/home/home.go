@@ -16,6 +16,7 @@ import (
 	"slices"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -32,6 +33,7 @@ import (
 	"github.com/AdguardTeam/AdGuardHome/internal/filtering"
 	"github.com/AdguardTeam/AdGuardHome/internal/filtering/hashprefix"
 	"github.com/AdguardTeam/AdGuardHome/internal/filtering/safesearch"
+	"github.com/AdguardTeam/AdGuardHome/internal/notifications"
 	"github.com/AdguardTeam/AdGuardHome/internal/permcheck"
 	"github.com/AdguardTeam/AdGuardHome/internal/querylog"
 	"github.com/AdguardTeam/AdGuardHome/internal/stats"
@@ -53,11 +55,12 @@ type homeContext struct {
 	// Modules
 	// --
 
-	clients    clientsContainer   // per-client-settings module
-	stats      stats.Interface    // statistics module
-	queryLog   querylog.QueryLog  // query log module
-	dnsServer  *dnsforward.Server // DNS module
-	dhcpServer dhcpd.Interface    // DHCP module
+	clients    clientsContainer       // per-client-settings module
+	stats      stats.Interface        // statistics module
+	queryLog   querylog.QueryLog      // query log module
+	dnsServer  *dnsforward.Server     // DNS module
+	dhcpServer dhcpd.Interface        // DHCP module
+	notifier   *notifications.Manager // notifications manager
 
 	filters *filtering.DNSFilter // DNS filtering module
 	web     *webAPI              // Web (HTTP, HTTPS) module
@@ -77,6 +80,11 @@ type homeContext struct {
 //
 // TODO(a.garipov): Refactor.
 var globalContext homeContext
+
+// fallbackWorkDirUsed indicates that the writable working directory fallback is
+// in effect.  It is set in OS-specific helpers and read when configuring the
+// logger so that we can inform the user once logging is available.
+var fallbackWorkDirUsed atomic.Bool
 
 // Main is the entry point
 func Main(clientBuildFS fs.FS) {
@@ -421,6 +429,27 @@ func setupDNSFilteringConf(
 	conf.WhitelistFilters = slices.Clone(config.WhitelistFilters)
 	conf.UserRules = slices.Clone(config.UserRules)
 	conf.HTTPClient = httpClient(tlsMgr)
+	conf.ListUpdateNotifier = func(ctx context.Context, ev filtering.ListUpdateEvent) {
+		n := globalContext.notifier
+		if n == nil {
+			return
+		}
+
+		listType := notifications.FilterListTypeBlock
+		if ev.Type == filtering.ListTypeAllow {
+			listType = notifications.FilterListTypeAllow
+		}
+
+		n.NotifyFilterUpdate(ctx, notifications.FilterUpdate{
+			ID:           ev.ID,
+			Name:         ev.Name,
+			URL:          ev.URL,
+			RulesCount:   ev.RulesCount,
+			BytesWritten: ev.BytesWritten,
+			Enabled:      ev.Enabled,
+			ListType:     listType,
+		})
+	}
 
 	cacheTime := time.Duration(conf.CacheTime) * time.Minute
 
@@ -781,6 +810,8 @@ func run(
 	tlsMgr.setWebAPI(web)
 	sigHdlr.addTLSManager(tlsMgr)
 
+	initNotifications(ctx, slogLogger)
+
 	statsDir, querylogDir, err := checkStatsAndQuerylogDirs(config, workDir)
 	fatalOnError(err)
 
@@ -897,6 +928,20 @@ func initFiltering(
 	return confModifier, tlsMgr
 }
 
+func initNotifications(ctx context.Context, l *slog.Logger) {
+	notifLogger := l.With(slogutil.KeyPrefix, "notifications")
+
+	config.RLock()
+	telegram := config.Notifications.Telegram
+	runtimeCfg := buildRuntimeTelegramConfig(telegram)
+	config.RUnlock()
+
+	manager := notifications.NewManager(notifLogger, runtimeCfg)
+	manager.Start(ctx)
+
+	globalContext.notifier = manager
+}
+
 // initUpdate configures and runs update of this application.  slogLogger and
 // tlsMgr must not be nil.
 func initUpdate(
@@ -955,6 +1000,9 @@ func initEnvironment(
 
 	// Print the first message after logger is configured.
 	slogLogger.InfoContext(ctx, "starting adguard home", "version", version.Full())
+	if fallbackWorkDirUsed.Load() {
+		slogLogger.InfoContext(ctx, "using fallback working directory", "path", workDir)
+	}
 	slogLogger.DebugContext(ctx, "current working directory", "path", workDir)
 	if opts.runningAsService {
 		slogLogger.InfoContext(ctx, "adguard home is running as a service")
@@ -1180,6 +1228,11 @@ func initWorkingDir(opts options) (workDir string, err error) {
 		return "", err
 	}
 
+	workDir, err = ensureWritableWorkDir(workDir)
+	if err != nil {
+		return "", err
+	}
+
 	return workDir, nil
 }
 
@@ -1208,6 +1261,11 @@ func cleanup(ctx context.Context) {
 		if err = globalContext.etcHosts.Close(); err != nil {
 			log.Error("closing hosts container: %s", err)
 		}
+	}
+
+	if globalContext.notifier != nil {
+		globalContext.notifier.Stop()
+		globalContext.notifier = nil
 	}
 }
 
