@@ -19,6 +19,16 @@
     background-color: var(--rt-nodata-bgcolor);
 }
 
+.ReactTable .rt-noData {
+    border: 0;
+    box-shadow: none;
+}
+
+[data-theme='dark'] .ReactTable .rt-noData {
+    background: transparent;
+    color: var(--scolor);
+}
+
 .ReactTable .-loading .-loading-inner {
     color: var(--gray300);
 }

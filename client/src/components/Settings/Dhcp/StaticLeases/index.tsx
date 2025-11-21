@@ -1,6 +1,6 @@
 import React from 'react';
 
-// @ts-expect-error FIXME: update react-table
+// @ts-ignore FIXME: update react-table
 import ReactTable from 'react-table';
 import { Trans, useTranslation } from 'react-i18next';
 import { useDispatch } from 'react-redux';

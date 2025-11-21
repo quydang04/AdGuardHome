@@ -108,11 +108,17 @@ body {
 
 .loading-bar {
     position: fixed;
-    top: 0;
-    left: 0;
+    top: 10px;
+    left: 16px;
+    right: 16px;
+    width: auto !important;
     z-index: 103;
-    height: 3px;
-    background: linear-gradient(45deg, rgba(99, 125, 120, 1) 0%, rgba(88, 177, 101, 1) 100%);
+    height: 4px;
+    border-radius: 999px;
+    background: linear-gradient(110deg, #7da7ff 0%, #5ae0a2 100%) !important;
+    box-shadow:
+        0 0 0 1px rgba(255, 255, 255, 0.08),
+        0 6px 20px rgba(0, 0, 0, 0.25);
 }
 
 .modal-body--medium {
@@ -135,6 +141,38 @@ body {
 
 .mw-75 {
     max-width: 75% !important;
+}
+
+.page-enter {
+    opacity: 0;
+    transform: translateY(12px);
+    filter: blur(4px);
+}
+
+.page-enter-active {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+    transition:
+        opacity 220ms ease,
+        transform 220ms ease,
+        filter 220ms ease;
+}
+
+.page-exit {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+}
+
+.page-exit-active {
+    opacity: 0;
+    transform: translateY(-10px);
+    filter: blur(4px);
+    transition:
+        opacity 200ms ease,
+        transform 200ms ease,
+        filter 200ms ease;
 }
 
 .cursor--not-allowed {

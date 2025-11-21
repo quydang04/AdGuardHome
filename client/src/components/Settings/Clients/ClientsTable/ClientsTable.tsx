@@ -6,7 +6,7 @@ import { useDispatch, useSelector } from 'react-redux';
 
 import { useHistory, useLocation } from 'react-router-dom';
 
-// @ts-expect-error FIXME: update react-table
+// @ts-ignore FIXME: update react-table
 import ReactTable from 'react-table';
 
 import { getAllBlockedServices, getBlockedServices } from '../../../../actions/services';

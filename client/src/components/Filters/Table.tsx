@@ -1,6 +1,6 @@
 import React, { Component } from 'react';
 
-// @ts-expect-error FIXME: update react-table
+// @ts-ignore FIXME: update react-table
 import ReactTable from 'react-table';
 import { withTranslation, Trans } from 'react-i18next';
 

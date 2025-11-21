@@ -4,8 +4,11 @@ import { Provider } from 'react-redux';
 import configureStore from './configureStore';
 import reducers from './reducers';
 
+import 'mdui/dist/css/mdui.css';
+import 'mdui/dist/js/mdui.js';
 import App from './components/App';
 import './components/App/index.css';
+import './theme/mdui-bridge.css';
 import './i18n';
 import { RootState, initialState } from './initialState';
 

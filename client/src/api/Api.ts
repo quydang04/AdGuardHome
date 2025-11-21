@@ -660,7 +660,7 @@ class Api {
 
     setProfile(data: any) {
         const theme = data.theme ? data.theme : THEMES.auto;
-        const defaultLanguage = i18n.language ? i18n.language : LANGUAGES.en;
+        const defaultLanguage = i18n.language ? i18n.language : Object.keys(LANGUAGES)[0] || 'vi';
         const language = data.language ? data.language : defaultLanguage;
 
         const { path, method } = this.UPDATE_PROFILE;

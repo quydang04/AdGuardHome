@@ -34,6 +34,20 @@ const Toast = ({ id, message, type, options }: ToastProps) => {
             className={`toast toast--${type}`}
             onMouseOver={clearRemoveToastTimeout}
             onMouseOut={setRemoveToastTimeout}>
+            <span className="toast__icon" aria-hidden="true">
+                {type === 'success' && (
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M5 13l4 4L19 7" />
+                    </svg>
+                )}
+                {type !== 'success' && (
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
+                        <circle cx="12" cy="12" r="10" />
+                        <path d="M12 8v4" />
+                        <path d="M12 16h.01" />
+                    </svg>
+                )}
+            </span>
             <p className="toast__content">
                 <Trans i18nKey={message} {...options} />
             </p>

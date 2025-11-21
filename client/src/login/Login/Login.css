@@ -13,17 +13,21 @@
     justify-content: space-between;
     align-items: stretch;
     min-height: 100vh;
+    background: radial-gradient(circle at 20% 18%, rgba(84, 194, 106, 0.12), transparent 26%),
+        radial-gradient(circle at 80% 4%, rgba(63, 123, 217, 0.18), transparent 24%),
+        var(--mdui-theme-surface-variant);
+    padding: 32px 12px 24px;
 }
 
 [data-theme='dark'] .login__logo {
-    filter: invert(1);
+    filter: invert(1) drop-shadow(0 8px 24px rgba(137, 169, 255, 0.3));
 }
 
 .login__form {
     margin: auto;
-    padding: 40px 15px 100px;
+    padding: 20px 16px 72px;
     width: 100%;
-    max-width: 24rem;
+    max-width: 25rem;
 }
 
 .login__info {
@@ -46,6 +50,24 @@
     }
 }
 
+.login__form .card {
+    border: 1px solid var(--mdui-theme-outline);
+    border-radius: 18px;
+    box-shadow: var(--mdui-shadow-card);
+    background: color-mix(in srgb, var(--mdui-theme-surface) 92%, rgba(63, 123, 217, 0.06));
+}
+
+.login__form .card-body {
+    padding: 28px 26px 24px;
+}
+
+.login .footer .container {
+    max-width: none !important;
+    width: 100% !important;
+    padding-left: 18px;
+    padding-right: 18px;
+}
+
 .form__group {
     position: relative;
     margin-bottom: 15px;
@@ -57,4 +79,9 @@
 
 .form__message--error {
     color: var(--red);
+}
+
+.login__link {
+    color: var(--mdui-theme-secondary);
+    font-weight: 600;
 }

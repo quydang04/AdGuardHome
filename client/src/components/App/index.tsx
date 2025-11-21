@@ -1,8 +1,9 @@
 import React, { useEffect } from 'react';
 
-import { HashRouter, Route } from 'react-router-dom';
+import { HashRouter, Route, Switch, useLocation } from 'react-router-dom';
 import LoadingBar from 'react-redux-loading-bar';
 import { hot } from 'react-hot-loader/root';
+import { CSSTransition, TransitionGroup } from 'react-transition-group';
 
 import 'react-table/react-table.css';
 import '../ui/Tabler.css';
@@ -108,7 +109,27 @@ const ROUTES = [
     },
 ];
 
-const App = () => {
+const RoutesWithTransition = ({ processing, isCoreRunning }: { processing: boolean; isCoreRunning: boolean }) => {
+    const location = useLocation();
+
+    if (processing || !isCoreRunning) {
+        return null;
+    }
+
+    return (
+        <TransitionGroup component={null}>
+            <CSSTransition key={location.pathname} classNames="page" timeout={260} unmountOnExit>
+                <Switch location={location}>
+                    {ROUTES.map((route, index) => (
+                        <Route key={index} exact={route.exact} path={route.path} component={route.component} />
+                    ))}
+                </Switch>
+            </CSSTransition>
+        </TransitionGroup>
+    );
+};
+
+const AppContent = () => {
     const dispatch = useDispatch();
     const { language, isCoreRunning, isUpdateAvailable, processing, theme } = useSelector<
         RootState,
@@ -190,7 +211,7 @@ const App = () => {
     };
 
     return (
-        <HashRouter hashType="noslash">
+        <>
             {updateAvailable && (
                 <>
                     <UpdateTopline />
@@ -219,11 +240,8 @@ const App = () => {
                         </div>
                     </div>
                 )}
-                {!processing &&
-                    isCoreRunning &&
-                    ROUTES.map((route, index) => (
-                        <Route key={index} exact={route.exact} path={route.path} component={route.component} />
-                    ))}
+
+                <RoutesWithTransition processing={processing} isCoreRunning={isCoreRunning} />
             </div>
 
             <Footer />
@@ -231,8 +249,14 @@ const App = () => {
             <Toasts />
 
             <Icons />
-        </HashRouter>
+        </>
     );
 };
+
+const App = () => (
+    <HashRouter hashType="noslash">
+        <AppContent />
+    </HashRouter>
+);
 
 export default hot(App);

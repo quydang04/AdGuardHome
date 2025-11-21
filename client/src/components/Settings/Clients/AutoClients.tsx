@@ -1,7 +1,7 @@
 import React, { Component } from 'react';
 import { withTranslation } from 'react-i18next';
 
-// @ts-expect-error FIXME: update react-table
+// @ts-ignore FIXME: update react-table
 import ReactTable from 'react-table';
 
 import Card from '../../ui/Card';

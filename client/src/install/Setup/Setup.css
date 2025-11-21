@@ -8,77 +8,97 @@
 }
 
 .setup {
-    min-height: calc(100vh - 345px);
+    min-height: calc(100vh - 280px);
     line-height: 1.48;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 32px 12px;
+    background: radial-gradient(circle at 18% 20%, rgba(84, 194, 106, 0.12), transparent 28%),
+        radial-gradient(circle at 82% 0%, rgba(63, 123, 217, 0.18), transparent 26%),
+        var(--mdui-theme-surface-variant);
 }
 
 @media screen and (min-width: 768px) {
     .setup {
-        padding: 50px 0;
+        padding: 64px 0 96px;
         min-height: calc(100vh - 141px);
     }
 }
 
 .setup__container {
-    max-width: 650px;
+    position: relative;
+    max-width: 720px;
     margin: 0 auto;
-    padding: 30px 20px;
+    padding: 40px 24px 34px;
     line-height: 1.6;
-    background-color: var(--card-bgcolor);
-    box-shadow: 0 1px 4px rgba(74, 74, 74, 0.36);
-    border-radius: 3px;
+    background: color-mix(in srgb, var(--mdui-theme-surface) 92%, rgba(63, 123, 217, 0.05));
+    border: 1px solid var(--mdui-theme-outline);
+    border-radius: 22px;
+    box-shadow: var(--mdui-shadow-card);
+    backdrop-filter: blur(8px);
+    overflow: hidden;
 }
 
 [data-theme='dark'] .setup__container {
-    box-shadow: none;
-    border: 1px solid var(--card-border-color);
+    box-shadow: var(--mdui-shadow-card-soft);
+    background: color-mix(in srgb, var(--mdui-theme-surface) 88%, rgba(137, 169, 255, 0.08));
 }
 
 @media screen and (min-width: 768px) {
     .setup__container {
-        width: 650px;
-        padding: 40px 30px;
+        width: 720px;
+        padding: 48px 44px 42px;
     }
 }
 
 .setup__logo {
     display: block;
-    margin: 0 auto 40px;
-    max-width: 140px;
+    margin: 0 auto 36px;
+    max-width: 160px;
+    filter: drop-shadow(0 8px 20px rgba(63, 123, 217, 0.25));
 }
 
 [data-theme='dark'] .setup__logo {
-    filter: invert(1);
+    filter: invert(1) drop-shadow(0 8px 24px rgba(137, 169, 255, 0.3));
 }
 
 .setup__nav {
     text-align: center;
+    margin-top: 10px;
 }
 
 .setup__step {
-    margin-bottom: 25px;
+    margin-bottom: 28px;
 }
 
 .setup__title {
-    margin-bottom: 30px;
-    font-size: 28px;
+    margin-bottom: 18px;
+    font-size: 26px;
     text-align: center;
-    font-weight: 700;
+    font-weight: 800;
+    letter-spacing: -0.01em;
 }
 
 .setup__subtitle {
-    margin-bottom: 10px;
-    font-size: 17px;
+    margin-bottom: 12px;
+    font-size: 18px;
     font-weight: 700;
+    letter-spacing: -0.01em;
 }
 
 .setup__desc {
-    margin-bottom: 20px;
+    margin-bottom: 18px;
     font-size: 15px;
+    color: rgba(17, 24, 39, 0.75);
+}
+
+[data-theme='dark'] .setup__desc {
+    color: rgba(229, 231, 235, 0.82);
 }
 
 .setup__group {
-    margin-bottom: 35px;
+    margin-bottom: 32px;
 }
 
 .setup__group:last-child {
@@ -91,16 +111,16 @@
 }
 
 .setup__progress-wrap {
-    height: 4px;
-    margin: 20px -20px -30px -20px;
+    height: 6px;
+    margin: 24px -24px -18px -24px;
     overflow: hidden;
-    background-color: #eaeaea;
-    border-radius: 0 0 3px 3px;
+    background-color: color-mix(in srgb, var(--mdui-theme-secondary) 12%, transparent);
+    border-radius: 0 0 16px 16px;
 }
 
 @media screen and (min-width: 768px) {
     .setup__progress-wrap {
-        margin: 20px -30px -40px -30px;
+        margin: 28px -44px -26px -44px;
     }
 }
 
@@ -111,9 +131,10 @@
     line-height: 20px;
     color: #fff;
     text-align: center;
-    box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.15);
     transition: width 0.6s ease;
-    background: linear-gradient(45deg, rgba(99, 125, 120, 1) 0%, rgba(88, 177, 101, 1) 100%);
+    background: linear-gradient(120deg, var(--mdui-theme-secondary), var(--mdui-theme-primary));
+    border-radius: 16px;
+    box-shadow: 0 4px 14px rgba(84, 194, 106, 0.3);
 }
 
 .btn-standard {
@@ -130,7 +151,7 @@
 }
 
 .setup__button {
-    min-width: 120px;
+    min-width: 130px;
     padding-left: 30px;
     padding-right: 30px;
 }
@@ -142,4 +163,13 @@
 .divider--small {
     margin-top: 1rem;
     margin-bottom: 1rem;
+}
+
+.setup__container:before {
+    content: '';
+    position: absolute;
+    inset: 12px;
+    border-radius: 18px;
+    border: 1px solid color-mix(in srgb, var(--mdui-theme-primary) 20%, transparent);
+    pointer-events: none;
 }

@@ -119,7 +119,7 @@ export const Auth = ({ onAuthSubmit }: Props) => {
                 </div>
             </div>
 
-            <Controls isDirty={isDirty} isValid={isValid} />
+            <Controls invalid={!isValid} pristine={!isDirty} />
         </form>
     );
 };
