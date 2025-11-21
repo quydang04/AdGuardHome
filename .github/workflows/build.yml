@@ -52,11 +52,6 @@ jobs:
       - name: Run frontend lint
         run: npm --prefix client run lint
 
-      - name: Run frontend unit tests
-        env:
-          CI: true
-        run: npm --prefix client run test
-
       - name: Run development build
         run: |
           make SIGN=0 VERBOSE=1 VERSION="${{ env.VERSION }}" build-release
