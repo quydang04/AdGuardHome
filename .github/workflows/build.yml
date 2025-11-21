@@ -19,6 +19,7 @@ jobs:
     env:
       GO111MODULE: on
       GOPROXY: https://proxy.golang.org,direct
+      NPM_CONFIG_LEGACY_PEER_DEPS: 'true'
       VERSION: dev-${{ github.run_id }}
       CHANGE_LOGS: "* ${{ github.event.head_commit.message }}"
     steps:
