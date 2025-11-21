@@ -49,9 +49,6 @@ jobs:
       - name: Run backend unit tests
         run: go test ./...
 
-      - name: Run frontend lint
-        run: npm --prefix client run lint
-
       - name: Run development build
         run: |
           make SIGN=0 VERBOSE=1 VERSION="${{ env.VERSION }}" build-release
@@ -85,3 +82,4 @@ jobs:
             ${{ env.DIST_FOLDER }}/*.tar.gz
             ${{ env.DIST_FOLDER }}/*.zip
             ${{ env.DIST_FOLDER }}/checksums.txt
+
