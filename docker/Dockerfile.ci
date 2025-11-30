@@ -2,7 +2,7 @@
 # This Dockerfile builds AdGuard Home from source
 
 # ============== Build Stage ==============
-FROM golang:1.23-alpine AS go-builder
+FROM golang:1.24-alpine AS go-builder
 
 RUN apk --no-cache add \
     bash \
@@ -16,10 +16,10 @@ WORKDIR /src
 # Copy go mod files first for better caching
 COPY go.mod go.sum ./
 
-# Remove Go 1.25+ specific directives (ignore, tool) that Go 1.23 doesn't support
+# Remove Go 1.25+ specific directives (ignore, tool) that older Go doesn't support
 RUN sed -i '/^ignore (/,/^)/d' go.mod && \
     sed -i '/^tool (/,/^)/d' go.mod && \
-    sed -i 's/^go 1.25.*/go 1.23/' go.mod && \
+    sed -i 's/^go 1.25.*/go 1.24/' go.mod && \
     go mod download
 
 # Copy the rest of the source
