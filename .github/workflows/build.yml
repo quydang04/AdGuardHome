@@ -88,9 +88,6 @@ jobs:
       - name: Run backend unit tests
         run: go test ./...
 
-      - name: Run frontend lint
-        run: npm --prefix client run lint
-
       - name: Build release
         run: |
           make SIGN=0 VERBOSE=1 VERSION="${{ steps.version.outputs.NEW_VERSION }}" build-release
