@@ -19,6 +19,7 @@ on:
 env:
   # ⚠️ QUAN TRỌNG: Thay đổi thành Docker Hub username/repo của bạn
   DOCKER_IMAGE: quydang04/adguardhome
+  NPM_CONFIG_LEGACY_PEER_DEPS: 'true'
 
 jobs:
   docker:
@@ -85,6 +86,7 @@ jobs:
             BUILD_DATE=${{ github.event.repository.updated_at }}
             VERSION=${{ steps.version.outputs.VERSION }}
             VCS_REF=${{ github.sha }}
+            NPM_CONFIG_LEGACY_PEER_DEPS=${{ env.NPM_CONFIG_LEGACY_PEER_DEPS }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
