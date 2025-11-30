@@ -2,25 +2,40 @@
 # This Dockerfile builds AdGuard Home from source
 
 # ============== Build Stage ==============
-FROM golang:1.24-alpine AS go-builder
+FROM alpine:3.21 AS go-builder
+
+ARG GO_VERSION=1.25.3
+ARG TARGETARCH
 
 RUN apk --no-cache add \
     bash \
     build-base \
+    ca-certificates \
+    curl \
     git \
     npm \
-    yarn
+    tar \
+    yarn && \
+    update-ca-certificates
+
+# Install requested Go toolchain for the current architecture.
+RUN set -eux; \
+    case "${TARGETARCH}" in \
+        amd64) GOARCH=amd64 ;; \
+        arm64) GOARCH=arm64 ;; \
+        *) echo "Unsupported TARGETARCH: ${TARGETARCH}"; exit 1 ;; \
+    esac; \
+    curl -fsSLo /tmp/go.tgz "https://go.dev/dl/go${GO_VERSION}.linux-${GOARCH}.tar.gz"; \
+    tar -C /usr/local -xzf /tmp/go.tgz; \
+    rm /tmp/go.tgz
+
+ENV PATH="/usr/local/go/bin:${PATH}"
 
 WORKDIR /src
 
 # Copy go mod files first for better caching
 COPY go.mod go.sum ./
-
-# Remove Go 1.25+ specific directives (ignore, tool) that older Go doesn't support
-RUN sed -i '/^ignore (/,/^)/d' go.mod && \
-    sed -i '/^tool (/,/^)/d' go.mod && \
-    sed -i 's/^go 1.25.*/go 1.24/' go.mod && \
-    go mod download
+RUN go mod download
 
 # Copy the rest of the source
 COPY . .
