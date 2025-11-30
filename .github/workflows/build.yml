@@ -1,4 +1,4 @@
-name: Build dev and create development release
+name: Build and Release
 
 on:
   push:
@@ -9,10 +9,9 @@ env:
   GO_VERSION: '1.25.3'
   NODE_VERSION: '24.10.0'
   DIST_FOLDER: dist
-  DEV_VERSION_NAME: dev-latest
 
 jobs:
-  build_and_release_dev:
+  build_and_release:
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -20,12 +19,51 @@ jobs:
       GO111MODULE: on
       GOPROXY: https://proxy.golang.org,direct
       NPM_CONFIG_LEGACY_PEER_DEPS: 'true'
-      VERSION: dev-${{ github.run_id }}
       CHANGE_LOGS: "* ${{ github.event.head_commit.message }}"
     steps:
       - uses: actions/checkout@v4.1.1
         with:
           fetch-depth: 0
+
+      - name: Get latest tag and calculate next version
+        id: version
+        run: |
+          # Lấy tag mới nhất theo semantic version
+          LATEST_TAG=$(git tag -l "v*" --sort=-v:refname | head -n 1)
+          
+          if [ -z "$LATEST_TAG" ]; then
+            # Nếu chưa có tag nào, bắt đầu từ v1.0.0
+            NEW_VERSION="1.0.0"
+          else
+            # Bỏ prefix 'v' và tách version
+            VERSION_NUM=${LATEST_TAG#v}
+            
+            # Tách major.minor.patch
+            IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION_NUM"
+            
+            # Tăng patch version
+            PATCH=$((PATCH + 1))
+            
+            # Nếu patch >= 10, tăng minor và reset patch
+            if [ $PATCH -ge 10 ]; then
+              PATCH=0
+              MINOR=$((MINOR + 1))
+            fi
+            
+            # Nếu minor >= 10, tăng major và reset minor
+            if [ $MINOR -ge 10 ]; then
+              MINOR=0
+              MAJOR=$((MAJOR + 1))
+            fi
+            
+            NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}"
+          fi
+          
+          echo "LATEST_TAG=$LATEST_TAG" >> $GITHUB_OUTPUT
+          echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "NEW_TAG=v$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "📦 Previous version: $LATEST_TAG"
+          echo "🚀 New version: v$NEW_VERSION"
 
       - name: Set up Go
         uses: actions/setup-go@v5
@@ -44,7 +82,7 @@ jobs:
           cache-dependency-path: client/package-lock.json
 
       - name: Install dependencies
-        run: make SIGN=0 VERBOSE=1 VERSION="${{ env.VERSION }}" deps
+        run: make SIGN=0 VERBOSE=1 VERSION="${{ steps.version.outputs.NEW_VERSION }}" deps
 
       - name: Run backend unit tests
         run: go test ./...
@@ -52,35 +90,54 @@ jobs:
       - name: Run frontend lint
         run: npm --prefix client run lint
 
-      - name: Run development build
+      - name: Build release
         run: |
-          make SIGN=0 VERBOSE=1 VERSION="${{ env.VERSION }}" build-release
+          make SIGN=0 VERBOSE=1 VERSION="${{ steps.version.outputs.NEW_VERSION }}" build-release
           rm -rf "${{ env.DIST_FOLDER }}/AdGuardHome_frontend.tar.gz"
 
-      - name: Create development release
+      - name: Create Git tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "${{ steps.version.outputs.NEW_TAG }}" -m "Release ${{ steps.version.outputs.NEW_TAG }}"
+          git push origin "${{ steps.version.outputs.NEW_TAG }}"
+
+      - name: Create Release
         uses: ncipollo/release-action@v1
         with:
-          tag: ${{ env.DEV_VERSION_NAME }}
-          allowUpdates: true
-          prerelease: true
+          tag: ${{ steps.version.outputs.NEW_TAG }}
+          name: "Release ${{ steps.version.outputs.NEW_TAG }}"
           artifacts: "${{ env.DIST_FOLDER }}/*.tar.gz,${{ env.DIST_FOLDER }}/*.zip,${{ env.DIST_FOLDER }}/checksums.txt"
           body: |
-            ## Development release from quydang04/AdGuardHome
+            ## 🚀 AdGuard Home ${{ steps.version.outputs.NEW_TAG }}
 
-            ### Build information:
-            * GO version: **${{ env.GO_VERSION }}**
-            * Node version: **${{ env.NODE_VERSION }}**
-            * Release version: **${{ env.VERSION }}**
+            ### 📋 Build Information
+            | Component | Version |
+            |-----------|---------|
+            | Go | ${{ env.GO_VERSION }} |
+            | Node.js | ${{ env.NODE_VERSION }} |
+            | Release | ${{ steps.version.outputs.NEW_VERSION }} |
 
-            ### What's changed:
+            ### 📝 Changes
             ${{ env.CHANGE_LOGS }}
 
-            **Notice**: This development build is provided as-is and may contain unfinished changes.
+            ### 📦 Downloads
+            | Platform | Architecture | File |
+            |----------|--------------|------|
+            | Windows | x64 | `AdGuardHome_windows_amd64.zip` |
+            | Windows | ARM64 | `AdGuardHome_windows_arm64.zip` |
+            | Linux | x64 | `AdGuardHome_linux_amd64.tar.gz` |
+            | Linux | ARM64 | `AdGuardHome_linux_arm64.tar.gz` |
+            | macOS | x64 | `AdGuardHome_darwin_amd64.tar.gz` |
+            | macOS | ARM64 (M1/M2) | `AdGuardHome_darwin_arm64.tar.gz` |
+
+            ---
+            **Full Changelog**: https://github.com/${{ github.repository }}/compare/${{ steps.version.outputs.LATEST_TAG }}...${{ steps.version.outputs.NEW_TAG }}
 
       - name: Upload distribution artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: adguardhome-dist
+          name: adguardhome-${{ steps.version.outputs.NEW_VERSION }}
           path: |
             ${{ env.DIST_FOLDER }}/*.tar.gz
             ${{ env.DIST_FOLDER }}/*.zip
