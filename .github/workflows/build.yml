@@ -108,7 +108,7 @@ jobs:
         uses: ncipollo/release-action@v1
         with:
           tag: ${{ steps.version.outputs.NEW_TAG }}
-          name: "Release ${{ steps.version.outputs.NEW_TAG }}"
+          name: "${{ steps.version.outputs.NEW_TAG }}"
           artifacts: "${{ env.DIST_FOLDER }}/*.tar.gz,${{ env.DIST_FOLDER }}/*.zip,${{ env.DIST_FOLDER }}/checksums.txt"
           body: |
             ## 🚀 AdGuard Home ${{ steps.version.outputs.NEW_TAG }}
@@ -144,4 +144,5 @@ jobs:
             ${{ env.DIST_FOLDER }}/*.tar.gz
             ${{ env.DIST_FOLDER }}/*.zip
             ${{ env.DIST_FOLDER }}/checksums.txt
+
 
