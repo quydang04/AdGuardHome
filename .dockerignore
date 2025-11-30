@@ -1,3 +1,37 @@
-# Ignore everything except for explicitly allowed stuff.
-*
-!dist/docker
+# Ignore build artifacts and temporary files
+.git
+.github
+.vscode
+*.log
+*.tmp
+
+# Ignore IDE and editor files
+.idea
+*.swp
+*.swo
+*~
+
+# Ignore test and documentation
+*_test.go
+doc/
+*.md
+!README.md
+
+# Ignore OS files
+.DS_Store
+Thumbs.db
+
+# Ignore build output (except what we need)
+build/
+!build/static/
+
+# Ignore node_modules (will be installed during build)
+node_modules/
+client/node_modules/
+
+# Ignore local config
+*.local
+.env*
+
+# Ignore dist (for CI Dockerfile that builds from source)
+dist/
