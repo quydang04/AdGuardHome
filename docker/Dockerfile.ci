@@ -65,7 +65,7 @@ RUN go mod download
 COPY . .
 
 # Copy pre-built frontend assets from the build-platform stage
-COPY --from=frontend-builder /src/client/build ./client/build
+COPY --from=frontend-builder /src/build ./build
 
 # Build backend
 ARG VERSION=dev
