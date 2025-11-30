@@ -29,7 +29,7 @@ jobs:
         id: version
         run: |
           # Lấy tag mới nhất theo semantic version
-          LATEST_TAG=$(git tag -l "v*" --sort=-v:refname | head -n 1)
+          LATEST_TAG=$(git tag --list "v*" --sort=-version:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -n 1)
           
           if [ -z "$LATEST_TAG" ]; then
             # Nếu chưa có tag nào, bắt đầu từ v1.0.0
@@ -97,8 +97,12 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git tag -a "${{ steps.version.outputs.NEW_TAG }}" -m "Release ${{ steps.version.outputs.NEW_TAG }}"
-          git push origin "${{ steps.version.outputs.NEW_TAG }}"
+          if git rev-parse -q --verify "refs/tags/${{ steps.version.outputs.NEW_TAG }}" >/dev/null; then
+            echo "Tag ${{ steps.version.outputs.NEW_TAG }} already exists, skipping creation."
+          else
+            git tag -a "${{ steps.version.outputs.NEW_TAG }}" -m "Release ${{ steps.version.outputs.NEW_TAG }}"
+            git push origin "${{ steps.version.outputs.NEW_TAG }}"
+          fi
 
       - name: Create Release
         uses: ncipollo/release-action@v1

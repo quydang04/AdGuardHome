@@ -1,11 +1,9 @@
 # Multi-stage Dockerfile for GitHub Actions
 # This Dockerfile builds AdGuard Home from source
 
-# ============== Build Stage ==============
-FROM alpine:3.21 AS go-builder
+# ============== Frontend Build (runs on build platform) ==============
+FROM --platform=$BUILDPLATFORM alpine:3.21 AS frontend-builder
 
-ARG GO_VERSION=1.25.3
-ARG TARGETARCH
 ARG NPM_CONFIG_LEGACY_PEER_DEPS=true
 
 RUN apk --no-cache add \
@@ -17,6 +15,31 @@ RUN apk --no-cache add \
     npm \
     tar \
     yarn && \
+    update-ca-certificates
+
+ENV NPM_CONFIG_LEGACY_PEER_DEPS=${NPM_CONFIG_LEGACY_PEER_DEPS}
+
+WORKDIR /src
+
+COPY client/package.json client/package-lock.json ./client/
+RUN npm --prefix client ci
+
+COPY client ./client
+RUN npm --prefix client run build-prod
+
+# ============== Go Build Stage ==============
+FROM alpine:3.21 AS go-builder
+
+ARG GO_VERSION=1.25.3
+ARG TARGETARCH
+
+RUN apk --no-cache add \
+    bash \
+    build-base \
+    ca-certificates \
+    curl \
+    git \
+    tar && \
     update-ca-certificates
 
 # Install requested Go toolchain for the current architecture.
@@ -31,7 +54,6 @@ RUN set -eux; \
     rm /tmp/go.tgz
 
 ENV PATH="/usr/local/go/bin:${PATH}"
-ENV NPM_CONFIG_LEGACY_PEER_DEPS=${NPM_CONFIG_LEGACY_PEER_DEPS}
 
 WORKDIR /src
 
@@ -42,9 +64,8 @@ RUN go mod download
 # Copy the rest of the source
 COPY . .
 
-# Build frontend
-RUN npm --prefix client ci && \
-    npm --prefix client run build-prod
+# Copy pre-built frontend assets from the build-platform stage
+COPY --from=frontend-builder /src/client/build ./client/build
 
 # Build backend
 ARG VERSION=dev
