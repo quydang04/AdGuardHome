@@ -15,7 +15,12 @@ WORKDIR /src
 
 # Copy go mod files first for better caching
 COPY go.mod go.sum ./
-RUN go mod download
+
+# Remove Go 1.25+ specific directives (ignore, tool) that Go 1.23 doesn't support
+RUN sed -i '/^ignore (/,/^)/d' go.mod && \
+    sed -i '/^tool (/,/^)/d' go.mod && \
+    sed -i 's/^go 1.25.*/go 1.23/' go.mod && \
+    go mod download
 
 # Copy the rest of the source
 COPY . .
