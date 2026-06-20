@@ -207,8 +207,9 @@ jobs:
         id: changelog
         run: |
           PREV_TAG=$(git tag --list "v*" --sort=-version:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -n 1)
+          echo "PREV_TAG=${PREV_TAG:-}" >> $GITHUB_OUTPUT
           if [ -z "$PREV_TAG" ]; then
-            LOGS=$(git log --pretty=format:"* %s" -20)
+            LOGS=$(git log --pretty=format:"* %s" -20 | grep -v "Co-Authored-By" | grep -v "Claude-Session")
           else
             LOGS=$(git log --pretty=format:"* %s" "${PREV_TAG}..HEAD" | grep -v "Co-Authored-By" | grep -v "Claude-Session")
           fi

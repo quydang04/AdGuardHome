@@ -1,0 +1,123 @@
+name: Cleanup Old Releases, Tags, and Branches
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (show what would be deleted without deleting)'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Delete old releases
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DRY_RUN: ${{ github.event.inputs.dry_run }}
+        run: |
+          echo "=== Listing releases to delete ==="
+          releases=$(gh release list --limit 100 --json tagName -q '.[].tagName')
+
+          for tag in $releases; do
+            case "$tag" in
+              v0.*|dev-*|v)
+                if [ "$DRY_RUN" = "true" ]; then
+                  echo "[DRY RUN] Would delete release: $tag"
+                else
+                  echo "Deleting release: $tag"
+                  gh release delete "$tag" --yes --cleanup-tag 2>/dev/null || echo "  Failed to delete release $tag"
+                fi
+                ;;
+              *)
+                echo "Keeping release: $tag"
+                ;;
+            esac
+          done
+
+      - name: Delete old tags
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DRY_RUN: ${{ github.event.inputs.dry_run }}
+        run: |
+          echo "=== Listing tags to delete ==="
+          git fetch --tags
+
+          for tag in $(git tag -l 'v0.*'); do
+            if [ "$DRY_RUN" = "true" ]; then
+              echo "[DRY RUN] Would delete tag: $tag"
+            else
+              echo "Deleting tag: $tag"
+              git push origin --delete "refs/tags/$tag" 2>/dev/null || echo "  Failed to delete tag $tag"
+            fi
+          done
+
+          for tag in dev-latest; do
+            if git rev-parse "refs/tags/$tag" >/dev/null 2>&1; then
+              if [ "$DRY_RUN" = "true" ]; then
+                echo "[DRY RUN] Would delete tag: $tag"
+              else
+                echo "Deleting tag: $tag"
+                git push origin --delete "refs/tags/$tag" 2>/dev/null || echo "  Failed to delete tag $tag"
+              fi
+            fi
+          done
+
+          if git rev-parse "refs/tags/v" >/dev/null 2>&1; then
+            if [ "$DRY_RUN" = "true" ]; then
+              echo "[DRY RUN] Would delete tag: v"
+            else
+              echo "Deleting tag: v"
+              git push origin --delete "refs/tags/v" 2>/dev/null || echo "  Failed to delete tag v"
+            fi
+          fi
+
+      - name: Delete old branches
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DRY_RUN: ${{ github.event.inputs.dry_run }}
+        run: |
+          echo "=== Listing branches to delete ==="
+          branches=$(gh api repos/${{ github.repository }}/branches --paginate -q '.[].name')
+
+          for branch in $branches; do
+            delete=false
+            case "$branch" in
+              release-v0.*|beta-v0.*|claude/*)
+                delete=true
+                ;;
+            esac
+
+            if [ "$delete" = "true" ]; then
+              if [ "$DRY_RUN" = "true" ]; then
+                echo "[DRY RUN] Would delete branch: $branch"
+              else
+                echo "Deleting branch: $branch"
+                gh api -X DELETE "repos/${{ github.repository }}/git/refs/heads/$branch" 2>/dev/null || echo "  Failed to delete branch $branch"
+              fi
+            fi
+          done
+
+      - name: Summary
+        run: |
+          echo ""
+          echo "============================================"
+          echo "  Cleanup complete!"
+          echo "============================================"
+          echo ""
+          echo "Remaining releases:"
+          gh release list --limit 20 || true
+          echo ""
+          echo "Remaining tags:"
+          git tag -l | head -20 || true
