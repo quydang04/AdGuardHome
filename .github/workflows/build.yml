@@ -4,22 +4,54 @@ on:
   push:
     branches:
       - master
+  pull_request:
+    branches:
+      - master
+  workflow_dispatch:
+    inputs:
+      version_override:
+        description: 'Custom version (e.g. 1.2.3). Leave empty for auto-increment.'
+        required: false
+        default: ''
+      build_os:
+        description: 'Target OS (leave empty for all)'
+        required: false
+        default: ''
+        type: choice
+        options:
+          - ''
+          - linux
+          - windows
+          - darwin
+          - freebsd
+          - openbsd
+      build_arch:
+        description: 'Target architecture (leave empty for all)'
+        required: false
+        default: ''
+        type: choice
+        options:
+          - ''
+          - amd64
+          - arm64
+          - 386
+          - arm
 
 env:
   GO_VERSION: '1.25.3'
   NODE_VERSION: '24.10.0'
-  DIST_FOLDER: dist
+  DIST_DIR: dist
 
 jobs:
-  build_and_release:
+  build:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
+    outputs:
+      new_version: ${{ steps.version.outputs.NEW_VERSION }}
+      new_tag: ${{ steps.version.outputs.NEW_TAG }}
     env:
       GO111MODULE: on
       GOPROXY: https://proxy.golang.org,direct
       NPM_CONFIG_LEGACY_PEER_DEPS: 'true'
-      CHANGE_LOGS: "* ${{ github.event.head_commit.message }}"
     steps:
       - uses: actions/checkout@v4.1.1
         with:
@@ -28,43 +60,33 @@ jobs:
       - name: Get latest tag and calculate next version
         id: version
         run: |
-          # Lấy tag mới nhất theo semantic version
-          LATEST_TAG=$(git tag --list "v*" --sort=-version:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -n 1)
-          
-          if [ -z "$LATEST_TAG" ]; then
-            # Nếu chưa có tag nào, bắt đầu từ v1.0.0
-            NEW_VERSION="1.0.0"
-            LATEST_TAG="initial"
+          if [ -n "${{ github.event.inputs.version_override }}" ]; then
+            NEW_VERSION="${{ github.event.inputs.version_override }}"
           else
-            # Bỏ prefix 'v' và tách version
-            VERSION_NUM=${LATEST_TAG#v}
-            
-            # Tách major.minor.patch
-            IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION_NUM"
-            
-            # Tăng patch version
-            PATCH=$((PATCH + 1))
-            
-            # Nếu patch >= 10, tăng minor và reset patch
-            if [ $PATCH -ge 10 ]; then
-              PATCH=0
-              MINOR=$((MINOR + 1))
+            LATEST_TAG=$(git tag --list "v*" --sort=-version:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -n 1)
+
+            if [ -z "$LATEST_TAG" ]; then
+              NEW_VERSION="1.0.0"
+              LATEST_TAG="initial"
+            else
+              VERSION_NUM=${LATEST_TAG#v}
+              IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION_NUM"
+              PATCH=$((PATCH + 1))
+              if [ $PATCH -ge 10 ]; then
+                PATCH=0
+                MINOR=$((MINOR + 1))
+              fi
+              if [ $MINOR -ge 10 ]; then
+                MINOR=0
+                MAJOR=$((MAJOR + 1))
+              fi
+              NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}"
             fi
-            
-            # Nếu minor >= 10, tăng major và reset minor
-            if [ $MINOR -ge 10 ]; then
-              MINOR=0
-              MAJOR=$((MAJOR + 1))
-            fi
-            
-            NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}"
           fi
-          
-          echo "LATEST_TAG=$LATEST_TAG" >> $GITHUB_OUTPUT
+
           echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_OUTPUT
           echo "NEW_TAG=v$NEW_VERSION" >> $GITHUB_OUTPUT
-          echo "📦 Previous version: $LATEST_TAG"
-          echo "🚀 New version: v$NEW_VERSION"
+          echo "Version: v$NEW_VERSION"
 
       - name: Set up Go
         uses: actions/setup-go@v5
@@ -72,8 +94,7 @@ jobs:
           go-version: ${{ env.GO_VERSION }}
           check-latest: true
           cache: true
-          cache-dependency-path: |
-            go.sum
+          cache-dependency-path: go.sum
 
       - name: Set up Node
         uses: actions/setup-node@v4
@@ -86,44 +107,124 @@ jobs:
         run: make SIGN=0 VERBOSE=1 VERSION="${{ steps.version.outputs.NEW_VERSION }}" deps
 
       - name: Run backend unit tests
+        if: github.event_name == 'push' || github.event_name == 'pull_request'
         run: go test ./...
 
       - name: Build release
+        env:
+          OS: ${{ github.event.inputs.build_os || '' }}
+          ARCH: ${{ github.event.inputs.build_arch || '' }}
         run: |
           make SIGN=0 VERBOSE=1 VERSION="${{ steps.version.outputs.NEW_VERSION }}" build-release
-          rm -rf "${{ env.DIST_FOLDER }}/AdGuardHome_frontend.tar.gz"
+          rm -f "${{ env.DIST_DIR }}/AdGuardHome_frontend.tar.gz"
+
+      - name: List built artifacts
+        run: |
+          echo "=== Built artifacts ==="
+          ls -lh ${{ env.DIST_DIR }}/ || true
+          echo ""
+          echo "=== Checksums ==="
+          cat ${{ env.DIST_DIR }}/checksums.txt || true
+
+      - name: Upload artifacts - All platforms
+        uses: actions/upload-artifact@v4
+        with:
+          name: AdGuardHome-v${{ steps.version.outputs.NEW_VERSION }}
+          path: |
+            ${{ env.DIST_DIR }}/*.tar.gz
+            ${{ env.DIST_DIR }}/*.zip
+            ${{ env.DIST_DIR }}/checksums.txt
+            ${{ env.DIST_DIR }}/version.txt
+          retention-days: 90
+
+      - name: Upload artifacts - Windows
+        uses: actions/upload-artifact@v4
+        with:
+          name: AdGuardHome-v${{ steps.version.outputs.NEW_VERSION }}-windows
+          path: |
+            ${{ env.DIST_DIR }}/AdGuardHome_windows_*.zip
+          if-no-files-found: ignore
+          retention-days: 90
+
+      - name: Upload artifacts - Linux
+        uses: actions/upload-artifact@v4
+        with:
+          name: AdGuardHome-v${{ steps.version.outputs.NEW_VERSION }}-linux
+          path: |
+            ${{ env.DIST_DIR }}/AdGuardHome_linux_*.tar.gz
+          if-no-files-found: ignore
+          retention-days: 90
+
+      - name: Upload artifacts - macOS
+        uses: actions/upload-artifact@v4
+        with:
+          name: AdGuardHome-v${{ steps.version.outputs.NEW_VERSION }}-macos
+          path: |
+            ${{ env.DIST_DIR }}/AdGuardHome_darwin_*.tar.gz
+            ${{ env.DIST_DIR }}/AdGuardHome_darwin_*.zip
+          if-no-files-found: ignore
+          retention-days: 90
+
+      - name: Upload artifacts - FreeBSD
+        uses: actions/upload-artifact@v4
+        with:
+          name: AdGuardHome-v${{ steps.version.outputs.NEW_VERSION }}-freebsd
+          path: |
+            ${{ env.DIST_DIR }}/AdGuardHome_freebsd_*.tar.gz
+          if-no-files-found: ignore
+          retention-days: 90
+
+  release:
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      CHANGE_LOGS: "* ${{ github.event.head_commit.message }}"
+    steps:
+      - uses: actions/checkout@v4.1.1
+        with:
+          fetch-depth: 0
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: AdGuardHome-v${{ needs.build.outputs.new_version }}
+          path: ${{ env.DIST_DIR }}
 
       - name: Create Git tag
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          if git rev-parse -q --verify "refs/tags/${{ steps.version.outputs.NEW_TAG }}" >/dev/null; then
-            echo "Tag ${{ steps.version.outputs.NEW_TAG }} already exists, skipping creation."
+          TAG="${{ needs.build.outputs.new_tag }}"
+          if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
+            echo "Tag $TAG already exists, skipping creation."
           else
-            git tag -a "${{ steps.version.outputs.NEW_TAG }}" -m "Release ${{ steps.version.outputs.NEW_TAG }}"
-            git push origin "${{ steps.version.outputs.NEW_TAG }}"
+            git tag -a "$TAG" -m "Release $TAG"
+            git push origin "$TAG"
           fi
 
       - name: Create Release
         uses: ncipollo/release-action@v1
         with:
-          tag: ${{ steps.version.outputs.NEW_TAG }}
-          name: "${{ steps.version.outputs.NEW_TAG }}"
-          artifacts: "${{ env.DIST_FOLDER }}/*.tar.gz,${{ env.DIST_FOLDER }}/*.zip,${{ env.DIST_FOLDER }}/checksums.txt"
+          tag: ${{ needs.build.outputs.new_tag }}
+          name: "${{ needs.build.outputs.new_tag }}"
+          artifacts: "${{ env.DIST_DIR }}/*.tar.gz,${{ env.DIST_DIR }}/*.zip,${{ env.DIST_DIR }}/checksums.txt"
           body: |
-            ## 🚀 AdGuard Home ${{ steps.version.outputs.NEW_TAG }}
+            ## AdGuard Home ${{ needs.build.outputs.new_tag }}
 
-            ### 📋 Build Information
+            ### Build Information
             | Component | Version |
             |-----------|---------|
             | Go | ${{ env.GO_VERSION }} |
             | Node.js | ${{ env.NODE_VERSION }} |
-            | Release | ${{ steps.version.outputs.NEW_VERSION }} |
+            | Release | ${{ needs.build.outputs.new_version }} |
 
-            ### 📝 Changes
+            ### Changes
             ${{ env.CHANGE_LOGS }}
 
-            ### 📦 Downloads
+            ### Downloads
             | Platform | Architecture | File |
             |----------|--------------|------|
             | Windows | x64 | `AdGuardHome_windows_amd64.zip` |
@@ -134,15 +235,4 @@ jobs:
             | macOS | ARM64 (M1/M2) | `AdGuardHome_darwin_arm64.tar.gz` |
 
             ---
-            **Full Changelog**: https://github.com/${{ github.repository }}/commits/${{ steps.version.outputs.NEW_TAG }}
-
-      - name: Upload distribution artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: adguardhome-${{ steps.version.outputs.NEW_VERSION }}
-          path: |
-            ${{ env.DIST_FOLDER }}/*.tar.gz
-            ${{ env.DIST_FOLDER }}/*.zip
-            ${{ env.DIST_FOLDER }}/checksums.txt
-
-
+            **Full Changelog**: https://github.com/${{ github.repository }}/commits/${{ needs.build.outputs.new_tag }}
