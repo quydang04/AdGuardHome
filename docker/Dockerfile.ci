@@ -27,11 +27,11 @@ RUN npm --prefix client ci
 COPY client ./client
 RUN npm --prefix client run build-prod
 
-# ============== Go Build Stage ==============
-FROM alpine:3.21 AS go-builder
+# ============== Go Build Stage (cross-compile from build platform) ==============
+FROM --platform=$BUILDPLATFORM alpine:3.21 AS go-builder
 
 ARG GO_VERSION=1.25.3
-ARG TARGETARCH
+ARG BUILDARCH
 
 RUN apk --no-cache add \
     bash \
@@ -42,14 +42,16 @@ RUN apk --no-cache add \
     tar && \
     update-ca-certificates
 
-# Install requested Go toolchain for the current architecture.
+# Install Go toolchain for the BUILD platform (not the target).
 RUN set -eux; \
-    case "${TARGETARCH}" in \
-        amd64) GOARCH=amd64 ;; \
-        arm64) GOARCH=arm64 ;; \
-        *) echo "Unsupported TARGETARCH: ${TARGETARCH}"; exit 1 ;; \
+    case "${BUILDARCH}" in \
+        amd64) GODOWNARCH=amd64 ;; \
+        arm64) GODOWNARCH=arm64 ;; \
+        386)   GODOWNARCH=386 ;; \
+        arm)   GODOWNARCH=armv6l ;; \
+        *)     GODOWNARCH=amd64 ;; \
     esac; \
-    curl -fsSLo /tmp/go.tgz "https://go.dev/dl/go${GO_VERSION}.linux-${GOARCH}.tar.gz"; \
+    curl -fsSLo /tmp/go.tgz "https://go.dev/dl/go${GO_VERSION}.linux-${GODOWNARCH}.tar.gz"; \
     tar -C /usr/local -xzf /tmp/go.tgz; \
     rm /tmp/go.tgz
 
@@ -57,23 +59,30 @@ ENV PATH="/usr/local/go/bin:${PATH}"
 
 WORKDIR /src
 
-# Copy go mod files first for better caching
 COPY go.mod go.sum ./
 RUN go mod download
 
-# Copy the rest of the source
 COPY . .
 
-# Copy pre-built frontend assets from the build-platform stage
 COPY --from=frontend-builder /src/build ./build
 
-# Build backend
 ARG VERSION=dev
 ARG CHANNEL=development
 ARG TARGETOS=linux
 ARG TARGETARCH=amd64
+ARG TARGETVARIANT
 
-RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
+# Cross-compile for the target platform with appropriate GOARM for ARM variants.
+RUN set -eux; \
+    GOARM_VAL=""; \
+    case "${TARGETARCH}" in \
+        arm) \
+            case "${TARGETVARIANT}" in \
+                v7) GOARM_VAL=7 ;; \
+                *)  GOARM_VAL=6 ;; \
+            esac ;; \
+    esac; \
+    CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} ${GOARM_VAL:+GOARM=${GOARM_VAL}} \
     go build \
     -ldflags="-s -w -X github.com/AdguardTeam/AdGuardHome/internal/version.version=${VERSION} -X github.com/AdguardTeam/AdGuardHome/internal/version.channel=${CHANNEL}" \
     -o /AdGuardHome
