@@ -1,0 +1,43 @@
+name: Cleanup old branches
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - '.github/workflows/cleanup-branches.yml'
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Delete all branches except master
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Fetching all branches..."
+          BRANCHES=$(gh api repos/${{ github.repository }}/branches --paginate -q '.[].name' | grep -v '^master$')
+
+          if [ -z "$BRANCHES" ]; then
+            echo "No branches to delete."
+            exit 0
+          fi
+
+          echo "Branches to delete:"
+          echo "$BRANCHES"
+          echo ""
+
+          for branch in $BRANCHES; do
+            echo "Deleting branch: $branch"
+            gh api -X DELETE "repos/${{ github.repository }}/git/refs/heads/${branch}" 2>&1 || echo "  Failed to delete $branch"
+          done
+
+          echo ""
+          echo "Cleanup complete!"
