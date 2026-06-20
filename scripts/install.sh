@@ -1,38 +1,29 @@
 #!/bin/sh
 
 # AdGuard Home Installation Script
+# For the quydang04/AdGuardHome fork.
 
 # Exit the script if a pipeline fails (-e) and consider undefined variables as
-# errors (-u).  Dash on Debian/Ubuntu treats `set -f` differently when run via
-# `sh -s`, so we skip that flag to keep compatibility across shells.
+# errors (-u).
 set -eu
 
-# Repository-specific defaults for the quydang04/AdGuardHome fork.
 repo_owner='quydang04'
 repo_name='AdGuardHome'
 repo_branch='master'
-dev_release_tag='dev-latest'
-readonly repo_owner repo_name repo_branch dev_release_tag
+readonly repo_owner repo_name repo_branch
 
-# Function log is an echo wrapper that writes to stderr if the caller
-# requested verbosity level greater than 0.  Otherwise, it does nothing.
 log() {
 	if [ "$verbose" -gt '0' ]; then
 		echo "$1" 1>&2
 	fi
 }
 
-# Function error_exit is an echo wrapper that writes to stderr and stops the
-# script execution with code 1.
 error_exit() {
 	echo "$1" 1>&2
 
 	exit 1
 }
 
-# Function usage prints the note about how to use the script.
-#
-# TODO(e.burkov): Document each option.
 usage() {
 	echo 'install.sh: usage: [-c channel] [-C cpu_type] [-h] [-O os] [-o output_dir]' \
 		'[-r|-R] [-u|-U] [-v|-V]' 1>&2
@@ -40,10 +31,6 @@ usage() {
 	exit 2
 }
 
-# Function maybe_sudo runs passed command with root privileges if use_sudo isn't
-# equal to 0.
-#
-# TODO(e.burkov):  Use everywhere the sudo_cmd isn't quoted.
 maybe_sudo() {
 	if [ "$use_sudo" -eq 0 ]; then
 		"$@"
@@ -52,23 +39,11 @@ maybe_sudo() {
 	fi
 }
 
-# Function is_command checks if the command exists on the machine.
 is_command() {
 	command -v "$1" >/dev/null 2>&1
 }
 
-# Function is_little_endian checks if the CPU is little-endian.
-#
-# See https://serverfault.com/a/163493/267530.
 is_little_endian() {
-	# The ASCII character "I" has the octal code of 111.  In the two-byte octal
-	# display mode (-o), hexdump will print it either as "000111" on a little
-	# endian system or as a "111000" on a big endian one.  Return the sixth
-	# character to compare it against the number '1'.
-	#
-	# Do not use echo -n, because its behavior in the presence of the -n flag is
-	# explicitly implementation-defined in POSIX.  Use hexdump instead of od,
-	# because OpenWrt and its derivatives have the former but not the latter.
 	is_little_endian_result="$(
 		printf 'I' \
 			| hexdump -o \
@@ -79,12 +54,6 @@ is_little_endian() {
 	[ "$is_little_endian_result" -eq '1' ]
 }
 
-# Function check_required checks if the required software is available on the
-# machine.  The required software:
-#
-#   unzip (macOS) / tar (other unixes)
-#
-# curl/wget are checked in function configure.
 check_required() {
 	required_darwin="unzip"
 	required_unix="tar"
@@ -98,13 +67,11 @@ check_required() {
 		required="$required_darwin"
 		;;
 	*)
-		# Generally shouldn't happen, since the OS has already been validated.
 		error_exit "unsupported operating system: '$os'"
 		;;
 	esac
 	readonly required
 
-	# Don't use quotes to get word splitting.
 	for cmd in $required; do
 		log "checking $cmd"
 		if ! is_command "$cmd"; then
@@ -115,7 +82,6 @@ check_required() {
 	done
 }
 
-# Function check_out_dir requires the output directory to be set and exist.
 check_out_dir() {
 	if [ "$out_dir" = '' ]; then
 		error_exit 'output directory should be presented'
@@ -126,7 +92,6 @@ check_out_dir() {
 	fi
 }
 
-# Function parse_opts parses the options list and validates it's combinations.
 parse_opts() {
 	while getopts "C:c:hO:o:rRuUvV" opt "$@"; do
 		case "$opt" in
@@ -176,27 +141,20 @@ parse_opts() {
 	fi
 }
 
-# Function set_channel sets the channel if needed and validates the value.
-supported values are 'development', 'edge', 'beta', and 'release'"
 set_channel() {
-	# Validate.
 	case "$channel" in
-	'development' | 'release')
-		# All is well, go on.
+	'release' | 'development')
 		;;
 	*)
 		error_exit "invalid channel '$channel'
-supported values are 'development' and 'release'"
+supported values are 'release' and 'development'"
 		;;
 	esac
 
-	# Log.
 	log "channel: $channel"
 }
 
-# Function set_os sets the os if needed and validates the value.
 set_os() {
-	# Set if needed.
 	if [ "$os" = '' ]; then
 		os="$(uname -s)"
 		case "$os" in
@@ -218,23 +176,18 @@ set_os() {
 		esac
 	fi
 
-	# Validate.
 	case "$os" in
 	'darwin' | 'freebsd' | 'linux' | 'openbsd')
-		# All right, go on.
 		;;
 	*)
 		error_exit "unsupported operating system: '$os'"
 		;;
 	esac
 
-	# Log.
 	log "operating system: $os"
 }
 
-# Function set_cpu sets the cpu if needed and validates the value.
 set_cpu() {
-	# Set if needed.
 	if [ "$cpu" = '' ]; then
 		cpu="$(uname -m)"
 		case "$cpu" in
@@ -272,43 +225,28 @@ set_cpu() {
 		esac
 	fi
 
-	# Validate.
 	case "$cpu" in
 	'amd64' | '386' | 'armv5' | 'armv6' | 'armv7' | 'arm64' | 'riscv64')
-		# All right, go on.
 		;;
 	'mips64le_softfloat' | 'mips64_softfloat' | 'mipsle_softfloat' | 'mips_softfloat')
-		# That's right too.
 		;;
 	*)
 		error_exit "unsupported cpu type: $cpu"
 		;;
 	esac
 
-	# Log.
 	log "cpu type: $cpu"
 }
 
-# Function fix_darwin performs some configuration changes for macOS if needed.
-#
-# TODO(a.garipov): Remove after the final v0.107.0 release.
-#
-# See https://github.com/AdguardTeam/AdGuardHome/issues/2443.
 fix_darwin() {
 	if [ "$os" != 'darwin' ]; then
 		return 0
 	fi
 
-	# Set the package extension.
 	pkg_ext='zip'
-
-	# It is important to install AdGuard Home into the /Applications directory
-	# on macOS.  Otherwise, it may grant not enough privileges to the AdGuard
-	# Home.
 	out_dir='/Applications'
 }
 
-# Function fix_freebsd performs some fixes to make it work on FreeBSD.
 fix_freebsd() {
 	if [ "$os" != 'freebsd' ]; then
 		return 0
@@ -322,8 +260,6 @@ fix_freebsd() {
 	fi
 }
 
-# download_curl uses curl(1) to download a file.  The first argument is the URL.
-# The second argument is optional and is the output file.
 download_curl() {
 	curl_output="${2:-}"
 	if [ "$curl_output" = '' ]; then
@@ -333,16 +269,12 @@ download_curl() {
 	fi
 }
 
-# download_wget uses wget(1) to download a file.  The first argument is the URL.
-# The second argument is optional and is the output file.
 download_wget() {
 	wget_output="${2:--}"
 
 	wget --no-verbose -O "$wget_output" "$1"
 }
 
-# download_fetch uses fetch(1) to download a file.  The first argument is the
-# URL.  The second argument is optional and is the output file.
 download_fetch() {
 	fetch_output="${2:-}"
 	if [ "$fetch_output" = '' ]; then
@@ -352,11 +284,8 @@ download_fetch() {
 	fi
 }
 
-# Function set_download_func sets the appropriate function for downloading
-# files.
 set_download_func() {
 	if is_command 'curl'; then
-		# Go on and use the default, download_curl.
 		return 0
 	elif is_command 'wget'; then
 		download_func='download_wget'
@@ -367,15 +296,12 @@ set_download_func() {
 	fi
 }
 
-# Function set_sudo_cmd sets the appropriate command to run a command under
-# superuser privileges.
 set_sudo_cmd() {
 	case "$os" in
 	'openbsd')
 		sudo_cmd='doas'
 		;;
 	'darwin' | 'freebsd' | 'linux')
-		# Go on and use the default, sudo.
 		;;
 	*)
 		error_exit "unsupported operating system: '$os'"
@@ -383,7 +309,6 @@ set_sudo_cmd() {
 	esac
 }
 
-# Function configure sets the script's configuration.
 configure() {
 	set_channel
 	set_os
@@ -395,21 +320,14 @@ configure() {
 
 	pkg_name="AdGuardHome_${os}_${cpu}.${pkg_ext}"
 	release_base_url="https://github.com/${repo_owner}/${repo_name}/releases"
-	case "$channel" in
-	'release')
-		url="${release_base_url}/latest/download/${pkg_name}"
-		;;
-	'development')
-		url="${release_base_url}/download/${dev_release_tag}/${pkg_name}"
-		;;
-	esac
+	url="${release_base_url}/latest/download/${pkg_name}"
 	agh_dir="${out_dir}/AdGuardHome"
 	readonly pkg_name url agh_dir release_base_url
 
+	log "AdGuard Home will be installed from $url"
 	log "AdGuard Home will be installed into $agh_dir"
 }
 
-# Function is_root checks for root privileges to be granted.
 is_root() {
 	user_id="$(id -u)"
 	if [ "$user_id" -eq '0' ]; then
@@ -428,11 +346,6 @@ is_root() {
 please, restart it with root privileges'
 }
 
-# Function rerun_with_root downloads the script, runs it with root privileges,
-# and exits the current script.  It passes the necessary configuration of the
-# current script to the child script.
-#
-# TODO(e.burkov): Try to avoid restarting.
 rerun_with_root() {
 	script_url="https://raw.githubusercontent.com/${repo_owner}/${repo_name}/${repo_branch}/scripts/install.sh"
 	readonly script_url
@@ -456,20 +369,12 @@ rerun_with_root() {
 
 	log 'restarting with root privileges'
 
-	# Group curl/wget together with an echo, so that if the former fails before
-	# producing any output, the latter prints an exit command for the following
-	# shell to execute to prevent it from getting an empty input and exiting
-	# with a zero code in that case.
 	{ "$download_func" "$script_url" || echo 'exit 1'; } \
 		| $sudo_cmd sh -s -- -c "$channel" -C "$cpu" -O "$os" -o "$out_dir" "$r" "$u" "$v"
 
-	# Exit the script.  Since if the code of the previous pipeline is non-zero,
-	# the execution won't reach this point thanks to set -e, exit with zero.
 	exit 0
 }
 
-# Function download downloads the file from the URL and saves it to the
-# specified filepath.
 download() {
 	log "downloading package from $url to $pkg_name"
 
@@ -480,7 +385,6 @@ download() {
 	log "successfully downloaded $pkg_name"
 }
 
-# Function unpack unpacks the passed archive depending on it's extension.
 unpack() {
 	log "unpacking package from $pkg_name into $out_dir"
 
@@ -510,8 +414,6 @@ unpack() {
 	rm "$pkg_name"
 }
 
-# Function handle_existing detects the existing AGH installation and takes care
-# of removing it if needed.
 handle_existing() {
 	if ! [ -d "$agh_dir" ]; then
 		log 'no need to uninstall'
@@ -532,10 +434,7 @@ handle_existing() {
 				"to reinstall/uninstall the AdGuard Home using this script specify one of the '-r' or '-u' flags"
 		fi
 
-		# TODO(e.burkov):  Remove the stop once v0.107.1 released.
 		if (cd "$agh_dir" && ! ./AdGuardHome -s stop || ! ./AdGuardHome -s uninstall); then
-			# It doesn't terminate the script since it is possible that AGH just
-			# not installed as service but appearing in the directory.
 			log "cannot uninstall AdGuard Home from $agh_dir"
 		fi
 
@@ -549,9 +448,7 @@ handle_existing() {
 	fi
 }
 
-# Function install_service tries to install AGH as service.
 install_service() {
-	# Installing the service as root is required at least on FreeBSD.
 	use_sudo='0'
 	if [ "$os" = 'freebsd' ]; then
 		use_sudo='1'
@@ -565,10 +462,6 @@ install_service() {
 
 	rm -r "$agh_dir"
 
-	# Some devices detected to have armv7 CPU face the compatibility issues with
-	# actual armv7 builds.  We should try to install the armv5 binary instead.
-	#
-	# See https://github.com/AdguardTeam/AdGuardHome/issues/2542.
 	if [ "$cpu" = 'armv7' ]; then
 		cpu='armv5'
 		reinstall='1'
@@ -583,7 +476,6 @@ install_service() {
 
 # Entrypoint
 
-# Set default values of configuration variables.
 channel='release'
 reinstall='0'
 uninstall='0'
@@ -605,7 +497,6 @@ check_required
 if ! is_root; then
 	rerun_with_root
 fi
-# Needs rights.
 fix_freebsd
 
 handle_existing
