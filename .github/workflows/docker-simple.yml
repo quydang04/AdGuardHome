@@ -168,7 +168,7 @@ jobs:
 
       - name: Build and push Docker image
         id: docker_build
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: ./docker/Dockerfile.ci
@@ -181,6 +181,8 @@ jobs:
             VERSION=${{ steps.version.outputs.VERSION }}
             VCS_REF=${{ github.sha }}
             NPM_CONFIG_LEGACY_PEER_DEPS=${{ env.NPM_CONFIG_LEGACY_PEER_DEPS }}
+          provenance: false
+          sbom: false
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
