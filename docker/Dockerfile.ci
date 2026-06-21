@@ -68,12 +68,13 @@ COPY --from=frontend-builder /src/build ./build
 
 ARG VERSION=dev
 ARG CHANNEL=development
-ARG TARGETOS=linux
-ARG TARGETARCH=amd64
+ARG TARGETOS
+ARG TARGETARCH
 ARG TARGETVARIANT
 
 # Cross-compile for the target platform with appropriate GOARM for ARM variants.
 RUN set -eux; \
+    echo "Cross-compiling for TARGETOS=${TARGETOS} TARGETARCH=${TARGETARCH} TARGETVARIANT=${TARGETVARIANT}"; \
     GOARM_VAL=""; \
     case "${TARGETARCH}" in \
         arm) \
@@ -82,10 +83,11 @@ RUN set -eux; \
                 *)  GOARM_VAL=6 ;; \
             esac ;; \
     esac; \
-    CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} ${GOARM_VAL:+GOARM=${GOARM_VAL}} \
+    CGO_ENABLED=0 GOOS="${TARGETOS}" GOARCH="${TARGETARCH}" ${GOARM_VAL:+GOARM=${GOARM_VAL}} \
     go build \
     -ldflags="-s -w -X github.com/AdguardTeam/AdGuardHome/internal/version.version=${VERSION} -X github.com/AdguardTeam/AdGuardHome/internal/version.channel=${CHANNEL}" \
-    -o /AdGuardHome
+    -o /AdGuardHome; \
+    file /AdGuardHome
 
 # ============== Final Stage ==============
 FROM alpine:3.21
