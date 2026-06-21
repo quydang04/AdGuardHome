@@ -75,15 +75,14 @@ ARG TARGETVARIANT
 # Cross-compile for the target platform with appropriate GOARM for ARM variants.
 RUN set -eux; \
     echo "Cross-compiling for TARGETOS=${TARGETOS} TARGETARCH=${TARGETARCH} TARGETVARIANT=${TARGETVARIANT}"; \
-    GOARM_VAL=""; \
     case "${TARGETARCH}" in \
         arm) \
             case "${TARGETVARIANT}" in \
-                v7) GOARM_VAL=7 ;; \
-                *)  GOARM_VAL=6 ;; \
+                v7) export GOARM=7 ;; \
+                *)  export GOARM=6 ;; \
             esac ;; \
     esac; \
-    CGO_ENABLED=0 GOOS="${TARGETOS}" GOARCH="${TARGETARCH}" ${GOARM_VAL:+GOARM=${GOARM_VAL}} \
+    CGO_ENABLED=0 GOOS="${TARGETOS}" GOARCH="${TARGETARCH}" \
     go build \
     -ldflags="-s -w -X github.com/AdguardTeam/AdGuardHome/internal/version.version=${VERSION} -X github.com/AdguardTeam/AdGuardHome/internal/version.channel=${CHANNEL}" \
     -o /AdGuardHome; \
