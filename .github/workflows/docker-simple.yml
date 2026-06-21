@@ -181,7 +181,8 @@ jobs:
             VERSION=${{ steps.version.outputs.VERSION }}
             VCS_REF=${{ github.sha }}
             NPM_CONFIG_LEGACY_PEER_DEPS=${{ env.NPM_CONFIG_LEGACY_PEER_DEPS }}
-          no-cache: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Image digest
         run: echo "Digest=${{ steps.docker_build.outputs.digest }}"
