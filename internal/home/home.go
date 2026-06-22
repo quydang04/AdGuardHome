@@ -817,6 +817,7 @@ func run(
 
 	if !isFirstRun {
 		runDNSServer(ctx, slogLogger, tlsMgr, confModifier, statsDir, querylogDir, httpReg)
+		injectNotificationProviders()
 	}
 
 	if !opts.noPermCheck {

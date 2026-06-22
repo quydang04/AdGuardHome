@@ -141,6 +141,7 @@ export const MENU_URLS = {
     root: '/',
     logs: '/logs',
     guide: '/guide',
+    systemOverview: '/system-overview',
 };
 
 export const SETTINGS_URLS = {

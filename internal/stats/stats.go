@@ -100,6 +100,10 @@ type Interface interface {
 
 	// ShouldCount returns true if request for the host should be counted.
 	ShouldCount(host string, qType, qClass uint16, ids []string) bool
+
+	// GetCurrentStats returns aggregate DNS query statistics over the
+	// configured retention period.
+	GetCurrentStats() (numQueries, numBlocked, numSafeBrowsing, numParental uint64, avgProcessingTime float64)
 }
 
 // StatsCtx collects the statistics and flushes it to the database.  Its default

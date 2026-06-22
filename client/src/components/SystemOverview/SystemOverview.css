@@ -1,0 +1,162 @@
+/* ── Resource gauge cards ── */
+
+.system-overview__gauges {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+}
+
+@media (max-width: 768px) {
+    .system-overview__gauges {
+        grid-template-columns: 1fr;
+    }
+}
+
+.gauge-card {
+    border-radius: var(--mdui-shape-medium, 14px);
+    padding: 1.25rem 1.5rem;
+    display: flex;
+    flex-direction: column;
+    background: var(--mdui-theme-surface);
+    border: 1px solid var(--mdui-theme-outline);
+    box-shadow: var(--mdui-shadow-card-soft);
+    transition: box-shadow 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
+}
+
+.gauge-card:hover {
+    box-shadow: var(--mdui-shadow-card);
+    border-color: color-mix(in srgb, var(--mdui-theme-secondary) 30%, var(--mdui-theme-outline));
+    transform: translateY(-2px);
+}
+
+.gauge-card__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 0.5rem;
+}
+
+.gauge-card__label {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--mdui-theme-on-surface);
+    opacity: 0.6;
+}
+
+.gauge-card__value {
+    font-size: 1.75rem;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.gauge-card__bar {
+    height: 6px;
+    border-radius: 3px;
+    margin: 0.75rem 0;
+    overflow: hidden;
+}
+
+.gauge-card__bar-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.4s ease;
+}
+
+.gauge-card__detail {
+    font-size: 0.75rem;
+    color: var(--mdui-theme-on-surface);
+    opacity: 0.45;
+    margin-top: auto;
+}
+
+/* Color tiers */
+.gauge-card--normal .gauge-card__value { color: var(--mdui-theme-secondary); }
+.gauge-card--normal .gauge-card__bar { background: color-mix(in srgb, var(--mdui-theme-secondary) 15%, transparent); }
+.gauge-card--normal .gauge-card__bar-fill { background: var(--mdui-theme-secondary); }
+
+.gauge-card--warning .gauge-card__value { color: #f0a020; }
+.gauge-card--warning .gauge-card__bar { background: rgba(240, 160, 32, 0.15); }
+.gauge-card--warning .gauge-card__bar-fill { background: #f0a020; }
+
+.gauge-card--danger .gauge-card__value { color: var(--mdui-theme-error); }
+.gauge-card--danger .gauge-card__bar { background: color-mix(in srgb, var(--mdui-theme-error) 15%, transparent); }
+.gauge-card--danger .gauge-card__bar-fill { background: var(--mdui-theme-error); }
+
+/* ── Info grid ── */
+
+.system-overview__info-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+}
+
+@media (max-width: 768px) {
+    .system-overview__info-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.info-card {
+    border-radius: var(--mdui-shape-medium, 14px);
+    background: var(--mdui-theme-surface);
+    border: 1px solid var(--mdui-theme-outline);
+    box-shadow: var(--mdui-shadow-card-soft);
+    overflow: hidden;
+    transition: box-shadow 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
+}
+
+.info-card:hover {
+    box-shadow: var(--mdui-shadow-card);
+    border-color: color-mix(in srgb, var(--mdui-theme-secondary) 30%, var(--mdui-theme-outline));
+    transform: translateY(-2px);
+}
+
+.info-card__title {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 0.875rem 1.25rem;
+    border-bottom: 1px solid var(--mdui-theme-outline);
+    color: var(--mdui-theme-on-surface);
+    opacity: 0.6;
+}
+
+.info-card__rows {
+    padding: 0;
+    margin: 0;
+    list-style: none;
+}
+
+.info-card__row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 0.625rem 1.25rem;
+    border-bottom: 1px solid var(--mdui-theme-outline);
+    gap: 1rem;
+}
+
+.info-card__row:last-child {
+    border-bottom: none;
+}
+
+.info-card__row-label {
+    font-size: 0.8125rem;
+    color: var(--mdui-theme-on-surface);
+    opacity: 0.5;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.info-card__row-value {
+    font-size: 0.875rem;
+    font-weight: 500;
+    text-align: right;
+    word-break: break-all;
+    color: var(--mdui-theme-on-surface);
+}

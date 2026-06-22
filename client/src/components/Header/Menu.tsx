@@ -34,6 +34,12 @@ const MENU_ITEMS = [
         text: 'setup_guide',
         order: 4,
     },
+    {
+        route: MENU_URLS.systemOverview,
+        icon: 'info',
+        text: 'system_overview',
+        order: 5,
+    },
 ];
 
 const SETTINGS_ITEMS = [

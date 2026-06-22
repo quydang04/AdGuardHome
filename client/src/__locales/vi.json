@@ -1,4 +1,11 @@
 {
+    "auto_reload_on": "Tự động tải lại: BẬT",
+    "auto_reload_off": "Tự động tải lại: TẮT",
+    "resource_usage": "Tài nguyên đang sử dụng",
+    "system_info_hardware": "Phần cứng",
+    "system_info_storage": "Bộ nhớ & Ổ đĩa",
+    "system_info_network": "Mạng",
+    "system_info_runtime": "Thời gian chạy",
     "client_settings": "Cài đặt thiết bị",
     "example_upstream_reserved": "ngược dòng <0>cho các miền cụ thể</0>;",
     "example_multiple_upstreams_reserved": "nhiều máy chủ thượng nguồn <0>cho các miền cụ thể</0>;",

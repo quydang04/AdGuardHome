@@ -17,9 +17,21 @@ import (
 	"github.com/shirou/gopsutil/v4/disk"
 	"github.com/shirou/gopsutil/v4/host"
 	"github.com/shirou/gopsutil/v4/mem"
+	gopsNet "github.com/shirou/gopsutil/v4/net"
+	"github.com/shirou/gopsutil/v4/process"
 )
 
-// Info contains basic system metrics that are safe to query on every platform
+// DiskInfo describes usage information for a single disk partition.
+type DiskInfo struct {
+	Path         string  `json:"path"`
+	Total        uint64  `json:"total"`
+	Used         uint64  `json:"used"`
+	Free         uint64  `json:"free"`
+	UsagePercent float64 `json:"usage_percent"`
+	Filesystem   string  `json:"filesystem"`
+}
+
+// Info contains system metrics that are safe to query on every platform
 // supported by AdGuard Home.
 type Info struct {
 	OS            string   `json:"os"`
@@ -41,6 +53,71 @@ type Info struct {
 	LocalIPs      []string `json:"local_ips"`
 	PublicIP      string   `json:"public_ip"`
 	UptimeSeconds uint64   `json:"uptime_seconds"`
+
+	// Swap memory.
+	SwapTotal uint64  `json:"swap_total"`
+	SwapUsed  uint64  `json:"swap_used"`
+	SwapFree  uint64  `json:"swap_free"`
+	SwapUsage float64 `json:"swap_usage"`
+
+	// Host info.
+	KernelVersion string `json:"kernel_version"`
+	BootTime      uint64 `json:"boot_time"`
+	VirtPlatform  string `json:"virt_platform"`
+
+	// Load average (zero on Windows).
+	LoadAvg1  float64 `json:"load_avg_1"`
+	LoadAvg5  float64 `json:"load_avg_5"`
+	LoadAvg15 float64 `json:"load_avg_15"`
+
+	// All disk partitions (filtered, excluding pseudo-fs).
+	AllDisks []DiskInfo `json:"all_disks"`
+
+	// Raw disk I/O counters (cumulative totals, Manager computes rates).
+	DiskReadBytes  uint64 `json:"disk_read_bytes"`
+	DiskWriteBytes uint64 `json:"disk_write_bytes"`
+	DiskReadCount  uint64 `json:"disk_read_count"`
+	DiskWriteCount uint64 `json:"disk_write_count"`
+
+	// Raw network I/O counters (cumulative totals, Manager computes rates).
+	NetBytesSent   uint64 `json:"net_bytes_sent"`
+	NetBytesRecv   uint64 `json:"net_bytes_recv"`
+	NetPacketsSent uint64 `json:"net_packets_sent"`
+	NetPacketsRecv uint64 `json:"net_packets_recv"`
+	NetErrorsIn    uint64 `json:"net_errors_in"`
+	NetErrorsOut   uint64 `json:"net_errors_out"`
+	NetDropsIn     uint64 `json:"net_drops_in"`
+	ActiveConns    int    `json:"active_conns"`
+
+	// Process info (self and total).
+	TotalProcesses int     `json:"total_processes"`
+	SelfCPUPercent float64 `json:"self_cpu_percent"`
+	SelfMemBytes   uint64  `json:"self_mem_bytes"`
+	SelfOpenFiles  int32   `json:"self_open_files"`
+	SelfThreads    int32   `json:"self_threads"`
+}
+
+// skipFS contains pseudo-filesystem types that should always be excluded from
+// disk enumeration.
+var skipFS = map[string]bool{
+	"tmpfs":       true,
+	"devfs":       true,
+	"sysfs":       true,
+	"proc":        true,
+	"devtmpfs":    true,
+	"squashfs":    true,
+	"nsfs":        true,
+	"cgroup":      true,
+	"cgroup2":     true,
+	"fuse.lxcfs":  true,
+}
+
+// containerFS contains filesystem types used by container runtimes (overlay,
+// aufs).  These are skipped unless they are mounted at "/" because in Docker
+// the root filesystem is typically an overlay.
+var containerFS = map[string]bool{
+	"overlay": true,
+	"aufs":    true,
 }
 
 // Collect returns a snapshot of the host system metrics.  In case of errors,
@@ -61,6 +138,21 @@ func Collect() Info {
 		} else if hi.Platform != "" {
 			info.OSVersion = hi.Platform
 		}
+	}
+
+	// Kernel version.
+	if kv, err := host.KernelVersion(); err == nil {
+		info.KernelVersion = kv
+	}
+
+	// Boot time.
+	if bt, err := host.BootTime(); err == nil {
+		info.BootTime = bt
+	}
+
+	// Virtualization platform.
+	if virt, _, err := host.Virtualization(); err == nil && virt != "" {
+		info.VirtPlatform = virt
 	}
 
 	if cpuInfos, err := cpu.Info(); err == nil && len(cpuInfos) > 0 {
@@ -86,6 +178,14 @@ func Collect() Info {
 		}
 	}
 
+	// Swap memory.
+	if sw, err := mem.SwapMemory(); err == nil {
+		info.SwapTotal = sw.Total
+		info.SwapUsed = sw.Used
+		info.SwapFree = sw.Free
+		info.SwapUsage = sw.UsedPercent
+	}
+
 	if du, err := disk.Usage(rootPath()); err == nil {
 		info.DiskPath = du.Path
 		info.DiskTotal = du.Total
@@ -94,10 +194,117 @@ func Collect() Info {
 		info.DiskFree = du.Free
 	}
 
+	// All disk partitions.
+	info.AllDisks = collectAllDisks()
+
+	// Load average (platform-specific).
+	info.LoadAvg1, info.LoadAvg5, info.LoadAvg15 = collectLoadAvg()
+
+	// Disk I/O counters (cumulative).
+	if counters, err := disk.IOCounters(); err == nil {
+		for _, c := range counters {
+			info.DiskReadBytes += c.ReadBytes
+			info.DiskWriteBytes += c.WriteBytes
+			info.DiskReadCount += c.ReadCount
+			info.DiskWriteCount += c.WriteCount
+		}
+	}
+
+	// Network I/O counters (cumulative, aggregated across all interfaces).
+	if netCounters, err := gopsNet.IOCounters(false); err == nil && len(netCounters) > 0 {
+		c := netCounters[0]
+		info.NetBytesSent = c.BytesSent
+		info.NetBytesRecv = c.BytesRecv
+		info.NetPacketsSent = c.PacketsSent
+		info.NetPacketsRecv = c.PacketsRecv
+		info.NetErrorsIn = c.Errin
+		info.NetErrorsOut = c.Errout
+		info.NetDropsIn = c.Dropin
+	}
+
+	// Active TCP connections.
+	if conns, err := gopsNet.Connections("tcp"); err == nil {
+		info.ActiveConns = len(conns)
+	}
+
+	// Process info.
+	collectProcessInfo(&info)
+
 	info.LocalIPs = collectLocalIPs()
 	info.PublicIP = lookupPublicIP()
 
 	return info
+}
+
+// collectAllDisks enumerates physical disk partitions and returns usage info.
+func collectAllDisks() []DiskInfo {
+	parts, err := disk.Partitions(false)
+	if err != nil {
+		return nil
+	}
+
+	disks := make([]DiskInfo, 0, len(parts))
+	seen := make(map[string]bool)
+
+	for _, p := range parts {
+		if skipFS[p.Fstype] {
+			continue
+		}
+
+		if containerFS[p.Fstype] && p.Mountpoint != "/" {
+			continue
+		}
+
+		if seen[p.Mountpoint] {
+			continue
+		}
+		seen[p.Mountpoint] = true
+
+		du, duErr := disk.Usage(p.Mountpoint)
+		if duErr != nil || du.Total == 0 {
+			continue
+		}
+
+		disks = append(disks, DiskInfo{
+			Path:         du.Path,
+			Total:        du.Total,
+			Used:         du.Used,
+			Free:         du.Free,
+			UsagePercent: du.UsedPercent,
+			Filesystem:   p.Fstype,
+		})
+	}
+
+	return disks
+}
+
+// collectProcessInfo gathers total process count and self-process metrics.
+func collectProcessInfo(info *Info) {
+	if pids, err := process.Pids(); err == nil {
+		info.TotalProcesses = len(pids)
+	}
+
+	pid := int32(os.Getpid())
+	proc, err := process.NewProcess(pid)
+	if err != nil {
+		return
+	}
+
+	if cpuPct, cpuErr := proc.CPUPercent(); cpuErr == nil {
+		info.SelfCPUPercent = cpuPct
+	}
+
+	if memInfo, memErr := proc.MemoryInfo(); memErr == nil && memInfo != nil {
+		info.SelfMemBytes = memInfo.RSS
+	}
+
+	if fds, fdErr := proc.NumFDs(); fdErr == nil {
+		info.SelfOpenFiles = fds
+	}
+
+	if threads, tErr := proc.NumThreads(); tErr == nil {
+		info.SelfThreads = threads
+	}
 }
 
 func rootPath() string {

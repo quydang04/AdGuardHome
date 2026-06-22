@@ -31,6 +31,7 @@ import { getDnsStatus, getTimerStatus } from '../../actions';
 
 import Dashboard from '../../containers/Dashboard';
 import SetupGuide from '../../containers/SetupGuide';
+import SystemOverview from '../../containers/SystemOverview';
 import Settings from '../../containers/Settings';
 import Dns from '../../containers/Dns';
 import Encryption from '../../containers/Encryption';
@@ -62,6 +63,10 @@ const ROUTES = [
     {
         path: MENU_URLS.guide,
         component: SetupGuide,
+    },
+    {
+        path: MENU_URLS.systemOverview,
+        component: SystemOverview,
     },
     {
         path: SETTINGS_URLS.settings,

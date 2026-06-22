@@ -21,7 +21,6 @@ import Dropdown from '../ui/Dropdown';
 import UpstreamResponses from './UpstreamResponses';
 
 import UpstreamAvgTime from './UpstreamAvgTime';
-import SystemInfo from './SystemInfo';
 import { AccessData, DashboardData, StatsData } from '../../initialState';
 
 interface DashboardProps {
@@ -256,9 +255,6 @@ const Dashboard = ({
                         />
                     </div>
 
-                    <div className="col-lg-12">
-                        <SystemInfo info={stats.systemInfo} refreshButton={refreshButton} />
-                    </div>
                 </div>
             )}
         </>
