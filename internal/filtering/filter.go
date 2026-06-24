@@ -112,6 +112,11 @@ func nameFromURL(rawURL string) string {
 	}
 
 	host := u.Hostname()
+
+	if _, err = netip.ParseAddr(host); err == nil {
+		return ""
+	}
+
 	path := strings.TrimRight(u.Path, "/")
 
 	if path == "" || path == "/" {
