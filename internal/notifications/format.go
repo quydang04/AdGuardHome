@@ -268,8 +268,10 @@ func formatUptime(seconds uint64) string {
 }
 
 // timestampLine returns a formatted timestamp line for message footers.
+// It uses the server's local timezone so the displayed time matches the
+// system clock regardless of the process TZ environment variable.
 func timestampLine() string {
-	now := time.Now()
+	now := time.Now().Local()
 	return fmt.Sprintf("🕐 <i>Updated: %s</i>", now.Format("15:04:05 02/01/2006"))
 }
 
