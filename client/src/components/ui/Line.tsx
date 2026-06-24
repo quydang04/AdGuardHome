@@ -55,12 +55,12 @@ const Line = ({ data, color = 'black' }: LineProps) => {
             xFormat={(x: number) => {
                 if (timeUnits === TIME_UNITS.HOURS) {
                     const hoursAgo = msToHours(interval) - x - 1;
-                    return dateFormat(subHours(Date.now(), hoursAgo), 'D MMM HH:00');
+                    return dateFormat(subHours(Date.now(), hoursAgo), 'DD/MM HH:00');
                 }
 
                 const daysAgo = subDays(Date.now(), msToDays(interval) - 1);
 
-                return dateFormat(addDays(daysAgo, x), 'D MMM YYYY');
+                return dateFormat(addDays(daysAgo, x), 'DD/MM/YYYY');
             }}
             yFormat={(y: number) => round(y, 2)}
             sliceTooltip={(slice) => {

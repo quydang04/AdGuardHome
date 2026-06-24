@@ -9,76 +9,135 @@ import (
 )
 
 func composeAlertMessage(cfg TelegramConfig, metric string, value, threshold float64, info systeminfo.Info) string {
-	lines := make([]string, 0, 16)
+	lines := make([]string, 0, 20)
 	if prefix := strings.TrimSpace(cfg.CustomMessage); prefix != "" {
 		lines = append(lines, prefix)
+		lines = append(lines, "")
 	}
 
-	lines = append(lines, fmt.Sprintf("<b>Alert: %s</b>", alertHeadline(metric)))
+	lines = append(lines, fmt.Sprintf("🚨 <b>ALERT: %s</b>", alertHeadline(metric)))
+	lines = append(lines, divider())
 	lines = append(lines, "")
-	lines = append(lines, "Metrics")
-	lines = append(lines, fmt.Sprintf("  Metric: %s", metricDisplayName(metric)))
-	lines = append(lines, fmt.Sprintf("  Current: <code>%s</code>", formatPercentage(value)))
-	lines = append(lines, fmt.Sprintf("  Threshold: <code>%s</code>", formatPercentage(threshold)))
+	lines = append(lines, sectionHeader("📈", "Metrics"))
+	lines = append(lines, fmt.Sprintf("  ▸ <b>Metric:</b>    %s", metricDisplayName(metric)))
+	lines = append(lines, fmt.Sprintf("  ▸ <b>Current:</b>   %s", usageBar(value)))
+	lines = append(lines, fmt.Sprintf("  ▸ <b>Threshold:</b> <code>%s</code>", formatPercentage(threshold)))
 	lines = append(lines, "")
 	lines = append(lines, systemOverviewLines(info)...)
 	lines = append(lines, "")
+	lines = append(lines, divider())
 	lines = append(lines, timestampLine())
 
 	return strings.Join(lines, "\n")
 }
 
 // composeRecoveryMessage formats a recovery notification.
-func composeRecoveryMessage(metric string, currentValue, threshold float64, duration time.Duration) string {
-	lines := []string{
-		fmt.Sprintf("<b>%s has recovered</b>", metricDisplayName(metric)),
-		"",
-		fmt.Sprintf("  Current: <code>%s</code>", formatPercentage(currentValue)),
+func composeRecoveryMessage(cfg TelegramConfig, metric string, currentValue, threshold float64, duration time.Duration, info systeminfo.Info) string {
+	lines := make([]string, 0, 24)
+	if prefix := strings.TrimSpace(cfg.CustomMessage); prefix != "" {
+		lines = append(lines, prefix)
+		lines = append(lines, "")
 	}
 
-	if threshold > 0 {
-		lines = append(lines, fmt.Sprintf("  Threshold: <code>%s</code>", formatPercentage(threshold)))
-	}
-
-	lines = append(lines, fmt.Sprintf("  Alert duration: %s", duration.String()))
+	lines = append(lines, fmt.Sprintf("✅ <b>RECOVERY: %s</b>", recoveryHeadline(metric)))
+	lines = append(lines, divider())
 	lines = append(lines, "")
+
+	lines = append(lines, sectionHeader("📈", "Metrics"))
+	lines = append(lines, fmt.Sprintf("  ▸ <b>Metric:</b>         %s", metricDisplayName(metric)))
+	if metric != "protection" {
+		lines = append(lines, fmt.Sprintf("  ▸ <b>Current:</b>        %s", usageBar(currentValue)))
+		if threshold > 0 {
+			lines = append(lines, fmt.Sprintf("  ▸ <b>Threshold:</b>      <code>%s</code>", formatPercentage(threshold)))
+		}
+	}
+
+	lines = append(lines, fmt.Sprintf("  ▸ <b>Alert Duration:</b> <code>%s</code>", duration.String()))
+	lines = append(lines, "")
+
+	if info.Hostname != "" {
+		lines = append(lines, systemOverviewLines(info)...)
+		lines = append(lines, "")
+	}
+
+	lines = append(lines, divider())
 	lines = append(lines, timestampLine())
 
 	return strings.Join(lines, "\n")
 }
 
-func composeFilterUpdateMessage(cfg TelegramConfig, update FilterUpdate, info systeminfo.Info) string {
-	lines := make([]string, 0, 20)
+func recoveryHeadline(metric string) string {
+	return fmt.Sprintf("%s back to normal", metricDisplayName(metric))
+}
+
+func composeProtectionAlertMessage(cfg TelegramConfig, info systeminfo.Info) string {
+	lines := make([]string, 0, 24)
 	if prefix := strings.TrimSpace(cfg.CustomMessage); prefix != "" {
 		lines = append(lines, prefix)
+		lines = append(lines, "")
+	}
+
+	lines = append(lines, "🚨 <b>ALERT: DNS Protection is DISABLED!</b>")
+	lines = append(lines, divider())
+	lines = append(lines, "")
+	lines = append(lines, "🔴 DNS filtering is currently <b>turned off</b>.")
+	lines = append(lines, "<i>All queries pass through unfiltered.</i>")
+	lines = append(lines, "")
+
+	if info.Hostname != "" {
+		lines = append(lines, systemOverviewLines(info)...)
+		lines = append(lines, "")
+	}
+
+	lines = append(lines, divider())
+	lines = append(lines, timestampLine())
+
+	return strings.Join(lines, "\n")
+}
+
+
+
+func composeFilterUpdateMessage(cfg TelegramConfig, update FilterUpdate, info systeminfo.Info) string {
+	lines := make([]string, 0, 24)
+	if prefix := strings.TrimSpace(cfg.CustomMessage); prefix != "" {
+		lines = append(lines, prefix)
+		lines = append(lines, "")
 	}
 
 	head := filterUpdateHeader(update.ListType)
-	lines = append(lines, fmt.Sprintf("<b>%s</b>", head))
-	lines = append(lines, fmt.Sprintf("  List: %s", fallbackString(update.Name)))
+	lines = append(lines, fmt.Sprintf("🔄 <b>%s</b>", head))
+	lines = append(lines, divider())
+	lines = append(lines, "")
+	lines = append(lines, sectionHeader("📋", "List Details"))
+	lines = append(lines, fmt.Sprintf("  ▸ <b>Name:</b>   %s", fallbackString(update.Name)))
 	if update.ID != 0 {
-		lines = append(lines, fmt.Sprintf("  ID: #%s", formatUint64(update.ID)))
+		lines = append(lines, fmt.Sprintf("  ▸ <b>ID:</b>     <code>#%s</code>", formatUint64(update.ID)))
 	}
-	lines = append(lines, fmt.Sprintf("  Type: %s", filterTypeLabel(update.ListType)))
+	lines = append(lines, fmt.Sprintf("  ▸ <b>Type:</b>   %s", filterTypeLabel(update.ListType)))
 	if update.URL != "" {
-		lines = append(lines, fmt.Sprintf("  Source: %s", update.URL))
+		lines = append(lines, fmt.Sprintf("  ▸ <b>Source:</b> <code>%s</code>", update.URL))
 	}
+
 	rules := update.RulesCount
 	if rules < 0 {
 		rules = 0
 	}
-	lines = append(lines, fmt.Sprintf("  Rules: %s entries", formatInt64(int64(rules))))
+	lines = append(lines, fmt.Sprintf("  ▸ <b>Rules:</b>  <code>%s</code> entries", formatInt64(int64(rules))))
 	if update.BytesWritten > 0 {
-		lines = append(lines, fmt.Sprintf("  Size: %s", formatBytesUint(uint64(update.BytesWritten))))
+		lines = append(lines, fmt.Sprintf("  ▸ <b>Size:</b>   <code>%s</code>", formatBytesUint(uint64(update.BytesWritten))))
 	}
+
+	statusIcon := "✅"
 	statusLabel := "Enabled"
 	if !update.Enabled {
+		statusIcon = "🚫"
 		statusLabel = "Disabled"
 	}
-	lines = append(lines, fmt.Sprintf("  Status: %s", statusLabel))
+	lines = append(lines, fmt.Sprintf("  ▸ <b>Status:</b> %s %s", statusIcon, statusLabel))
 	lines = append(lines, "")
 	lines = append(lines, systemOverviewLines(info)...)
 	lines = append(lines, "")
+	lines = append(lines, divider())
 	lines = append(lines, timestampLine())
 
 	return strings.Join(lines, "\n")
@@ -91,11 +150,11 @@ func alertHeadline(metric string) string {
 func metricDisplayName(metric string) string {
 	switch strings.ToLower(metric) {
 	case "cpu":
-		return "CPU usage"
+		return "CPU Usage"
 	case "memory":
-		return "Memory usage"
+		return "Memory Usage"
 	case "disk":
-		return "Disk usage"
+		return "Disk Usage"
 	case "protection":
 		return "DNS Protection"
 	default:
@@ -109,11 +168,11 @@ func metricDisplayName(metric string) string {
 func filterUpdateHeader(listType FilterListType) string {
 	switch listType {
 	case FilterListTypeAllow:
-		return "Allowlist Update"
+		return "Allowlist Updated"
 	case FilterListTypeBlock:
-		return "Blocklist Update"
+		return "Blocklist Updated"
 	default:
-		return "Filter Update"
+		return "Filter Updated"
 	}
 }
 

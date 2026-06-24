@@ -40,7 +40,7 @@ const CertificateStatus = ({ validChain, validCert, subject, issuer, notAfter, d
                     {notAfter && notAfter !== EMPTY_DATE && (
                         <li>
                             <Trans>encryption_expire</Trans>:&nbsp;
-                            {format(notAfter, 'YYYY-MM-DD HH:mm:ss')}
+                            {format(notAfter, 'DD/MM/YYYY HH:mm:ss')}
                         </li>
                     )}
                     {dnsNames && (

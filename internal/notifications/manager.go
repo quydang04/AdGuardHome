@@ -70,6 +70,21 @@ type ioSnapshot struct {
 	netPacketsRecv uint64
 }
 
+// removeSession tracks per-chat state for the multi-select bulk-remove flow.
+type removeSession struct {
+	listType  string    // "b" for blocklist, "a" for allowlist
+	listURLs  []string  // snapshot of URLs at session start
+	listNames []string  // snapshot of names at session start
+	selected  map[int]bool
+}
+
+// removeResult holds the outcome of a single remove operation.
+type removeResult struct {
+	name string
+	url  string
+	err  error
+}
+
 // Manager orchestrates background checks and delivers alerts via Telegram.
 type Manager struct {
 	logger      *slog.Logger
@@ -109,6 +124,9 @@ type Manager struct {
 	// Rate limiting: timestamps of recent commands per chat.
 	cmdTimestamps []time.Time
 
+	// pendingRemove stores active multi-select remove sessions per chatID.
+	pendingRemove map[int64]*removeSession
+
 	// pollRunning tracks whether the poll loop goroutine is active.
 	pollRunning bool
 	// pollCtx and pollStop are kept so UpdateTelegramConfig can start a
@@ -135,6 +153,7 @@ func NewManager(l *slog.Logger, cfg TelegramConfig) *Manager {
 		alertStartTime: map[string]time.Time{},
 		startTime:      time.Now(),
 		cmdTimestamps:  make([]time.Time, 0, rateLimitMax),
+		pendingRemove:  map[int64]*removeSession{},
 	}
 }
 
@@ -222,7 +241,8 @@ func (m *Manager) SendTelegramTest(ctx context.Context, message string) error {
 		msg = "AdGuard Home test notification"
 	}
 
-	return m.sendTelegram(ctx, cfg, msg)
+	formattedMsg := fmt.Sprintf("🔔 <b>Telegram Test Notification</b>\n%s\n\n💬 <code>%s</code>\n\n%s", divider(), msg, timestampLine())
+	return m.sendTelegram(ctx, cfg, formattedMsg)
 }
 
 // NotifyFilterUpdate sends a formatted Telegram message describing a filter
@@ -334,11 +354,11 @@ func (m *Manager) runCheck(ctx context.Context) {
 	m.handleMetric(ctx, cfg, "disk", info.DiskUsage, cfg.DiskThreshold, info)
 
 	// Check protection status.
-	m.checkProtectionAlert(ctx, cfg)
+	m.checkProtectionAlert(ctx, cfg, info)
 }
 
 // checkProtectionAlert sends an alert if DNS protection is disabled.
-func (m *Manager) checkProtectionAlert(ctx context.Context, cfg TelegramConfig) {
+func (m *Manager) checkProtectionAlert(ctx context.Context, cfg TelegramConfig, info systeminfo.Info) {
 	m.mu.RLock()
 	pp := m.protection
 	m.mu.RUnlock()
@@ -353,7 +373,7 @@ func (m *Manager) checkProtectionAlert(ctx context.Context, cfg TelegramConfig) 
 		m.mu.RUnlock()
 
 		if !alreadyAlerted {
-			msg := "🚨 DNS Protection is DISABLED!\n\nDNS filtering is currently turned off. All queries pass through unfiltered."
+			msg := composeProtectionAlertMessage(cfg, info)
 			if err := m.sendTelegramWithRetry(ctx, cfg, msg); err != nil {
 				m.logger.Error("telegram protection alert failed", slog.String("error", err.Error()))
 			} else {
@@ -369,7 +389,7 @@ func (m *Manager) checkProtectionAlert(ctx context.Context, cfg TelegramConfig) 
 		m.mu.RUnlock()
 
 		if wasActive {
-			m.clearAlertWithRecovery(ctx, cfg, "protection", 0, 0)
+			m.clearAlertWithRecovery(ctx, cfg, "protection", 0, 0, info)
 		}
 	}
 }
@@ -450,7 +470,7 @@ func (m *Manager) GetIOStats() IOStats {
 
 func (m *Manager) handleMetric(ctx context.Context, cfg TelegramConfig, metric string, value, threshold float64, info systeminfo.Info) {
 	if threshold <= 0 || value <= 0 {
-		m.clearAlertWithRecovery(ctx, cfg, metric, value, threshold)
+		m.clearAlertWithRecovery(ctx, cfg, metric, value, threshold, info)
 		return
 	}
 
@@ -481,7 +501,7 @@ func (m *Manager) handleMetric(ctx context.Context, cfg TelegramConfig, metric s
 	}
 
 	if active && value < threshold*resetFactor {
-		m.clearAlertWithRecovery(ctx, cfg, metric, value, threshold)
+		m.clearAlertWithRecovery(ctx, cfg, metric, value, threshold, info)
 	}
 }
 
@@ -600,7 +620,7 @@ func (m *Manager) updateMetricState(metric string, active bool, ts time.Time) {
 
 // clearAlertWithRecovery clears the alert and sends a recovery notification
 // if the alert was previously active.
-func (m *Manager) clearAlertWithRecovery(ctx context.Context, cfg TelegramConfig, metric string, currentValue, threshold float64) {
+func (m *Manager) clearAlertWithRecovery(ctx context.Context, cfg TelegramConfig, metric string, currentValue, threshold float64, info systeminfo.Info) {
 	m.mu.RLock()
 	wasActive := m.alertActive[metric]
 	startTime := m.alertStartTime[metric]
@@ -608,7 +628,7 @@ func (m *Manager) clearAlertWithRecovery(ctx context.Context, cfg TelegramConfig
 
 	if wasActive {
 		duration := time.Since(startTime).Truncate(time.Second)
-		msg := composeRecoveryMessage(metric, currentValue, threshold, duration)
+		msg := composeRecoveryMessage(cfg, metric, currentValue, threshold, duration, info)
 		if err := m.sendTelegramWithRetry(ctx, cfg, msg); err != nil {
 			m.logger.Debug("telegram recovery message failed", slog.String("error", err.Error()))
 		}
@@ -751,7 +771,7 @@ func (m *Manager) handleUpdate(ctx context.Context, cfg TelegramConfig, u tgUpda
 
 	// Rate limiting.
 	if m.isRateLimited() {
-		_ = m.sendTelegram(ctx, cfg, "Warning: Too many requests, please try again later.")
+		_ = m.sendTelegram(ctx, cfg, "⚠️ <b>Rate Limit Reached</b>\n\nToo many requests. Please wait a moment and try again.")
 		return
 	}
 
@@ -781,9 +801,9 @@ func (m *Manager) handleUpdate(ctx context.Context, cfg TelegramConfig, u tgUpda
 	case "cmd:filtermgr_addallow":
 		m.sendFilterManageHelp(ctx, cfg, chatID, messageID, "addallow")
 	case "cmd:filtermgr_rmblock":
-		m.sendFilterListSelection(ctx, cfg, chatID, messageID, "rm", "b")
+		m.sendFilterRemoveSelection(ctx, cfg, chatID, messageID, "b")
 	case "cmd:filtermgr_rmallow":
-		m.sendFilterListSelection(ctx, cfg, chatID, messageID, "rm", "a")
+		m.sendFilterRemoveSelection(ctx, cfg, chatID, messageID, "a")
 	case "cmd:filtermgr_enable":
 		m.sendFilterListSelection(ctx, cfg, chatID, messageID, "en", "")
 	case "cmd:filtermgr_disable":
@@ -1064,14 +1084,42 @@ func (m *Manager) sendFilterListSelection(ctx context.Context, cfg TelegramConfi
 }
 
 func (m *Manager) handleFilterAction(ctx context.Context, cfg TelegramConfig, chatID int64, messageID int64, callback string) {
-	// Format: flt:<action>:<listType>:<index>
-	// e.g. flt:rm:b:0, flt:en:a:1, flt:dis:b:2
-	parts := strings.Split(callback, ":")
-	if len(parts) != 4 {
+	// Use SplitN to allow up to 4 segments; URLs in older formats won't appear here.
+	parts := strings.SplitN(callback, ":", 4)
+	if len(parts) < 2 {
 		return
 	}
 
 	action := parts[1]
+
+	// Multi-select remove flow.
+	switch action {
+	case "rmcancel":
+		m.handleRemoveCancel(ctx, cfg, chatID, messageID)
+		return
+	case "rmdo":
+		if len(parts) < 3 {
+			return
+		}
+		m.handleRemoveConfirm(ctx, cfg, chatID, messageID, parts[2])
+		return
+	case "rmtog":
+		if len(parts) < 4 {
+			return
+		}
+		idx, err := strconv.Atoi(parts[3])
+		if err != nil || idx < 0 {
+			return
+		}
+		m.handleRemoveToggle(ctx, cfg, chatID, messageID, parts[2], idx)
+		return
+	}
+
+	// Original single-action flow: flt:<action>:<listType>:<index>
+	if len(parts) != 4 {
+		return
+	}
+
 	listType := parts[2]
 	idx, err := strconv.Atoi(parts[3])
 	if err != nil || idx < 0 {
@@ -1083,7 +1131,7 @@ func (m *Manager) handleFilterAction(ctx context.Context, cfg TelegramConfig, ch
 	m.mu.RUnlock()
 
 	if fm == nil {
-		_ = m.sendTelegram(ctx, cfg, "Filter management not available.")
+		_ = m.sendTelegram(ctx, cfg, "⚠️ <b>Filter management not available.</b>")
 
 		return
 	}
@@ -1099,7 +1147,7 @@ func (m *Manager) handleFilterAction(ctx context.Context, cfg TelegramConfig, ch
 	}
 
 	if idx >= len(lists) {
-		_ = m.sendTelegram(ctx, cfg, "List not found (index out of range). The list may have changed.")
+		_ = m.sendTelegram(ctx, cfg, "⚠️ <b>List not found.</b>\n\nIndex is out of range, the list configuration may have changed.")
 
 		return
 	}
@@ -1108,23 +1156,17 @@ func (m *Manager) handleFilterAction(ctx context.Context, cfg TelegramConfig, ch
 	var resultMsg string
 
 	switch action {
-	case "rm":
-		if err = fm.RemoveFilterList(target.URL, whitelist); err != nil {
-			resultMsg = fmt.Sprintf("<b>Failed to remove</b>\n%s\n\nError: %s", target.Name, err.Error())
-		} else {
-			resultMsg = fmt.Sprintf("<b>List removed</b>\n\nName: %s\nURL: %s", target.Name, target.URL)
-		}
 	case "en":
 		if err = fm.EnableFilterList(target.URL, true, whitelist); err != nil {
-			resultMsg = fmt.Sprintf("<b>Failed to enable</b>\n%s\n\nError: %s", target.Name, err.Error())
+			resultMsg = fmt.Sprintf("❌ <b>Failed to Enable</b>\n\n<b>Name:</b> %s\n\n<b>Error:</b> <code>%s</code>", target.Name, err.Error())
 		} else {
-			resultMsg = fmt.Sprintf("<b>List enabled</b>\n\nName: %s\nURL: %s", target.Name, target.URL)
+			resultMsg = fmt.Sprintf("✅ <b>List Enabled</b>\n\n<b>Name:</b> %s\n<b>URL:</b> <code>%s</code>", target.Name, target.URL)
 		}
 	case "dis":
 		if err = fm.EnableFilterList(target.URL, false, whitelist); err != nil {
-			resultMsg = fmt.Sprintf("<b>Failed to disable</b>\n%s\n\nError: %s", target.Name, err.Error())
+			resultMsg = fmt.Sprintf("❌ <b>Failed to Disable</b>\n\n<b>Name:</b> %s\n\n<b>Error:</b> <code>%s</code>", target.Name, err.Error())
 		} else {
-			resultMsg = fmt.Sprintf("<b>List disabled</b>\n\nName: %s\nURL: %s", target.Name, target.URL)
+			resultMsg = fmt.Sprintf("🚫 <b>List Disabled</b>\n\n<b>Name:</b> %s\n<b>URL:</b> <code>%s</code>", target.Name, target.URL)
 		}
 	default:
 		return
@@ -1140,6 +1182,182 @@ func (m *Manager) handleFilterAction(ctx context.Context, cfg TelegramConfig, ch
 	} else {
 		_ = m.sendMessageWithKeyboard(ctx, cfg, chatID, resultMsg, kb)
 	}
+}
+
+// sendFilterRemoveSelection initialises a new multi-select remove session and
+// shows the checkbox list to the user.
+func (m *Manager) sendFilterRemoveSelection(ctx context.Context, cfg TelegramConfig, chatID int64, messageID int64, listType string) {
+	m.mu.RLock()
+	fm := m.filterMgr
+	m.mu.RUnlock()
+
+	if fm == nil {
+		text := "⚠️ Filter management not available."
+		kb := filterManageKeyboard()
+		if messageID > 0 {
+			_ = m.editMessageWithKeyboard(ctx, cfg, chatID, messageID, text, kb)
+		} else {
+			_ = m.sendMessageWithKeyboard(ctx, cfg, chatID, text, kb)
+		}
+
+		return
+	}
+
+	blockLists, allowLists := fm.GetFilterDetails()
+
+	var lists []FilterListInfo
+	if listType == "a" {
+		lists = allowLists
+	} else {
+		lists = blockLists
+	}
+
+	// Snapshot list state into the session.
+	session := &removeSession{
+		listType:  listType,
+		listURLs:  make([]string, len(lists)),
+		listNames: make([]string, len(lists)),
+		selected:  make(map[int]bool),
+	}
+	for i, l := range lists {
+		session.listURLs[i] = l.URL
+		session.listNames[i] = l.Name
+	}
+
+	m.mu.Lock()
+	m.pendingRemove[chatID] = session
+	m.mu.Unlock()
+
+	title := "Remove Blocklists"
+	if listType == "a" {
+		title = "Remove Allowlists"
+	}
+
+	text, kb := composeFilterRemoveSelectionMessage(title, listType, lists, session.selected)
+
+	if messageID > 0 {
+		if err := m.editMessageWithKeyboard(ctx, cfg, chatID, messageID, text, kb); err != nil {
+			_ = m.sendMessageWithKeyboard(ctx, cfg, chatID, text, kb)
+		}
+	} else {
+		if err := m.sendMessageWithKeyboard(ctx, cfg, chatID, text, kb); err != nil {
+			m.logger.Debug("send filter remove selection failed", slog.String("error", err.Error()))
+		}
+	}
+}
+
+// handleRemoveToggle toggles the selection of a list item in the active remove
+// session, then re-renders the checkbox message in place.
+func (m *Manager) handleRemoveToggle(ctx context.Context, cfg TelegramConfig, chatID int64, messageID int64, listType string, idx int) {
+	m.mu.Lock()
+	session := m.pendingRemove[chatID]
+	if session == nil || session.listType != listType {
+		m.mu.Unlock()
+		// Session expired — restart.
+		m.sendFilterRemoveSelection(ctx, cfg, chatID, messageID, listType)
+
+		return
+	}
+
+	if idx < len(session.listURLs) {
+		if session.selected[idx] {
+			delete(session.selected, idx)
+		} else {
+			session.selected[idx] = true
+		}
+	}
+
+	// Snapshot state for rendering (under lock).
+	selected := make(map[int]bool, len(session.selected))
+	for k, v := range session.selected {
+		selected[k] = v
+	}
+	lists := make([]FilterListInfo, len(session.listURLs))
+	for i := range session.listURLs {
+		lists[i] = FilterListInfo{Name: session.listNames[i], URL: session.listURLs[i]}
+	}
+	m.mu.Unlock()
+
+	title := "Remove Blocklists"
+	if listType == "a" {
+		title = "Remove Allowlists"
+	}
+
+	text, kb := composeFilterRemoveSelectionMessage(title, listType, lists, selected)
+
+	if messageID > 0 {
+		if err := m.editMessageWithKeyboard(ctx, cfg, chatID, messageID, text, kb); err != nil {
+			_ = m.sendMessageWithKeyboard(ctx, cfg, chatID, text, kb)
+		}
+	} else {
+		_ = m.sendMessageWithKeyboard(ctx, cfg, chatID, text, kb)
+	}
+}
+
+// handleRemoveConfirm removes all selected lists from the active remove session
+// and shows a summary result.
+func (m *Manager) handleRemoveConfirm(ctx context.Context, cfg TelegramConfig, chatID int64, messageID int64, listType string) {
+	m.mu.Lock()
+	session := m.pendingRemove[chatID]
+	if session == nil {
+		m.mu.Unlock()
+		_ = m.sendTelegram(ctx, cfg, "⚠️ No active remove session. Please start again.")
+
+		return
+	}
+
+	delete(m.pendingRemove, chatID)
+
+	type item struct{ url, name string }
+	toRemove := make([]item, 0, len(session.selected))
+	for idx, sel := range session.selected {
+		if sel && idx < len(session.listURLs) {
+			toRemove = append(toRemove, item{url: session.listURLs[idx], name: session.listNames[idx]})
+		}
+	}
+	whitelist := session.listType == "a"
+	fm := m.filterMgr
+	m.mu.Unlock()
+
+	if len(toRemove) == 0 {
+		_ = m.sendTelegram(ctx, cfg, "ℹ️ No lists selected for removal.")
+
+		return
+	}
+
+	if fm == nil {
+		_ = m.sendTelegram(ctx, cfg, "⚠️ Filter management not available.")
+
+		return
+	}
+
+	results := make([]removeResult, 0, len(toRemove))
+	for _, it := range toRemove {
+		err := fm.RemoveFilterList(it.url, whitelist)
+		results = append(results, removeResult{name: it.name, url: it.url, err: err})
+	}
+
+	text := composeRemoveResultMessage(results)
+	text += "\n\n" + timestampLine()
+	kb := filterManageKeyboard()
+
+	if messageID > 0 {
+		if err := m.editMessageWithKeyboard(ctx, cfg, chatID, messageID, text, kb); err != nil {
+			_ = m.sendMessageWithKeyboard(ctx, cfg, chatID, text, kb)
+		}
+	} else {
+		_ = m.sendMessageWithKeyboard(ctx, cfg, chatID, text, kb)
+	}
+}
+
+// handleRemoveCancel clears the active remove session and returns the user to
+// the Filter Management menu.
+func (m *Manager) handleRemoveCancel(ctx context.Context, cfg TelegramConfig, chatID int64, messageID int64) {
+	m.mu.Lock()
+	delete(m.pendingRemove, chatID)
+	m.mu.Unlock()
+
+	m.sendFilterManage(ctx, cfg, chatID, messageID)
 }
 
 func (m *Manager) handleRefreshFilters(ctx context.Context, cfg TelegramConfig, chatID int64, messageID int64) {
@@ -1163,9 +1381,9 @@ func (m *Manager) handleRefreshFilters(ctx context.Context, cfg TelegramConfig, 
 
 	var text string
 	if !ok {
-		text = "<b>Filter Update</b>\n---\nAnother refresh is already in progress. Please try again later."
+		text = "🔄 <b>Filter Update</b>\n" + divider() + "\n\n⏳ Another refresh is already in progress.\nPlease try again later."
 	} else {
-		text = fmt.Sprintf("<b>Filter Update</b>\n---\nRefresh completed.\nUpdated lists: <code>%d</code>\n\n%s", updated, timestampLine())
+		text = fmt.Sprintf("🔄 <b>Filter Update Complete</b>\n"+divider()+"\n\n✅ Refresh completed successfully.\n\n  📋 <b>Updated lists:</b> <code>%d</code>\n\n%s", updated, timestampLine())
 	}
 
 	kb := filterManageKeyboard()
@@ -1196,42 +1414,42 @@ func (m *Manager) handleTextCommand(ctx context.Context, cfg TelegramConfig, cha
 	switch cmd {
 	case "/addlist":
 		if len(parts) < 2 {
-			_ = m.sendTelegram(ctx, cfg, "Usage: /addlist &lt;url1&gt; [url2] [url3] ...\nOr: /addlist &lt;url&gt; | &lt;name&gt;")
+			_ = m.sendTelegram(ctx, cfg, "ℹ️ <b>Usage: Add Blocklist</b>\n"+divider()+"\n\n<code>/addlist &lt;url1&gt; [url2] [url3] ...</code>\nOr:\n<code>/addlist &lt;url&gt; | &lt;name&gt;</code>")
 			return
 		}
 		m.handleAddLists(ctx, cfg, chatID, parts[1:], false)
 
 	case "/addallow":
 		if len(parts) < 2 {
-			_ = m.sendTelegram(ctx, cfg, "Usage: /addallow &lt;url1&gt; [url2] [url3] ...\nOr: /addallow &lt;url&gt; | &lt;name&gt;")
+			_ = m.sendTelegram(ctx, cfg, "ℹ️ <b>Usage: Add Allowlist</b>\n"+divider()+"\n\n<code>/addallow &lt;url1&gt; [url2] [url3] ...</code>\nOr:\n<code>/addallow &lt;url&gt; | &lt;name&gt;</code>")
 			return
 		}
 		m.handleAddLists(ctx, cfg, chatID, parts[1:], true)
 
 	case "/removelist":
 		if len(parts) < 2 {
-			_ = m.sendTelegram(ctx, cfg, "Usage: /removelist &lt;url&gt;")
+			_ = m.sendTelegram(ctx, cfg, "ℹ️ <b>Usage: Remove Blocklist</b>\n"+divider()+"\n\n<code>/removelist &lt;url&gt;</code>")
 			return
 		}
 		m.handleRemoveList(ctx, cfg, chatID, parts[1], false)
 
 	case "/removeallow":
 		if len(parts) < 2 {
-			_ = m.sendTelegram(ctx, cfg, "Usage: /removeallow &lt;url&gt;")
+			_ = m.sendTelegram(ctx, cfg, "ℹ️ <b>Usage: Remove Allowlist</b>\n"+divider()+"\n\n<code>/removeallow &lt;url&gt;</code>")
 			return
 		}
 		m.handleRemoveList(ctx, cfg, chatID, parts[1], true)
 
 	case "/enablelist":
 		if len(parts) < 2 {
-			_ = m.sendTelegram(ctx, cfg, "Usage: /enablelist &lt;url&gt;")
+			_ = m.sendTelegram(ctx, cfg, "ℹ️ <b>Usage: Enable List</b>\n"+divider()+"\n\n<code>/enablelist &lt;url&gt;</code>")
 			return
 		}
 		m.handleEnableList(ctx, cfg, chatID, parts[1], true, false)
 
 	case "/disablelist":
 		if len(parts) < 2 {
-			_ = m.sendTelegram(ctx, cfg, "Usage: /disablelist &lt;url&gt;")
+			_ = m.sendTelegram(ctx, cfg, "ℹ️ <b>Usage: Disable List</b>\n"+divider()+"\n\n<code>/disablelist &lt;url&gt;</code>")
 			return
 		}
 		m.handleEnableList(ctx, cfg, chatID, parts[1], false, false)
@@ -1248,7 +1466,7 @@ func (m *Manager) handleAddLists(ctx context.Context, cfg TelegramConfig, chatID
 	m.mu.RUnlock()
 
 	if fm == nil {
-		_ = m.sendTelegram(ctx, cfg, "Filter management not available.")
+		_ = m.sendTelegram(ctx, cfg, "⚠️ <b>Filter management not available.</b>")
 		return
 	}
 
@@ -1267,18 +1485,17 @@ func (m *Manager) handleAddLists(ctx context.Context, cfg TelegramConfig, chatID
 			name = strings.TrimSpace(parts[1])
 		}
 
+		var text string
 		if err := fm.AddFilterList(listURL, name, whitelist); err != nil {
-			msg := fmt.Sprintf("Failed to add %s: %s", listType, err.Error())
-			_ = m.sendTelegram(ctx, cfg, msg)
-			return
+			text = fmt.Sprintf("❌ <b>Failed to Add %s</b>\n"+divider()+"\n\n<b>URL:</b> <code>%s</code>\n<b>Error:</b> <code>%s</code>\n\n%s", capitalizeFirst(listType), listURL, err.Error(), timestampLine())
+		} else {
+			displayName := name
+			if displayName == "" {
+				displayName = listURL
+			}
+			text = fmt.Sprintf("➕ <b>%s Added Successfully</b>\n"+divider()+"\n\n  ▸ <b>Name:</b>   %s\n  ▸ <b>Source:</b> <code>%s</code>\n\n%s", capitalizeFirst(listType), displayName, listURL, timestampLine())
 		}
-
-		displayName := name
-		if displayName == "" {
-			displayName = listURL
-		}
-		msg := fmt.Sprintf("<b>%s added</b>\n\nName: %s\nURL: %s", capitalizeFirst(listType), displayName, listURL)
-		_ = m.sendTelegram(ctx, cfg, msg)
+		_ = m.sendTelegram(ctx, cfg, text)
 		return
 	}
 
@@ -1292,15 +1509,15 @@ func (m *Manager) handleAddLists(ctx context.Context, cfg TelegramConfig, chatID
 		}
 
 		if err := fm.AddFilterList(listURL, "", whitelist); err != nil {
-			results = append(results, fmt.Sprintf("FAIL %s: %s", listURL, err.Error()))
+			results = append(results, fmt.Sprintf("  ❌ <code>%s</code>\n     <i>Error: %s</i>", listURL, err.Error()))
 		} else {
-			results = append(results, fmt.Sprintf("OK %s", listURL))
+			results = append(results, fmt.Sprintf("  ✅ <code>%s</code>", listURL))
 			successCount++
 		}
 	}
 
-	header := fmt.Sprintf("<b>Add %s results</b> (%d/%d succeeded)\n", capitalizeFirst(listType), successCount, len(args))
-	msg := header + "\n" + strings.Join(results, "\n")
+	header := fmt.Sprintf("➕ <b>Add %s Results</b> (%d/%d succeeded)\n%s", capitalizeFirst(listType), successCount, len(args), divider())
+	msg := header + "\n\n" + strings.Join(results, "\n") + "\n\n" + timestampLine()
 	_ = m.sendTelegram(ctx, cfg, msg)
 }
 
@@ -1310,7 +1527,7 @@ func (m *Manager) handleRemoveList(ctx context.Context, cfg TelegramConfig, chat
 	m.mu.RUnlock()
 
 	if fm == nil {
-		_ = m.sendTelegram(ctx, cfg, "Filter management not available.")
+		_ = m.sendTelegram(ctx, cfg, "⚠️ <b>Filter management not available.</b>")
 		return
 	}
 
@@ -1319,13 +1536,12 @@ func (m *Manager) handleRemoveList(ctx context.Context, cfg TelegramConfig, chat
 		listType = "allowlist"
 	}
 
+	var msg string
 	if err := fm.RemoveFilterList(listURL, whitelist); err != nil {
-		msg := fmt.Sprintf("Failed to remove %s: %s", listType, err.Error())
-		_ = m.sendTelegram(ctx, cfg, msg)
-		return
+		msg = fmt.Sprintf("❌ <b>Failed to Remove %s</b>\n"+divider()+"\n\n<b>URL:</b> <code>%s</code>\n<b>Error:</b> <code>%s</code>\n\n%s", capitalizeFirst(listType), listURL, err.Error(), timestampLine())
+	} else {
+		msg = fmt.Sprintf("🗑️ <b>%s Removed</b>\n"+divider()+"\n\n<b>URL:</b> <code>%s</code>\n\n%s", capitalizeFirst(listType), listURL, timestampLine())
 	}
-
-	msg := fmt.Sprintf("<b>%s removed</b>\n\nURL: %s", capitalizeFirst(listType), listURL)
 	_ = m.sendTelegram(ctx, cfg, msg)
 }
 
@@ -1335,25 +1551,27 @@ func (m *Manager) handleEnableList(ctx context.Context, cfg TelegramConfig, chat
 	m.mu.RUnlock()
 
 	if fm == nil {
-		_ = m.sendTelegram(ctx, cfg, "Filter management not available.")
+		_ = m.sendTelegram(ctx, cfg, "⚠️ <b>Filter management not available.</b>")
 		return
 	}
 
-	if err := fm.EnableFilterList(listURL, enabled, whitelist); err != nil {
-		action := "enable"
-		if !enabled {
-			action = "disable"
-		}
-		msg := fmt.Sprintf("Failed to %s list: %s", action, err.Error())
-		_ = m.sendTelegram(ctx, cfg, msg)
-		return
-	}
-
-	action := "enabled"
+	action := "enable"
 	if !enabled {
-		action = "disabled"
+		action = "disable"
 	}
-	msg := fmt.Sprintf("<b>Filter list %s</b>\n\nURL: %s", action, listURL)
+
+	var msg string
+	if err := fm.EnableFilterList(listURL, enabled, whitelist); err != nil {
+		msg = fmt.Sprintf("❌ <b>Failed to %s List</b>\n"+divider()+"\n\n<b>URL:</b> <code>%s</code>\n<b>Error:</b> <code>%s</code>\n\n%s", capitalizeFirst(action), listURL, err.Error(), timestampLine())
+	} else {
+		statusLabel := "Enabled"
+		statusIcon := "✅"
+		if !enabled {
+			statusLabel = "Disabled"
+			statusIcon = "🚫"
+		}
+		msg = fmt.Sprintf("%s <b>Filter List %s</b>\n"+divider()+"\n\n<b>URL:</b> <code>%s</code>\n\n%s", statusIcon, statusLabel, listURL, timestampLine())
+	}
 	_ = m.sendTelegram(ctx, cfg, msg)
 }
 
@@ -1364,21 +1582,25 @@ func (m *Manager) toggleProtection(ctx context.Context, cfg TelegramConfig, chat
 	m.mu.RUnlock()
 
 	if pp == nil {
-		_ = m.sendTelegram(ctx, cfg, "Protection provider not available.")
+		_ = m.sendTelegram(ctx, cfg, "⚠️ <b>Protection provider not available.</b>")
 		return
 	}
 
 	if err := pp.SetProtectionEnabled(enable); err != nil {
-		msg := fmt.Sprintf("Failed to change protection: %s", err.Error())
-		_ = m.sendTelegram(ctx, cfg, msg)
+		msg := fmt.Sprintf("❌ <b>Failed to Change Protection</b>\n"+divider()+"\n\n<b>Error:</b> <code>%s</code>\n\n%s", err.Error(), timestampLine())
+		if messageID > 0 {
+			_ = m.editMessageText(ctx, cfg, chatID, messageID, msg)
+		} else {
+			_ = m.sendTelegram(ctx, cfg, msg)
+		}
 		return
 	}
 
 	var msg string
 	if enable {
-		msg = "DNS Protection has been <b>ENABLED</b>"
+		msg = "🟢 <b>DNS Protection has been ENABLED</b>\n" + divider() + "\n\nAll DNS queries are now being filtered and protected.\n\n" + timestampLine()
 	} else {
-		msg = "DNS Protection has been <b>DISABLED</b>"
+		msg = "🔴 <b>DNS Protection has been DISABLED</b>\n" + divider() + "\n\n⚠️ DNS filtering is OFF. Queries pass through unfiltered.\n\n" + timestampLine()
 	}
 
 	if messageID > 0 {

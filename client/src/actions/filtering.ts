@@ -157,6 +157,33 @@ export const removeFilter =
         }
     };
 
+export const removeFiltersBulk =
+    (urls: string[], whitelist = false) =>
+    async (dispatch: any) => {
+        dispatch(removeFilterRequest());
+
+        const settledResults = await Promise.allSettled(
+            urls.map((url) => apiClient.removeFilter({ url, whitelist })),
+        );
+
+        let successCount = 0;
+        settledResults.forEach((result) => {
+            if (result.status === 'fulfilled') {
+                successCount++;
+            } else {
+                dispatch(addErrorToast({ error: result.reason }));
+            }
+        });
+
+        if (successCount > 0) {
+            dispatch(removeFilterSuccess(urls[0]));
+            dispatch(addSuccessToast(i18next.t('filters_removed_successfully', { count: successCount })));
+            dispatch(getFilteringStatus());
+        } else {
+            dispatch(removeFilterFailure());
+        }
+    };
+
 export const toggleFilterRequest = createAction('FILTER_TOGGLE_REQUEST');
 export const toggleFilterFailure = createAction('FILTER_TOGGLE_FAILURE');
 export const toggleFilterSuccess = createAction('FILTER_TOGGLE_SUCCESS');

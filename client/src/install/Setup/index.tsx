@@ -112,9 +112,9 @@ export const Setup = () => {
                     {renderPage(step, { web, dns, staticIp }, interfaces)}
                     <Progress step={step} />
                 </div>
-            </div>
 
-            <Footer />
+                <Footer />
+            </div>
 
             <Toasts />
 

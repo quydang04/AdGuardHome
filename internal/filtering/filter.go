@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/netip"
+	neturl "net/url"
 	"os"
 	"path/filepath"
 	"slices"
@@ -89,7 +90,70 @@ func (filter *FilterYAML) ensureName(title string) {
 		return
 	}
 
+	if n := nameFromURL(filter.URL); n != "" {
+		filter.Name = n
+
+		return
+	}
+
 	filter.Name = fmt.Sprintf("List %d", filter.ID)
+}
+
+// nameFromURL derives a human-readable filter name from a URL.  It returns an
+// empty string if the URL cannot be parsed or has no useful path component.
+func nameFromURL(rawURL string) string {
+	if rawURL == "" {
+		return ""
+	}
+
+	u, err := neturl.Parse(rawURL)
+	if err != nil || u.Host == "" {
+		return ""
+	}
+
+	host := u.Hostname()
+	path := strings.TrimRight(u.Path, "/")
+
+	if path == "" || path == "/" {
+		return host
+	}
+
+	parts := strings.Split(strings.TrimLeft(path, "/"), "/")
+
+	base := parts[len(parts)-1]
+	ext := filepath.Ext(base)
+	fileName := strings.TrimSuffix(base, ext)
+
+	if fileName == "" || fileName == "." {
+		fileName = ""
+	}
+
+	// raw.githubusercontent.com/{user}/{repo}/.../{file}
+	if host == "raw.githubusercontent.com" && len(parts) >= 3 {
+		prefix := parts[0] + "/" + parts[1]
+		if fileName != "" {
+			return prefix + " - " + fileName
+		}
+
+		return prefix
+	}
+
+	// {user}.github.io/{repo}/.../{file}
+	if strings.HasSuffix(host, ".github.io") && len(parts) >= 1 {
+		user := strings.TrimSuffix(host, ".github.io")
+		prefix := user + "/" + parts[0]
+		if fileName != "" && len(parts) > 1 {
+			return prefix + " - " + fileName
+		}
+
+		return prefix
+	}
+
+	if fileName != "" {
+		return host + " - " + fileName
+	}
+
+	return host
 }
 
 const (

@@ -56,7 +56,11 @@ body .footer {
         margin-left: auto;
         display: flex;
         align-items: center;
-        gap: 0.35rem;
+        gap: 1.25rem;
+    }
+
+    .footer__column--language .version {
+        margin-left: 1.25rem;
     }
 
     .footer__link {
@@ -103,4 +107,28 @@ body .footer {
     display: inline-flex;
     gap: 0.25rem;
     align-items: center;
+}
+
+@media screen and (max-width: 767.98px) {
+    .footer__row {
+        flex-direction: column !important;
+        align-items: center !important;
+        text-align: center !important;
+        gap: 0.75rem !important;
+    }
+
+    .footer__column--language {
+        justify-content: center !important;
+        width: 100% !important;
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: wrap !important;
+        gap: 1rem !important;
+    }
+
+    .footer__copyright {
+        margin-right: 0 !important;
+        text-align: center !important;
+        line-height: 1.4 !important;
+    }
 }

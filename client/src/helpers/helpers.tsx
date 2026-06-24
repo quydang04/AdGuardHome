@@ -40,22 +40,22 @@ export const formatTime = (time: any, options = DEFAULT_TIME_FORMAT) => {
     return dateFormat(parsedTime, options);
 };
 
-/**
- * @param dateTime {string} The date to format
- * @param [options] {object} Date.prototype.toLocaleString([locales[, options]]) options argument
- * @returns {string} Returns the date and time in the specified format
- */
 export const formatDateTime = (dateTime: string, options: Intl.DateTimeFormatOptions = DEFAULT_DATE_FORMAT_OPTIONS) => {
-    const parsedTime = new Date(dateTime);
+    const parsedTime = dateParse(dateTime);
+    const hasTime = options.hour !== undefined || options.minute !== undefined;
 
-    return parsedTime.toLocaleString(navigator.language, options);
+    if (hasTime) {
+        return dateFormat(parsedTime, 'DD/MM/YYYY HH:mm');
+    }
+
+    return dateFormat(parsedTime, 'DD/MM/YYYY');
 };
 
-/**
- * @param dateTime {string} The date to format
- * @returns {string} Returns the date and time in the format with the full month name
- */
-export const formatDetailedDateTime = (dateTime: string) => formatDateTime(dateTime, DETAILED_DATE_FORMAT_OPTIONS);
+export const formatDetailedDateTime = (dateTime: string) => {
+    const parsedTime = dateParse(dateTime);
+
+    return dateFormat(parsedTime, 'DD/MM/YYYY HH:mm');
+};
 
 export const normalizeLogs = (logs: any) =>
     logs.map((log: any) => {

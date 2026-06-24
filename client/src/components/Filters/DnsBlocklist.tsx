@@ -9,6 +9,7 @@ import Actions from './Actions';
 import Table from './Table';
 import Summary from './Summary';
 import { MODAL_TYPE } from '../../helpers/constants';
+import ReactModal from 'react-modal';
 
 import { Filter, getCurrentFilter } from '../../helpers/helpers';
 import { parseBulkFiltersInput } from '../../helpers/filteringBulk';
@@ -20,6 +21,7 @@ interface DnsBlocklistProps {
     getFilteringStatus: (...args: unknown[]) => unknown;
     filtering: FilteringData;
     removeFilter: (...args: unknown[]) => unknown;
+    removeFiltersBulk: (...args: unknown[]) => unknown;
     toggleFilterStatus: (...args: unknown[]) => unknown;
     addFilter: (...args: unknown[]) => unknown;
     addFiltersBulk: (...args: unknown[]) => unknown;
@@ -31,6 +33,13 @@ interface DnsBlocklistProps {
 }
 
 class DnsBlocklist extends Component<DnsBlocklistProps> {
+    state = {
+        isConfirmOpen: false,
+        deleteUrl: '',
+        selectedUrls: new Set<string>(),
+        isBulkConfirmOpen: false,
+    };
+
     componentDidMount() {
         this.props.getFilteringStatus();
     }
@@ -80,9 +89,10 @@ class DnsBlocklist extends Component<DnsBlocklistProps> {
     };
 
     handleDelete = (url: any) => {
-        if (window.confirm(this.props.t('list_confirm_delete'))) {
-            this.props.removeFilter(url);
-        }
+        this.setState({
+            isConfirmOpen: true,
+            deleteUrl: url,
+        });
     };
 
     toggleFilter = (url: any, data: any) => {
@@ -95,6 +105,39 @@ class DnsBlocklist extends Component<DnsBlocklistProps> {
 
     openSelectTypeModal = () => {
         this.props.toggleFilteringModal({ type: MODAL_TYPE.SELECT_MODAL_TYPE });
+    };
+
+    handleToggleSelect = (url: string) => {
+        this.setState((prevState: any) => {
+            const next = new Set(prevState.selectedUrls);
+            if (next.has(url)) {
+                next.delete(url);
+            } else {
+                next.add(url);
+            }
+            return { selectedUrls: next };
+        });
+    };
+
+    handleSelectAll = () => {
+        const { filters } = this.props.filtering;
+        this.setState({ selectedUrls: new Set(filters.map((f: any) => f.url)) });
+    };
+
+    handleDeselectAll = () => {
+        this.setState({ selectedUrls: new Set<string>() });
+    };
+
+    handleDeleteSelected = () => {
+        if (this.state.selectedUrls.size > 0) {
+            this.setState({ isBulkConfirmOpen: true });
+        }
+    };
+
+    confirmBulkDelete = async () => {
+        const urls = Array.from(this.state.selectedUrls);
+        this.setState({ isBulkConfirmOpen: false, selectedUrls: new Set<string>() });
+        await this.props.removeFiltersBulk(urls);
     };
 
     render() {
@@ -154,12 +197,19 @@ class DnsBlocklist extends Component<DnsBlocklistProps> {
                                     toggleFilteringModal={toggleFilteringModal}
                                     handleDelete={this.handleDelete}
                                     toggleFilter={this.toggleFilter}
+                                    selectedUrls={this.state.selectedUrls}
+                                    onToggleSelect={this.handleToggleSelect}
+                                    onSelectAll={this.handleSelectAll}
+                                    onDeselectAll={this.handleDeselectAll}
                                 />
 
                                 <Actions
                                     handleAdd={this.openSelectTypeModal}
                                     handleRefresh={this.handleRefresh}
                                     processingRefreshFilters={processingRefreshFilters}
+                                    selectedCount={this.state.selectedUrls.size}
+                                    onDeleteSelected={this.handleDeleteSelected}
+                                    processingRemoveFilter={processingRemoveFilter}
                                 />
                             </Card>
                         </div>
@@ -179,6 +229,81 @@ class DnsBlocklist extends Component<DnsBlocklistProps> {
                     modalType={modalType}
                     currentFilterData={currentFilterData}
                 />
+
+                <ReactModal
+                    className="Modal__Bootstrap modal-dialog modal-dialog-centered"
+                    closeTimeoutMS={0}
+                    isOpen={this.state.isConfirmOpen}
+                    onRequestClose={() => this.setState({ isConfirmOpen: false })}>
+                    <div className="modal-content">
+                        <div className="modal-header">
+                            <h4 className="modal-title">{t('delete_table_action')}</h4>
+                            <button
+                                type="button"
+                                className="close"
+                                onClick={() => this.setState({ isConfirmOpen: false })}>
+                                <span className="sr-only">Close</span>
+                            </button>
+                        </div>
+                        <div className="modal-body">
+                            <p className="mb-0">{t('list_confirm_delete')}</p>
+                        </div>
+                        <div className="modal-footer justify-content-end gap-2" style={{ display: 'flex' }}>
+                            <button
+                                type="button"
+                                className="btn btn-secondary mr-2"
+                                onClick={() => this.setState({ isConfirmOpen: false })}>
+                                {t('cancel_btn')}
+                            </button>
+                            <button
+                                type="button"
+                                className="btn btn-danger"
+                                onClick={() => {
+                                    this.props.removeFilter(this.state.deleteUrl);
+                                    this.setState({ isConfirmOpen: false, deleteUrl: '' });
+                                }}>
+                                {t('delete_table_action')}
+                            </button>
+                        </div>
+                    </div>
+                </ReactModal>
+
+                <ReactModal
+                    className="Modal__Bootstrap modal-dialog modal-dialog-centered"
+                    closeTimeoutMS={0}
+                    isOpen={this.state.isBulkConfirmOpen}
+                    onRequestClose={() => this.setState({ isBulkConfirmOpen: false })}>
+                    <div className="modal-content">
+                        <div className="modal-header">
+                            <h4 className="modal-title">{t('delete_table_action')}</h4>
+                            <button
+                                type="button"
+                                className="close"
+                                onClick={() => this.setState({ isBulkConfirmOpen: false })}>
+                                <span className="sr-only">Close</span>
+                            </button>
+                        </div>
+                        <div className="modal-body">
+                            <p className="mb-0">
+                                {t('list_confirm_delete_selected', { count: this.state.selectedUrls.size })}
+                            </p>
+                        </div>
+                        <div className="modal-footer justify-content-end gap-2" style={{ display: 'flex' }}>
+                            <button
+                                type="button"
+                                className="btn btn-secondary mr-2"
+                                onClick={() => this.setState({ isBulkConfirmOpen: false })}>
+                                {t('cancel_btn')}
+                            </button>
+                            <button
+                                type="button"
+                                className="btn btn-danger"
+                                onClick={this.confirmBulkDelete}>
+                                {t('delete_table_action')}
+                            </button>
+                        </div>
+                    </div>
+                </ReactModal>
             </>
         );
     }

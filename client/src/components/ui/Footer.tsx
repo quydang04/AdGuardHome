@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useDispatch, useSelector } from 'react-redux';
 import cn from 'classnames';
 
-import { REPOSITORY, PRIVACY_POLICY_LINK, THEMES } from '../../helpers/constants';
+import { THEMES } from '../../helpers/constants';
 import { LANGUAGES } from '../../helpers/twosky';
 import i18n from '../../i18n';
 
@@ -18,21 +18,7 @@ import { RootState } from '../../initialState';
 
 type ThemeName = keyof typeof THEMES;
 
-const linksData = [
-    {
-        href: REPOSITORY.URL,
-        name: 'homepage',
-    },
-    {
-        href: PRIVACY_POLICY_LINK,
-        name: 'privacy_policy',
-    },
-    {
-        href: REPOSITORY.ISSUES,
-        className: 'btn btn-outline-primary btn-sm footer__link--report',
-        name: 'report_an_issue',
-    },
-];
+const linksData: any[] = [];
 
 const Footer = () => {
     const { t } = useTranslation();
@@ -67,20 +53,29 @@ const Footer = () => {
         }
     };
 
-    const renderCopyright = () => (
-        <div className="footer__column">
-            <div className="footer__copyright">
-                {t('copyright')} &copy; {getYear()}{' '}
-                <a
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    href="https://link.adtidy.org/forward.html?action=home&from=ui&app=home">
-                    AdGuard
-                </a>
-                <span className="footer__custom"> - Customize by quydangnet</span>
+    const renderCopyright = () => {
+        const customizeText = i18n.language === 'vi' ? ' - Tùy chỉnh bởi ' : ' - Customize by ';
+        return (
+            <div className="footer__column">
+                <div className="footer__copyright">
+                    {t('copyright')} &copy; {getYear()}{' '}
+                    <a
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        href="https://link.adtidy.org/forward.html?action=home&from=ui&app=home">
+                        AdGuard
+                    </a>
+                    {customizeText}
+                    <a
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        href="http://quydang.name.vn">
+                        quydangblog
+                    </a>
+                </div>
             </div>
-        </div>
-    );
+        );
+    };
 
     const renderLinks = (linksData: any) =>
         linksData.map(({ name, href, className = '' }: any) => (
@@ -188,13 +183,15 @@ const Footer = () => {
         <footer className="footer">
             <div className="container">
                 <div className="footer__row">
-                    <div className="footer__column footer__column--links">{renderLinks(linksData)}</div>
+                    {renderCopyright()}
 
                     <div className="footer__column footer__column--language">
-                        <div className="footer__themes footer__language-buttons">
+                        <div className="footer__themes">
                             {renderThemeButtons()}
-                            {languageOptions.length > 1 &&
-                                languageOptions.map((lang) => {
+                        </div>
+                        {languageOptions.length > 1 && (
+                            <div className="footer__language-buttons">
+                                {languageOptions.map((lang) => {
                                     const active = i18n.language === lang;
                                     return (
                                         <button
@@ -209,14 +206,8 @@ const Footer = () => {
                                         </button>
                                     );
                                 })}
-                        </div>
-                    </div>
-                </div>
-
-                <div className="footer__row footer__row--meta">
-                    {renderCopyright()}
-
-                    <div className="footer__column footer__column--language">
+                            </div>
+                        )}
                         <Version />
                     </div>
                 </div>

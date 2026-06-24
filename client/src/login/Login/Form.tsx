@@ -30,7 +30,7 @@ const Form = ({ onSubmit, processing }: LoginFormProps) => {
 
     return (
         <form onSubmit={handleSubmit(onSubmit)} className="card">
-            <div className="card-body p-6">
+            <div className="card-body">
                 <div className="form__group form__group--settings">
                     <Controller
                         name="username"

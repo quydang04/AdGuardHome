@@ -351,18 +351,18 @@ export const LONG_TIME_FORMAT = 'HH:mm:ss.SSS';
 
 export const DEFAULT_SHORT_DATE_FORMAT_OPTIONS = {
     year: 'numeric',
-    month: 'numeric',
-    day: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
     hour12: false,
 } as const;
 
 export const DEFAULT_DATE_FORMAT_OPTIONS = {
     year: 'numeric',
-    month: 'numeric',
-    day: 'numeric',
-    hour: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
     hourCycle: 'h23',
-    minute: 'numeric',
+    minute: '2-digit',
 } as const;
 
 export const DETAILED_DATE_FORMAT_OPTIONS = {

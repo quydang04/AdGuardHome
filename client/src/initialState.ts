@@ -210,6 +210,9 @@ export type SystemInfoData = {
     diskFree: number;
     localIps: string[];
     publicIp: string;
+    isContainer: boolean;
+    hostOs: string;
+    systemTime: string;
 };
 
 export type TelegramConfigState = {

@@ -97,6 +97,7 @@ docker run -d \
   --restart unless-stopped \
   -v /opt/adguardhome/work:/opt/adguardhome/work \
   -v /opt/adguardhome/conf:/opt/adguardhome/conf \
+  -v /etc/os-release:/host/etc/os-release:ro \
   -p 53:53/tcp -p 53:53/udp \
   -p 3000:3000/tcp \
   quydang04/adguardhome:latest
@@ -121,6 +122,7 @@ services:
     volumes:
       - ./work:/opt/adguardhome/work
       - ./conf:/opt/adguardhome/conf
+      - /etc/os-release:/host/etc/os-release:ro
 ```
 
 ### <a href="#manual-installation" id="manual-installation" name="manual-installation">Manual installation</a>

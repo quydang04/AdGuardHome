@@ -48,6 +48,9 @@ const normalizeSystemInfo = (system: any) => {
         uptimeSeconds: system.uptime_seconds || 0,
         localIps: Array.isArray(system.local_ips) ? system.local_ips : [],
         publicIp: system.public_ip || '',
+        isContainer: system.is_container || false,
+        hostOs: system.host_os || '',
+        systemTime: system.system_time || '',
     };
 };
 

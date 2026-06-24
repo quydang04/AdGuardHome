@@ -148,34 +148,36 @@ const Dashboard = ({
     return (
         <>
             <PageTitle title={t('dashboard')} containerClass="page-title--dashboard">
-                <div className="page-title__protection">
-                    <button
-                        type="button"
-                        className={buttonClass}
-                        onClick={() => {
-                            toggleProtection(protectionEnabled);
-                        }}
-                        disabled={processingProtection}>
-                        {protectionDisabledDuration
-                            ? `${t('enable_protection_timer', { time: getRemaningTimeText(protectionDisabledDuration) })}`
-                            : getProtectionBtnText(protectionEnabled)}
+                <div className="page-title__actions">
+                    <div className="page-title__protection">
+                        <button
+                            type="button"
+                            className={buttonClass}
+                            onClick={() => {
+                                toggleProtection(protectionEnabled);
+                            }}
+                            disabled={processingProtection}>
+                            {protectionDisabledDuration
+                                ? `${t('enable_protection_timer', { time: getRemaningTimeText(protectionDisabledDuration) })}`
+                                : getProtectionBtnText(protectionEnabled)}
+                        </button>
+
+                        {protectionEnabled && (
+                            <Dropdown
+                                label=""
+                                baseClassName="dropdown-protection"
+                                icon="arrow-down"
+                                controlClassName="dropdown-protection__toggle"
+                                menuClassName="dropdown-menu dropdown-menu-arrow dropdown-menu--protection">
+                                {getDisableProtectionItems()}
+                            </Dropdown>
+                        )}
+                    </div>
+
+                    <button type="button" className="btn btn-outline-primary btn-sm" onClick={getAllStats}>
+                        <Trans>refresh_statics</Trans>
                     </button>
-
-                    {protectionEnabled && (
-                        <Dropdown
-                            label=""
-                            baseClassName="dropdown-protection"
-                            icon="arrow-down"
-                            controlClassName="dropdown-protection__toggle"
-                            menuClassName="dropdown-menu dropdown-menu-arrow dropdown-menu--protection">
-                            {getDisableProtectionItems()}
-                        </Dropdown>
-                    )}
                 </div>
-
-                <button type="button" className="btn btn-outline-primary btn-sm" onClick={getAllStats}>
-                    <Trans>refresh_statics</Trans>
-                </button>
             </PageTitle>
 
             {statsProcessing && <Loading />}

@@ -69,7 +69,7 @@ export const FiltersList = ({ categories, filters, selectedSources }: Props) => 
                             const iconsData = getIconsData(homepage, source);
 
                             return (
-                                <div key={name} className="d-flex align-items-center pb-1">
+                                <div key={name} className="filter-list-item">
                                     <Controller
                                         name={id}
                                         control={control}

@@ -65,6 +65,13 @@ type Info struct {
 	BootTime      uint64 `json:"boot_time"`
 	VirtPlatform  string `json:"virt_platform"`
 
+	// Container detection.
+	IsContainer bool   `json:"is_container"`
+	HostOS      string `json:"host_os,omitempty"`
+
+	// Current server time (RFC 3339).
+	SystemTime string `json:"system_time"`
+
 	// Load average (zero on Windows).
 	LoadAvg1  float64 `json:"load_avg_1"`
 	LoadAvg5  float64 `json:"load_avg_5"`
@@ -130,15 +137,28 @@ func Collect() Info {
 		NumCPU: runtime.NumCPU(),
 	}
 
+	containerOS := ""
 	if hi, err := host.Info(); err == nil {
 		info.Hostname = hi.Hostname
 		info.UptimeSeconds = hi.Uptime
 		if hi.PlatformVersion != "" {
-			info.OSVersion = strings.TrimSpace(strings.Join([]string{hi.Platform, hi.PlatformVersion}, " "))
+			containerOS = strings.TrimSpace(strings.Join([]string{hi.Platform, hi.PlatformVersion}, " "))
 		} else if hi.Platform != "" {
-			info.OSVersion = hi.Platform
+			containerOS = hi.Platform
+		}
+		info.OSVersion = containerOS
+	}
+
+	// Container detection: check if running inside Docker/LXC/etc.
+	info.IsContainer = isContainer()
+	if info.IsContainer {
+		if hostOS := readHostOSRelease(); hostOS != "" {
+			info.HostOS = hostOS
+			info.OSVersion = hostOS
 		}
 	}
+
+	info.SystemTime = time.Now().Format(time.RFC3339)
 
 	// Kernel version.
 	if kv, err := host.KernelVersion(); err == nil {

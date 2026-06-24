@@ -13,7 +13,7 @@ import { isValidAbsolutePath } from '../../helpers/form';
 import { LOCAL_STORAGE_KEYS, LocalStorageHelper } from '../../helpers/localStorageHelper';
 
 interface TableProps {
-    filters: unknown[];
+    filters: any[];
     loading: boolean;
     processingConfigFilter: boolean;
     toggleFilteringModal: (...args: unknown[]) => unknown;
@@ -21,121 +21,183 @@ interface TableProps {
     toggleFilter: (...args: unknown[]) => unknown;
     t: (...args: unknown[]) => string;
     whitelist?: boolean;
+    // Multi-select props
+    selectedUrls?: Set<string>;
+    onToggleSelect?: (url: string) => void;
+    onSelectAll?: () => void;
+    onDeselectAll?: () => void;
 }
 
 class Table extends Component<TableProps> {
     getDateCell = (row: any) => CellWrap(row, formatDetailedDateTime);
 
-    renderCheckbox = ({ original }: any) => {
+    renderToggle = ({ original }: any) => {
         const { processingConfigFilter, toggleFilter } = this.props;
         const { url, name, enabled } = original;
         const data = { name, url, enabled: !enabled };
 
         return (
-            <label className="checkbox">
+            <label className="custom-switch" style={{ margin: 0 }}>
                 <input
                     type="checkbox"
-                    className="checkbox__input"
+                    className="custom-switch-input"
                     onChange={() => toggleFilter(url, data)}
                     checked={enabled}
                     disabled={processingConfigFilter}
                 />
+                <span className="custom-switch-indicator" />
+            </label>
+        );
+    };
 
+    renderSelectCheckbox = ({ original }: any) => {
+        const { selectedUrls, onToggleSelect } = this.props;
+        const { url } = original;
+        const checked = selectedUrls ? selectedUrls.has(url) : false;
+
+        return (
+            <label className="checkbox checkbox--single">
+                <input
+                    type="checkbox"
+                    className="checkbox__input"
+                    onChange={() => onToggleSelect && onToggleSelect(url)}
+                    checked={checked}
+                />
                 <span className="checkbox__label" />
             </label>
         );
     };
 
-    columns = [
-        {
-            Header: <Trans>enabled_table_header</Trans>,
-            accessor: 'enabled',
-            Cell: this.renderCheckbox,
-            width: 90,
+    renderSelectHeader = () => {
+        const { filters, selectedUrls, onSelectAll, onDeselectAll } = this.props;
+        const total = filters.length;
+        const selected = selectedUrls ? selectedUrls.size : 0;
+        const allSelected = total > 0 && selected === total;
+        const someSelected = selected > 0 && selected < total;
+
+        return (
+            <label
+                className="checkbox checkbox--single"
+                title={allSelected ? 'Deselect all' : 'Select all'}
+                style={{ margin: 0 }}>
+                <input
+                    type="checkbox"
+                    className="checkbox__input"
+                    onChange={() => (allSelected ? onDeselectAll && onDeselectAll() : onSelectAll && onSelectAll())}
+                    checked={allSelected}
+                    ref={(el) => {
+                        if (el) el.indeterminate = someSelected;
+                    }}
+                />
+                <span className="checkbox__label" />
+            </label>
+        );
+    };
+
+    getColumns() {
+        const { t, toggleFilteringModal, handleDelete } = this.props;
+
+        const selectCol = {
+            id: 'select',
+            Header: this.renderSelectHeader,
+            Cell: this.renderSelectCheckbox,
+            width: 50,
             className: 'text-center',
             resizable: false,
-        },
-        {
-            Header: <Trans>name_table_header</Trans>,
-            accessor: 'name',
-            minWidth: 180,
-            Cell: CellWrap,
-        },
-        {
-            Header: <Trans>list_url_table_header</Trans>,
-            accessor: 'url',
-            minWidth: 180,
-            // eslint-disable-next-line react/prop-types
-            Cell: ({ value }: any) => (
-                <div className="logs__row">
-                    {isValidAbsolutePath(value) ? (
-                        value
-                    ) : (
-                        <a href={value} target="_blank" rel="noopener noreferrer" className="link logs__text">
-                            {value}
-                        </a>
-                    )}
-                </div>
-            ),
-        },
-        {
-            Header: <Trans>rules_count_table_header</Trans>,
-            accessor: 'rulesCount',
-            className: 'text-center',
-            minWidth: 100,
-            Cell: (props: any) => props.value.toLocaleString(),
-        },
-        {
-            Header: <Trans>last_time_updated_table_header</Trans>,
-            accessor: 'lastUpdated',
-            className: 'text-center',
-            minWidth: 180,
-            Cell: this.getDateCell,
-        },
-        {
-            Header: <Trans>actions_table_header</Trans>,
-            accessor: 'actions',
-            className: 'text-center',
-            width: 100,
             sortable: false,
-            resizable: false,
-            Cell: (row: any) => {
-                const { original } = row;
-                const { url } = original;
+        };
 
-                const { t, toggleFilteringModal, handleDelete } = this.props;
-
-                return (
-                    <div className="logs__row logs__row--center">
-                        <button
-                            type="button"
-                            className="btn btn-icon btn-outline-primary btn-sm mr-2"
-                            title={t('edit_table_action')}
-                            onClick={() =>
-                                toggleFilteringModal({
-                                    type: MODAL_TYPE.EDIT_FILTERS,
-                                    url,
-                                })
-                            }>
-                            <svg className="icons icon12">
-                                <use xlinkHref="#edit" />
-                            </svg>
-                        </button>
-
-                        <button
-                            type="button"
-                            className="btn btn-icon btn-outline-secondary btn-sm"
-                            onClick={() => handleDelete(url)}
-                            title={t('delete_table_action')}>
-                            <svg className="icons icon12">
-                                <use xlinkHref="#delete" />
-                            </svg>
-                        </button>
-                    </div>
-                );
+        const mainCols = [
+            {
+                Header: <Trans>enabled_table_header</Trans>,
+                accessor: 'enabled',
+                Cell: this.renderToggle,
+                width: 90,
+                className: 'text-center',
+                resizable: false,
             },
-        },
-    ];
+            {
+                Header: <Trans>name_table_header</Trans>,
+                accessor: 'name',
+                minWidth: 120,
+                Cell: CellWrap,
+            },
+            {
+                Header: <Trans>list_url_table_header</Trans>,
+                accessor: 'url',
+                minWidth: 120,
+                // eslint-disable-next-line react/prop-types
+                Cell: ({ value }: any) => (
+                    <div className="logs__row">
+                        {isValidAbsolutePath(value) ? (
+                            value
+                        ) : (
+                            <a href={value} target="_blank" rel="noopener noreferrer" className="link logs__text">
+                                {value}
+                            </a>
+                        )}
+                    </div>
+                ),
+            },
+            {
+                Header: <Trans>rules_count_table_header</Trans>,
+                accessor: 'rulesCount',
+                className: 'text-center',
+                minWidth: 80,
+                Cell: (props: any) => props.value.toLocaleString(),
+            },
+            {
+                Header: <Trans>last_time_updated_table_header</Trans>,
+                accessor: 'lastUpdated',
+                className: 'text-center',
+                minWidth: 140,
+                Cell: this.getDateCell,
+            },
+            {
+                Header: <Trans>actions_table_header</Trans>,
+                accessor: 'actions',
+                className: 'text-center',
+                width: 120,
+                sortable: false,
+                resizable: false,
+                Cell: (row: any) => {
+                    const { original } = row;
+                    const { url } = original;
+
+                    return (
+                        <div className="logs__row logs__row--center">
+                            <button
+                                type="button"
+                                className="btn btn-icon btn-outline-primary btn-sm mr-2"
+                                title={t('edit_table_action')}
+                                onClick={() =>
+                                    toggleFilteringModal({
+                                        type: MODAL_TYPE.EDIT_FILTERS,
+                                        url,
+                                    })
+                                }>
+                                <svg className="icons icon12">
+                                    <use xlinkHref="#edit" />
+                                </svg>
+                            </button>
+
+                            <button
+                                type="button"
+                                className="btn btn-icon btn-outline-secondary btn-sm"
+                                onClick={() => handleDelete(url)}
+                                title={t('delete_table_action')}>
+                                <svg className="icons icon12">
+                                    <use xlinkHref="#delete" />
+                                </svg>
+                            </button>
+                        </div>
+                    );
+                },
+            },
+        ];
+
+        return [selectCol, ...mainCols];
+    }
 
     render() {
         const { loading, filters, t, whitelist } = this.props;
@@ -147,7 +209,7 @@ class Table extends Component<TableProps> {
         return (
             <ReactTable
                 data={filters}
-                columns={this.columns}
+                columns={this.getColumns()}
                 showPagination
                 defaultPageSize={LocalStorageHelper.getItem(localStorageKey) || 10}
                 onPageSizeChange={(size: any) => LocalStorageHelper.setItem(localStorageKey, size)}

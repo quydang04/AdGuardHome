@@ -73,7 +73,7 @@ class Table extends Component<TableProps> {
         {
             Header: this.props.t('actions_table_header'),
             accessor: 'actions',
-            maxWidth: 100,
+            maxWidth: 120,
             sortable: false,
             resizable: false,
             Cell: (row: any) => {

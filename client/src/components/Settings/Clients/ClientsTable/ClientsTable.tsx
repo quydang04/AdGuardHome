@@ -321,7 +321,7 @@ const ClientsTable = ({
         {
             Header: t('actions_table_header'),
             accessor: 'actions',
-            maxWidth: 100,
+            maxWidth: 120,
             sortable: false,
             resizable: false,
             Cell: (row: any) => {

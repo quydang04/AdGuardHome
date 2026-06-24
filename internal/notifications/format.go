@@ -12,27 +12,60 @@ import (
 
 var byteUnits = []string{"B", "KB", "MB", "GB", "TB", "PB"}
 
-func systemOverviewLines(info systeminfo.Info) []string {
-	lines := []string{"<b>System Overview</b>"}
-	lines = append(lines, fmt.Sprintf("  Hostname: %s", fallbackString(info.Hostname)))
-	lines = append(lines, fmt.Sprintf("  OS: %s", formatOS(info)))
-	if info.KernelVersion != "" {
-		lines = append(lines, fmt.Sprintf("  Kernel: %s", info.KernelVersion))
+// sectionHeader returns a bold section header line.
+func sectionHeader(icon, title string) string {
+	return fmt.Sprintf("%s <b>%s</b>", icon, title)
+}
+
+// divider returns a thin visual separator line.
+func divider() string {
+	return "▫️▫️▫️▫️▫️▫️▫️▫️▫️▫️"
+}
+
+// formatProgressBar renders a simple ASCII progress bar.
+// width is the number of filled + empty cells, percentage 0–100.
+func formatProgressBar(pct float64, width int) string {
+	if pct < 0 {
+		pct = 0
 	}
-	lines = append(lines, fmt.Sprintf("  CPU: %s", formatCPU(info)))
-	lines = append(lines, fmt.Sprintf("  CPU Usage: <code>%s</code>", formatPercentage(info.CPUUsage)))
-	lines = append(lines, fmt.Sprintf("  Memory: %s", formatUsage(info.MemoryUsed, info.MemoryTotal, info.MemoryUsage)))
-	lines = append(lines, fmt.Sprintf("  Memory Free: %s", formatCapacity(info.MemoryFree, info.MemoryTotal)))
-	lines = append(lines, fmt.Sprintf("  Disk: %s", formatUsage(info.DiskUsed, info.DiskTotal, info.DiskUsage)))
-	lines = append(lines, fmt.Sprintf("  Disk Free: %s", formatCapacity(info.DiskFree, info.DiskTotal)))
-	lines = append(lines, fmt.Sprintf("  Disk Path: %s", fallbackString(info.DiskPath)))
-	lines = append(lines, fmt.Sprintf("  Local IPs: %s", formatLocalIPs(info.LocalIPs)))
-	lines = append(lines, fmt.Sprintf("  Public IP: %s", fallbackString(info.PublicIP)))
+	if pct > 100 {
+		pct = 100
+	}
+	filled := int(math.Round(pct / 100 * float64(width)))
+	bar := strings.Repeat("█", filled) + strings.Repeat("░", width-filled)
+	return fmt.Sprintf("[%s]", bar)
+}
+
+// usageBar returns a coloured bar + percentage label based on usage level.
+func usageBar(pct float64) string {
+	bar := formatProgressBar(pct, 10)
+	return fmt.Sprintf("%s <code>%s</code>", bar, formatPercentage(pct))
+}
+
+func systemOverviewLines(info systeminfo.Info) []string {
+	lines := []string{sectionHeader("🖥️", "System Overview")}
+	lines = append(lines, fmt.Sprintf("  🏷️ <b>Host:</b> <code>%s</code>", fallbackString(info.Hostname)))
+	lines = append(lines, fmt.Sprintf("  🐧 <b>OS:</b> %s", formatOS(info)))
+	if info.KernelVersion != "" {
+		lines = append(lines, fmt.Sprintf("  🔧 <b>Kernel:</b> <code>%s</code>", info.KernelVersion))
+	}
+	lines = append(lines, fmt.Sprintf("  ⚙️ <b>CPU:</b> %s", formatCPU(info)))
+	lines = append(lines, fmt.Sprintf("  📊 <b>CPU Usage:</b> %s", usageBar(info.CPUUsage)))
+	lines = append(lines, fmt.Sprintf("  💾 <b>Memory:</b> %s", formatUsageWithBar(info.MemoryUsed, info.MemoryTotal, info.MemoryUsage)))
+	lines = append(lines, fmt.Sprintf("  💿 <b>Disk:</b> %s", formatUsageWithBar(info.DiskUsed, info.DiskTotal, info.DiskUsage)))
+	lines = append(lines, fmt.Sprintf("  📁 <b>Disk Path:</b> <code>%s</code>", fallbackString(info.DiskPath)))
+	lines = append(lines, fmt.Sprintf("  🌐 <b>Local IPs:</b> %s", formatLocalIPs(info.LocalIPs)))
+	lines = append(lines, fmt.Sprintf("  🌍 <b>Public IP:</b> <code>%s</code>", fallbackString(info.PublicIP)))
+	if info.SystemTime != "" {
+		if t, err := time.Parse(time.RFC3339, info.SystemTime); err == nil {
+			lines = append(lines, fmt.Sprintf("  🕐 <b>Time:</b> <code>%s</code>", t.Format("15:04:05 02/01/2006")))
+		}
+	}
 	uptime := formatUptime(info.UptimeSeconds)
 	if uptime == "" {
 		uptime = "-"
 	}
-	lines = append(lines, fmt.Sprintf("  Uptime: %s", uptime))
+	lines = append(lines, fmt.Sprintf("  ⏱️ <b>Uptime:</b> %s", uptime))
 
 	return lines
 }
@@ -46,7 +79,7 @@ func formatOS(info systeminfo.Info) string {
 		osLine = "-"
 	}
 	if arch := strings.TrimSpace(info.Arch); arch != "" {
-		osLine = fmt.Sprintf("%s (%s)", osLine, arch)
+		osLine = fmt.Sprintf("%s <code>(%s)</code>", osLine, arch)
 	}
 
 	return osLine
@@ -58,7 +91,7 @@ func formatCPU(info systeminfo.Info) string {
 		name = "Unknown CPU"
 	}
 	if info.NumCPU > 0 {
-		name = fmt.Sprintf("%s (%s cores)", name, formatInt64(int64(info.NumCPU)))
+		name = fmt.Sprintf("%s <code>(%s cores)</code>", name, formatInt64(int64(info.NumCPU)))
 	}
 
 	return name
@@ -68,8 +101,12 @@ func formatLocalIPs(ips []string) string {
 	if len(ips) == 0 {
 		return "-"
 	}
+	parts := make([]string, 0, len(ips))
+	for _, ip := range ips {
+		parts = append(parts, "<code>"+ip+"</code>")
+	}
 
-	return strings.Join(ips, ", ")
+	return strings.Join(parts, ", ")
 }
 
 func formatUsage(used, total uint64, usage float64) string {
@@ -78,7 +115,18 @@ func formatUsage(used, total uint64, usage float64) string {
 	}
 
 	idx := chooseUnit(total)
-	return fmt.Sprintf("%s / %s (%s)", formatBytesWithUnit(used, idx), formatBytesWithUnit(total, idx), formatPercentage(usage))
+	return fmt.Sprintf("<code>%s / %s</code> (%s)", formatBytesWithUnit(used, idx), formatBytesWithUnit(total, idx), formatPercentage(usage))
+}
+
+// formatUsageWithBar adds a progress bar alongside usage numbers.
+func formatUsageWithBar(used, total uint64, usage float64) string {
+	if total == 0 {
+		return "-"
+	}
+
+	idx := chooseUnit(total)
+	bar := usageBar(usage)
+	return fmt.Sprintf("%s <code>%s / %s</code>", bar, formatBytesWithUnit(used, idx), formatBytesWithUnit(total, idx))
 }
 
 func formatCapacity(current, total uint64) string {
@@ -87,7 +135,7 @@ func formatCapacity(current, total uint64) string {
 	}
 
 	idx := chooseUnit(total)
-	return fmt.Sprintf("%s / %s", formatBytesWithUnit(current, idx), formatBytesWithUnit(total, idx))
+	return fmt.Sprintf("<code>%s / %s</code>", formatBytesWithUnit(current, idx), formatBytesWithUnit(total, idx))
 }
 
 func formatBytesUint(value uint64) string {
@@ -222,7 +270,7 @@ func formatUptime(seconds uint64) string {
 // timestampLine returns a formatted timestamp line for message footers.
 func timestampLine() string {
 	now := time.Now()
-	return fmt.Sprintf("Updated: %s", now.Format("15:04:05 02/01/2006"))
+	return fmt.Sprintf("🕐 <i>Updated: %s</i>", now.Format("15:04:05 02/01/2006"))
 }
 
 // capitalizeFirst returns s with its first letter uppercased.

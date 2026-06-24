@@ -91,12 +91,12 @@ export const Form = ({
             <form onSubmit={handleSubmit(onSubmit)}>
                 <div className="modal-body modal-body--filters">
                     {modalType === MODAL_TYPE.SELECT_MODAL_TYPE && (
-                        <div className="d-flex justify-content-around flex-wrap">
+                        <div className="filters-select-buttons">
                             {canChooseFromCatalog && (
                                 <button
                                     type="button"
                                     onClick={openFilteringListModal}
-                                    className="btn btn-success btn-standard mr-2 btn-large">
+                                    className="btn btn-success filters-select-buttons__btn">
                                     {t('choose_from_list')}
                                 </button>
                             )}
@@ -104,14 +104,14 @@ export const Form = ({
                             <button
                                 type="button"
                                 onClick={openAddFiltersModal}
-                                className="btn btn-primary btn-standard">
+                                className="btn btn-primary filters-select-buttons__btn">
                                 {t('add_custom_list')}
                             </button>
 
                             <button
                                 type="button"
                                 onClick={openAddFiltersBulkModal}
-                                className="btn btn-secondary btn-standard mt-2">
+                                className="btn btn-secondary filters-select-buttons__btn filters-select-buttons__btn--bulk">
                                 {t(bulkButtonKey)}
                             </button>
                         </div>

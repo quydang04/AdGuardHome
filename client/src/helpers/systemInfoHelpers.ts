@@ -38,6 +38,7 @@ export const formatUptime = (seconds: number) => {
     const days = Math.floor(seconds / 86400);
     const hours = Math.floor((seconds % 86400) / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
+    const sec = Math.floor(seconds % 60);
 
     const parts: string[] = [];
 
@@ -49,7 +50,11 @@ export const formatUptime = (seconds: number) => {
         parts.push(`${hours}h`);
     }
 
-    parts.push(`${minutes}m`);
+    if (minutes || parts.length) {
+        parts.push(`${minutes}m`);
+    }
+
+    parts.push(`${sec}s`);
 
     return parts.join(' ');
 };
