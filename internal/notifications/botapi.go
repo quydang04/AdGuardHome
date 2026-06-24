@@ -225,6 +225,29 @@ func (m *Manager) answerCallbackQuery(ctx context.Context, cfg TelegramConfig, c
 	return nil
 }
 
+func (m *Manager) deleteWebhook(ctx context.Context, cfg TelegramConfig) error {
+	endpoint := fmt.Sprintf("https://api.telegram.org/bot%s/deleteWebhook", cfg.BotToken)
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, nil)
+	if err != nil {
+		return fmt.Errorf("create deleteWebhook request: %w", err)
+	}
+
+	resp, err := m.client.Do(req)
+	if err != nil {
+		return fmt.Errorf("deleteWebhook request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	io.Copy(io.Discard, io.LimitReader(resp.Body, 1024))
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("deleteWebhook status %d", resp.StatusCode)
+	}
+
+	return nil
+}
+
 func (m *Manager) registerBotCommands(ctx context.Context, cfg TelegramConfig) {
 	endpoint := fmt.Sprintf("https://api.telegram.org/bot%s/setMyCommands", cfg.BotToken)
 

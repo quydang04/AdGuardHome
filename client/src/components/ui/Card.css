@@ -21,7 +21,7 @@
 }
 
 .dashboard .card-table {
-    overflow: hidden;
+    overflow-y: auto;
 }
 
 .dashboard .card-table-overflow--limited {

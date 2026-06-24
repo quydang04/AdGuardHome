@@ -108,6 +108,13 @@ type Manager struct {
 
 	// Rate limiting: timestamps of recent commands per chat.
 	cmdTimestamps []time.Time
+
+	// pollRunning tracks whether the poll loop goroutine is active.
+	pollRunning bool
+	// pollCtx and pollStop are kept so UpdateTelegramConfig can start a
+	// poll loop if one is not already running.
+	pollCtx  context.Context
+	pollStop <-chan struct{}
 }
 
 // NewManager creates a new notifications manager instance.
@@ -142,14 +149,27 @@ func (m *Manager) Start(ctx context.Context) {
 
 	stopCh := make(chan struct{})
 	m.stopCh = stopCh
+	m.pollCtx = ctx
+	m.pollStop = stopCh
 
 	m.wg.Add(1)
 	go m.loop(ctx, stopCh)
 
 	if m.telegram.BotToken != "" {
-		m.wg.Add(1)
-		go m.pollLoop(ctx, stopCh)
+		m.startPollLoopLocked(ctx, stopCh)
 	}
+}
+
+// startPollLoopLocked starts the poll loop goroutine. Must be called with
+// m.mu held.
+func (m *Manager) startPollLoopLocked(ctx context.Context, stop <-chan struct{}) {
+	if m.pollRunning {
+		return
+	}
+
+	m.pollRunning = true
+	m.wg.Add(1)
+	go m.pollLoop(ctx, stop)
 }
 
 // Stop terminates the monitoring loop and waits for shutdown.
@@ -177,6 +197,11 @@ func (m *Manager) UpdateTelegramConfig(cfg TelegramConfig) {
 	if !cfg.Enabled {
 		m.alertActive = map[string]bool{}
 		m.alertStartTime = map[string]time.Time{}
+	}
+
+	needStartPoll := cfg.Enabled && cfg.BotToken != "" && !m.pollRunning && m.pollCtx != nil
+	if needStartPoll {
+		m.startPollLoopLocked(m.pollCtx, m.pollStop)
 	}
 	m.mu.Unlock()
 
@@ -632,12 +657,26 @@ func (m *Manager) isRateLimited() bool {
 }
 
 func (m *Manager) pollLoop(ctx context.Context, stop <-chan struct{}) {
-	defer m.wg.Done()
+	defer func() {
+		m.mu.Lock()
+		m.pollRunning = false
+		m.mu.Unlock()
+		m.wg.Done()
+	}()
+
+	cfg := m.getTelegramConfig()
+	if cfg.BotToken != "" {
+		if err := m.deleteWebhook(ctx, cfg); err != nil {
+			m.logger.Warn("failed to delete telegram webhook", slog.String("error", err.Error()))
+		} else {
+			m.logger.Info("telegram webhook cleared, using long polling")
+		}
+	}
 
 	var offset int
 
 	for {
-		cfg := m.getTelegramConfig()
+		cfg = m.getTelegramConfig()
 		if !cfg.Enabled || cfg.BotToken == "" {
 			select {
 			case <-stop:
@@ -651,7 +690,7 @@ func (m *Manager) pollLoop(ctx context.Context, stop <-chan struct{}) {
 
 		updates, err := m.getUpdates(ctx, cfg, offset)
 		if err != nil {
-			m.logger.Debug("telegram poll error", slog.String("error", err.Error()))
+			m.logger.Warn("telegram poll error", slog.String("error", err.Error()))
 
 			select {
 			case <-stop:
@@ -665,10 +704,22 @@ func (m *Manager) pollLoop(ctx context.Context, stop <-chan struct{}) {
 		}
 
 		for _, u := range updates {
-			m.handleUpdate(ctx, cfg, u)
+			m.safeHandleUpdate(ctx, cfg, u)
 			offset = u.UpdateID + 1
 		}
 	}
+}
+
+// safeHandleUpdate wraps handleUpdate with panic recovery so a single bad
+// update cannot kill the poll loop.
+func (m *Manager) safeHandleUpdate(ctx context.Context, cfg TelegramConfig, u tgUpdate) {
+	defer func() {
+		if r := recover(); r != nil {
+			m.logger.Error("panic in telegram update handler", "update_id", u.UpdateID, "panic", fmt.Sprintf("%v", r))
+		}
+	}()
+
+	m.handleUpdate(ctx, cfg, u)
 }
 
 func (m *Manager) handleUpdate(ctx context.Context, cfg TelegramConfig, u tgUpdate) {
