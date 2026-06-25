@@ -832,5 +832,6 @@
     "encrypted_dns": "Encrypted DNS",
     "encrypted_dns_desc": "Percentage of queries made using an encrypted transport (DNS-over-HTTPS, DNS-over-TLS, DNS-over-QUIC, or DNSCrypt).",
     "dnssec": "DNSSEC",
-    "dnssec_desc": "Percentage of queries validated with DNSSEC (Authenticated Data)."
+    "dnssec_desc": "Percentage of plain DNS queries (non-encrypted) validated with DNSSEC (Authenticated Data).",
+    "dnssec_plain_dns_count": "Based on {{count}} plain DNS queries"
 }

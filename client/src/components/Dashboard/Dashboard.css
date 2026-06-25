@@ -147,6 +147,21 @@
     }
 }
 
+/* Refresh button spin animation */
+@keyframes icon-spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+.icon-spin {
+    animation: icon-spin 0.8s linear infinite;
+}
+
+.btn-loading {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
 /* Progress stat (Encrypted DNS, DNSSEC) */
 .progress-stat {
     padding: 0.5rem 0;
@@ -196,5 +211,12 @@
 
 .progress-stat__value--blue {
     color: #206bc4;
+}
+
+.progress-stat__detail {
+    color: var(--card-subtitle-color, #9aa0ac);
+    font-size: 0.8rem;
+    margin-top: 0.25rem;
+    margin-bottom: 0;
 }
 

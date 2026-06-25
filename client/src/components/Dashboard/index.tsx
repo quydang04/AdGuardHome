@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { HashLink as Link } from 'react-router-hash-link';
 import { Trans, useTranslation } from 'react-i18next';
@@ -53,6 +53,8 @@ const Dashboard = ({
 }: DashboardProps) => {
     const { t } = useTranslation();
     const [initialLoadDone, setInitialLoadDone] = useState(false);
+    const [isRefreshing, setIsRefreshing] = useState(false);
+    const refreshTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const getAllStats = useCallback(() => {
         getAccessList();
@@ -60,6 +62,15 @@ const Dashboard = ({
         getFilteringStatus();
         getStatsConfig();
     }, [getAccessList, getStats, getFilteringStatus, getStatsConfig]);
+
+    const handleManualRefresh = useCallback(() => {
+        if (isRefreshing) {
+            return;
+        }
+        setIsRefreshing(true);
+        getAllStats();
+        refreshTimeoutRef.current = setTimeout(() => setIsRefreshing(false), 1000);
+    }, [isRefreshing, getAllStats]);
 
     useEffect(() => {
         getAllStats();
@@ -81,7 +92,12 @@ const Dashboard = ({
             getStatsRef.current();
         }, STATS_POLLING_INTERVAL_MS);
 
-        return () => clearInterval(intervalId);
+        return () => {
+            clearInterval(intervalId);
+            if (refreshTimeoutRef.current) {
+                clearTimeout(refreshTimeoutRef.current);
+            }
+        };
     }, []);
 
     const getSubtitle = () => {
@@ -105,17 +121,18 @@ const Dashboard = ({
         'btn-success': !protectionEnabled,
     });
 
-    const refreshButton = (
+    const refreshButton = useMemo(() => (
         <button
             type="button"
-            className="btn btn-icon btn-outline-primary btn-sm"
+            className={`btn btn-icon btn-outline-primary btn-sm${isRefreshing ? ' btn-loading' : ''}`}
             title={t('refresh_btn')}
-            onClick={() => getAllStats()}>
-            <svg className="icons icon12">
+            disabled={isRefreshing}
+            onClick={handleManualRefresh}>
+            <svg className={`icons icon12${isRefreshing ? ' icon-spin' : ''}`}>
                 <use xlinkHref="#refresh" />
             </svg>
         </button>
-    );
+    ), [isRefreshing, handleManualRefresh, t]);
 
     const statsProcessing = !initialLoadDone && (stats.processingStats || stats.processingGetConfig || access.processing);
 
@@ -201,7 +218,11 @@ const Dashboard = ({
                         )}
                     </div>
 
-                    <button type="button" className="btn btn-outline-primary btn-sm" onClick={getAllStats}>
+                    <button
+                        type="button"
+                        className={`btn btn-outline-primary btn-sm${isRefreshing ? ' btn-loading' : ''}`}
+                        disabled={isRefreshing}
+                        onClick={handleManualRefresh}>
                         <Trans>refresh_statics</Trans>
                     </button>
                 </div>
@@ -314,6 +335,7 @@ const Dashboard = ({
                         <DnssecStats
                             numDnssec={stats.numDnssec}
                             numDnsQueries={stats.numDnsQueries}
+                            numEncryptedDns={stats.numEncryptedDns}
                             subtitle={subtitle}
                             refreshButton={refreshButton}
                         />

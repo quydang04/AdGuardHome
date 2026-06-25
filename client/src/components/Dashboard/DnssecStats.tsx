@@ -6,15 +6,17 @@ import Card from '../ui/Card';
 interface DnssecStatsProps {
     numDnssec: number;
     numDnsQueries: number;
+    numEncryptedDns: number;
     subtitle: string;
     refreshButton: React.ReactNode;
 }
 
-const DnssecStats = ({ numDnssec, numDnsQueries, subtitle, refreshButton }: DnssecStatsProps) => {
+const DnssecStats = ({ numDnssec, numDnsQueries, numEncryptedDns, subtitle, refreshButton }: DnssecStatsProps) => {
     const { t } = useTranslation();
 
-    const percentage = numDnsQueries > 0
-        ? ((numDnssec / numDnsQueries) * 100).toFixed(2)
+    const numPlainDns = numDnsQueries - numEncryptedDns;
+    const percentage = numPlainDns > 0
+        ? ((numDnssec / numPlainDns) * 100).toFixed(2)
         : '0';
 
     return (
@@ -30,6 +32,7 @@ const DnssecStats = ({ numDnssec, numDnsQueries, subtitle, refreshButton }: Dnss
                     </div>
                 </div>
                 <div className="progress-stat__value progress-stat__value--blue">{percentage}%</div>
+                <p className="progress-stat__detail">{t('dnssec_plain_dns_count', { count: numPlainDns })}</p>
             </div>
         </Card>
     );
