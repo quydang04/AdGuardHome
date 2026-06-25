@@ -195,7 +195,7 @@
     "dns_allowlists_desc": "Domains from DNS allowlists will be allowed even if they are in any of the blocklists.",
     "custom_filtering_rules": "Custom filtering rules",
     "encryption_settings": "Encryption settings",
-    "notifications_settings": "Notifications",
+    "notifications_settings": "Telegram Settings",
     "telegram_settings_title": "Telegram notifications",
     "telegram_settings_subtitle": "Configure Telegram alerts for system resource thresholds.",
     "telegram_enable": "Enable Telegram notifications",

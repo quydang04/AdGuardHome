@@ -21,8 +21,6 @@ const (
 	defaultCheckInterval  = time.Minute
 	defaultCooldown       = time.Minute
 	resetFactor           = 0.9
-	rateLimitWindow       = time.Minute
-	rateLimitMax          = 10
 )
 
 // FilterListType specifies whether a list acts as a blocker or allowlist.
@@ -121,9 +119,6 @@ type Manager struct {
 	netPacketsSentPerSec uint64
 	netPacketsRecvPerSec uint64
 
-	// Rate limiting: timestamps of recent commands per chat.
-	cmdTimestamps []time.Time
-
 	// pendingRemove stores active multi-select remove sessions per chatID.
 	pendingRemove map[int64]*removeSession
 
@@ -152,7 +147,6 @@ func NewManager(l *slog.Logger, cfg TelegramConfig) *Manager {
 		alertActive:    map[string]bool{},
 		alertStartTime: map[string]time.Time{},
 		startTime:      time.Now(),
-		cmdTimestamps:  make([]time.Time, 0, rateLimitMax),
 		pendingRemove:  map[int64]*removeSession{},
 	}
 }
@@ -651,31 +645,6 @@ func (m *Manager) getTelegramConfig() TelegramConfig {
 	return m.telegram
 }
 
-// isRateLimited checks whether the command rate limit has been exceeded.
-func (m *Manager) isRateLimited() bool {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	now := time.Now()
-	cutoff := now.Add(-rateLimitWindow)
-
-	// Prune old timestamps.
-	valid := m.cmdTimestamps[:0]
-	for _, ts := range m.cmdTimestamps {
-		if ts.After(cutoff) {
-			valid = append(valid, ts)
-		}
-	}
-	m.cmdTimestamps = valid
-
-	if len(m.cmdTimestamps) >= rateLimitMax {
-		return true
-	}
-
-	m.cmdTimestamps = append(m.cmdTimestamps, now)
-	return false
-}
-
 func (m *Manager) pollLoop(ctx context.Context, stop <-chan struct{}) {
 	defer func() {
 		m.mu.Lock()
@@ -766,12 +735,6 @@ func (m *Manager) handleUpdate(ctx context.Context, cfg TelegramConfig, u tgUpda
 	}
 
 	if fmt.Sprintf("%d", chatID) != cfg.ChatID {
-		return
-	}
-
-	// Rate limiting.
-	if m.isRateLimited() {
-		_ = m.sendTelegram(ctx, cfg, "⚠️ <b>Rate Limit Reached</b>\n\nToo many requests. Please wait a moment and try again.")
 		return
 	}
 
