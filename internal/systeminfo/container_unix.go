@@ -35,6 +35,33 @@ func isContainer() bool {
 	return false
 }
 
+// resolveHostHostname attempts to determine the real host machine's hostname
+// when running inside a container.  It checks mounted host files and
+// environment variables, since os.Hostname inside a container returns the
+// container ID.
+func resolveHostHostname() string {
+	if v := os.Getenv("HOST_HOSTNAME"); v != "" {
+		return strings.TrimSpace(v)
+	}
+
+	if v := os.Getenv("HOSTNAME_OVERRIDE"); v != "" {
+		return strings.TrimSpace(v)
+	}
+
+	for _, path := range []string{"/host/etc/hostname", "/etc/host_hostname"} {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			continue
+		}
+
+		if name := strings.TrimSpace(string(data)); name != "" {
+			return name
+		}
+	}
+
+	return ""
+}
+
 // hostOSReleasePaths lists paths where the host's os-release may be mounted
 // into a container.
 var hostOSReleasePaths = []string{

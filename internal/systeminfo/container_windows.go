@@ -11,3 +11,8 @@ func isContainer() bool {
 func readHostOSRelease() string {
 	return ""
 }
+
+// resolveHostHostname returns an empty string on Windows.
+func resolveHostHostname() string {
+	return ""
+}

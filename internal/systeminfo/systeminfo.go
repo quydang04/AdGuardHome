@@ -156,6 +156,9 @@ func Collect() Info {
 			info.HostOS = hostOS
 			info.OSVersion = hostOS
 		}
+		if realHostname := resolveHostHostname(); realHostname != "" {
+			info.Hostname = realHostname
+		}
 	}
 
 	info.SystemTime = time.Now().Format(time.RFC3339)
