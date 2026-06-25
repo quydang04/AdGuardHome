@@ -855,5 +855,18 @@
     "system_info": "Thông tin hệ thống",
     "username_required": "Tên đăng nhập không được để trống",
     "username_changed": "Đổi tên đăng nhập thành công",
-    "username_change_failed": "Đổi tên đăng nhập thất bại"
+    "username_change_failed": "Đổi tên đăng nhập thất bại",
+    "import_export_settings": "Nhập / Xuất cấu hình",
+    "import_export_settings_desc": "Xuất toàn bộ cấu hình ra file JSON để sao lưu hoặc di chuyển sang server khác, hoặc nhập cấu hình từ file đã xuất trước đó.",
+    "export_settings": "Xuất cấu hình",
+    "import_settings": "Nhập cấu hình",
+    "export_settings_desc": "Tải xuống toàn bộ cấu hình hiện tại dưới dạng file JSON.",
+    "import_settings_desc": "Tải lên file JSON cấu hình để khôi phục cài đặt.",
+    "settings_exported": "Xuất cấu hình thành công",
+    "settings_imported": "Nhập cấu hình thành công. Vui lòng khởi động lại AdGuard Home để áp dụng toàn bộ thay đổi.",
+    "settings_export_error": "Xuất cấu hình thất bại",
+    "settings_import_error": "Nhập cấu hình thất bại",
+    "settings_import_confirm": "Bạn có chắc chắn muốn nhập cấu hình này? Thao tác này sẽ ghi đè cấu hình hiện tại.",
+    "settings_import_invalid_file": "File cấu hình không hợp lệ. Vui lòng chọn file JSON đúng định dạng.",
+    "select_file": "Chọn file"
 }
