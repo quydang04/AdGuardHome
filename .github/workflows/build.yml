@@ -209,9 +209,9 @@ jobs:
           PREV_TAG=$(git tag --list "v*" --sort=-version:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -n 1)
           echo "PREV_TAG=${PREV_TAG:-}" >> $GITHUB_OUTPUT
           if [ -z "$PREV_TAG" ]; then
-            LOGS=$(git log --pretty=format:"* %s" -20 | grep -v "Co-Authored-By" | grep -v "Claude-Session")
+            LOGS=$(git log --pretty=format:"* %s" -20 | { grep -v "Co-Authored-By" || true; } | { grep -v "Claude-Session" || true; })
           else
-            LOGS=$(git log --pretty=format:"* %s" "${PREV_TAG}..HEAD" | grep -v "Co-Authored-By" | grep -v "Claude-Session")
+            LOGS=$(git log --pretty=format:"* %s" "${PREV_TAG}..HEAD" | { grep -v "Co-Authored-By" || true; } | { grep -v "Claude-Session" || true; })
           fi
           EOF=$(dd if=/dev/urandom bs=15 count=1 status=none | base64)
           echo "LOGS<<$EOF" >> $GITHUB_OUTPUT
