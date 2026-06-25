@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"io"
 	"log/slog"
-	"net/http"
 	"net/netip"
+	"net/http"
 	"time"
 
 	"github.com/AdguardTeam/AdGuardHome/internal/aghhttp"
@@ -14,22 +14,31 @@ import (
 	"github.com/AdguardTeam/AdGuardHome/internal/filtering"
 	"github.com/AdguardTeam/AdGuardHome/internal/querylog"
 	"github.com/AdguardTeam/AdGuardHome/internal/stats"
+	"github.com/AdguardTeam/golibs/netutil"
 	"github.com/AdguardTeam/golibs/timeutil"
 )
 
 // exportConfig is the JSON structure used for exporting and importing all
 // AdGuard Home settings.
 type exportConfig struct {
-	DNS          *exportDNSConfig       `json:"dns"`
-	DHCP         *dhcpd.ServerConfig    `json:"dhcp,omitempty"`
-	Filtering    *exportFilteringConfig `json:"filtering,omitempty"`
-	QueryLog     *exportQueryLogConfig  `json:"querylog,omitempty"`
-	Statistics   *exportStatsConfig     `json:"statistics,omitempty"`
-	Clients      *exportClientsConfig   `json:"clients,omitempty"`
-	TLS          *tlsConfigSettings     `json:"tls,omitempty"`
-	SafeBrowsing *bool                  `json:"safebrowsing_enabled,omitempty"`
-	Parental     *bool                  `json:"parental_enabled,omitempty"`
-	SafeSearch   *filtering.SafeSearchConfig `json:"safesearch,omitempty"`
+	DNS           *exportDNSConfig            `json:"dns"`
+	DHCP          *dhcpd.ServerConfig         `json:"dhcp,omitempty"`
+	Filtering     *exportFilteringConfig      `json:"filtering,omitempty"`
+	QueryLog      *exportQueryLogConfig       `json:"querylog,omitempty"`
+	Statistics    *exportStatsConfig          `json:"statistics,omitempty"`
+	Clients       *exportClientsConfig        `json:"clients,omitempty"`
+	TLS           *tlsConfigSettings          `json:"tls,omitempty"`
+	SafeBrowsing  *bool                       `json:"safebrowsing_enabled,omitempty"`
+	Parental      *bool                       `json:"parental_enabled,omitempty"`
+	SafeSearch    *filtering.SafeSearchConfig `json:"safesearch,omitempty"`
+	Notifications *exportNotificationsConfig  `json:"notifications,omitempty"`
+	General       *exportGeneralConfig        `json:"general,omitempty"`
+}
+
+// exportGeneralConfig is the general settings portion of the export.
+type exportGeneralConfig struct {
+	Language string `json:"language,omitempty"`
+	Theme    string `json:"theme,omitempty"`
 }
 
 // exportDNSConfig is the DNS portion of the export.
@@ -54,6 +63,33 @@ type exportDNSConfig struct {
 	DNS64Prefixes    []netip.Prefix `json:"dns64_prefixes,omitempty"`
 	HostsFileEnabled bool           `json:"hostsfile_enabled,omitempty"`
 	ServePlainDNS    bool           `json:"serve_plain_dns,omitempty"`
+
+	// Additional DNS fields.
+	AnonymizeClientIP  bool              `json:"anonymize_client_ip,omitempty"`
+	UpstreamTimeout    timeutil.Duration `json:"upstream_timeout,omitempty"`
+	PrivateNets        []netutil.Prefix  `json:"private_networks,omitempty"`
+	ServeHTTP3         bool              `json:"serve_http3,omitempty"`
+	UseHTTP3Upstreams  bool              `json:"use_http3_upstreams,omitempty"`
+	PendingRequests    *bool             `json:"pending_requests,omitempty"`
+
+	// Additional dnsforward.Config fields.
+	RatelimitSubnetLenIPv4 uint             `json:"ratelimit_subnet_len_ipv4,omitempty"`
+	RatelimitSubnetLenIPv6 uint             `json:"ratelimit_subnet_len_ipv6,omitempty"`
+	RatelimitWhitelist     []netip.Addr     `json:"ratelimit_whitelist,omitempty"`
+	RefuseAny              bool             `json:"refuse_any,omitempty"`
+	FastestTimeout         timeutil.Duration `json:"fastest_timeout,omitempty"`
+	AllowedClients         []string         `json:"allowed_clients,omitempty"`
+	DisallowedClients      []string         `json:"disallowed_clients,omitempty"`
+	BlockedHosts           []string         `json:"blocked_hosts,omitempty"`
+	TrustedProxies         []netutil.Prefix `json:"trusted_proxies,omitempty"`
+	CacheOptimisticTTL     timeutil.Duration `json:"cache_optimistic_answer_ttl,omitempty"`
+	CacheOptimisticMaxAge  timeutil.Duration `json:"cache_optimistic_max_age,omitempty"`
+	BogusNXDomain          []string         `json:"bogus_nxdomain,omitempty"`
+	EDNSClientSubnet       *dnsforward.EDNSClientSubnet `json:"edns_client_subnet,omitempty"`
+	MaxGoroutines          uint             `json:"max_goroutines,omitempty"`
+	HandleDDR              bool             `json:"handle_ddr,omitempty"`
+	IpsetList              []string         `json:"ipset,omitempty"`
+	BootstrapPreferIPv6    bool             `json:"bootstrap_prefer_ipv6,omitempty"`
 }
 
 // exportFilteringConfig is the filtering portion of the export.
@@ -63,25 +99,72 @@ type exportFilteringConfig struct {
 	Filters          []filtering.FilterYAML `json:"filters,omitempty"`
 	WhitelistFilters []filtering.FilterYAML `json:"whitelist_filters,omitempty"`
 	UserRules        []string               `json:"user_rules,omitempty"`
-	BlockedServices  []string               `json:"blocked_services,omitempty"`
+
+	// Additional filtering fields.
+	FilteringEnabled      bool                     `json:"filtering_enabled,omitempty"`
+	BlockingMode          string                   `json:"blocking_mode,omitempty"`
+	BlockingIPv4          *netip.Addr              `json:"blocking_ipv4,omitempty"`
+	BlockingIPv6          *netip.Addr              `json:"blocking_ipv6,omitempty"`
+	BlockedServices       *filtering.BlockedServices `json:"blocked_services,omitempty"`
+	ParentalBlockHost     string                   `json:"parental_block_host,omitempty"`
+	SafeBrowsingBlockHost string                   `json:"safebrowsing_block_host,omitempty"`
+	Rewrites              []*exportRewrite         `json:"rewrites,omitempty"`
+	RewritesEnabled       bool                     `json:"rewrites_enabled,omitempty"`
+	BlockedResponseTTL    uint32                   `json:"blocked_response_ttl,omitempty"`
+	SafeBrowsingCacheSize uint                     `json:"safebrowsing_cache_size,omitempty"`
+	SafeSearchCacheSize   uint                     `json:"safesearch_cache_size,omitempty"`
+	ParentalCacheSize     uint                     `json:"parental_cache_size,omitempty"`
+	CacheTime             uint                     `json:"cache_time,omitempty"`
+}
+
+// exportRewrite is a DNS rewrite for export/import.
+type exportRewrite struct {
+	Domain  string `json:"domain"`
+	Answer  string `json:"answer"`
+	Enabled bool   `json:"enabled"`
 }
 
 // exportQueryLogConfig is the query log portion of the export.
 type exportQueryLogConfig struct {
-	Enabled            bool   `json:"enabled"`
-	Interval           uint32 `json:"interval,omitempty"`
-	AnonymizeClientIP  bool   `json:"anonymize_client_ip,omitempty"`
+	Enabled        bool     `json:"enabled"`
+	Interval       uint32   `json:"interval,omitempty"`
+	AnonymizeClientIP bool  `json:"anonymize_client_ip,omitempty"`
+	Ignored        []string `json:"ignored,omitempty"`
+	MemSize        uint     `json:"size_memory,omitempty"`
+	IgnoredEnabled bool     `json:"ignored_enabled,omitempty"`
+	FileEnabled    bool     `json:"file_enabled,omitempty"`
 }
 
 // exportStatsConfig is the statistics portion of the export.
 type exportStatsConfig struct {
-	Enabled  bool   `json:"enabled"`
-	Interval uint32 `json:"interval,omitempty"`
+	Enabled        bool     `json:"enabled"`
+	Interval       uint32   `json:"interval,omitempty"`
+	Ignored        []string `json:"ignored,omitempty"`
+	IgnoredEnabled bool     `json:"ignored_enabled,omitempty"`
 }
 
 // exportClientsConfig is the clients portion of the export.
 type exportClientsConfig struct {
-	Persistent []*clientObject `json:"persistent,omitempty"`
+	Sources    *clientSourcesConfig `json:"runtime_sources,omitempty"`
+	Persistent []*clientObject      `json:"persistent,omitempty"`
+}
+
+// exportNotificationsConfig is the notifications portion of the export.
+type exportNotificationsConfig struct {
+	Telegram *exportTelegramConfig `json:"telegram,omitempty"`
+}
+
+// exportTelegramConfig is the Telegram notification config for export.
+type exportTelegramConfig struct {
+	Enabled         bool              `json:"enabled"`
+	BotToken        string            `json:"bot_token,omitempty"`
+	ChatID          string            `json:"chat_id,omitempty"`
+	CPUThreshold    float64           `json:"cpu_threshold,omitempty"`
+	MemoryThreshold float64           `json:"memory_threshold,omitempty"`
+	DiskThreshold   float64           `json:"disk_threshold,omitempty"`
+	CheckInterval   timeutil.Duration `json:"check_interval,omitempty"`
+	Cooldown        timeutil.Duration `json:"cooldown,omitempty"`
+	CustomMessage   string            `json:"custom_message,omitempty"`
 }
 
 // handleExportSettings handles GET /control/settings/export.
@@ -94,16 +177,31 @@ func (web *webAPI) handleExportSettings(w http.ResponseWriter, r *http.Request) 
 	config.RLock()
 	defer config.RUnlock()
 
+	// General config.
+	export.General = &exportGeneralConfig{
+		Language: config.Language,
+		Theme:    string(config.Theme),
+	}
+
 	// DNS config.
 	dnsConf := &exportDNSConfig{
-		BindHosts:        config.DNS.BindHosts,
-		Port:             config.DNS.Port,
-		HostsFileEnabled: config.DNS.HostsFileEnabled,
-		ServePlainDNS:    config.DNS.ServePlainDNS,
-		UsePrivateRDNS:   config.DNS.UsePrivateRDNS,
-		LocalPTRUpstream: config.DNS.PrivateRDNSResolvers,
-		UseDNS64:         config.DNS.UseDNS64,
-		DNS64Prefixes:    config.DNS.DNS64Prefixes,
+		BindHosts:          config.DNS.BindHosts,
+		Port:               config.DNS.Port,
+		HostsFileEnabled:   config.DNS.HostsFileEnabled,
+		ServePlainDNS:      config.DNS.ServePlainDNS,
+		UsePrivateRDNS:     config.DNS.UsePrivateRDNS,
+		LocalPTRUpstream:   config.DNS.PrivateRDNSResolvers,
+		UseDNS64:           config.DNS.UseDNS64,
+		DNS64Prefixes:      config.DNS.DNS64Prefixes,
+		AnonymizeClientIP:  config.DNS.AnonymizeClientIP,
+		UpstreamTimeout:    config.DNS.UpstreamTimeout,
+		PrivateNets:        config.DNS.PrivateNets,
+		ServeHTTP3:         config.DNS.ServeHTTP3,
+		UseHTTP3Upstreams:  config.DNS.UseHTTP3Upstreams,
+	}
+
+	if pr := config.DNS.PendingRequests; pr != nil {
+		dnsConf.PendingRequests = &pr.Enabled
 	}
 
 	if s := globalContext.dnsServer; s != nil {
@@ -122,19 +220,72 @@ func (web *webAPI) handleExportSettings(w http.ResponseWriter, r *http.Request) 
 		dnsConf.CacheMaxTTL = c.CacheMaxTTL
 		dnsConf.CacheOptimistic = c.CacheOptimistic
 		dnsConf.UpstreamMode = string(c.UpstreamMode)
+
+		dnsConf.RatelimitSubnetLenIPv4 = c.RatelimitSubnetLenIPv4
+		dnsConf.RatelimitSubnetLenIPv6 = c.RatelimitSubnetLenIPv6
+		dnsConf.RatelimitWhitelist = c.RatelimitWhitelist
+		dnsConf.RefuseAny = c.RefuseAny
+		dnsConf.FastestTimeout = c.FastestTimeout
+		dnsConf.AllowedClients = c.AllowedClients
+		dnsConf.DisallowedClients = c.DisallowedClients
+		dnsConf.BlockedHosts = c.BlockedHosts
+		dnsConf.TrustedProxies = c.TrustedProxies
+		dnsConf.CacheOptimisticTTL = c.CacheOptimisticAnswerTTL
+		dnsConf.CacheOptimisticMaxAge = c.CacheOptimisticMaxAge
+		dnsConf.BogusNXDomain = c.BogusNXDomain
+		dnsConf.EDNSClientSubnet = c.EDNSClientSubnet
+		dnsConf.MaxGoroutines = c.MaxGoroutines
+		dnsConf.HandleDDR = c.HandleDDR
+		dnsConf.IpsetList = c.IpsetList
+		dnsConf.BootstrapPreferIPv6 = c.BootstrapPreferIPv6
 	}
 	export.DNS = dnsConf
 
 	// Filtering config.
 	if globalContext.filters != nil {
 		fltConf := config.Filtering
-		export.Filtering = &exportFilteringConfig{
+		expFlt := &exportFilteringConfig{
 			Enabled:          fltConf.ProtectionEnabled,
 			Interval:         fltConf.FiltersUpdateIntervalHours,
 			Filters:          config.Filters,
 			WhitelistFilters: config.WhitelistFilters,
 			UserRules:        config.UserRules,
+
+			FilteringEnabled:      fltConf.FilteringEnabled,
+			BlockingMode:          string(fltConf.BlockingMode),
+			BlockedServices:       fltConf.BlockedServices,
+			ParentalBlockHost:     fltConf.ParentalBlockHost,
+			SafeBrowsingBlockHost: fltConf.SafeBrowsingBlockHost,
+			RewritesEnabled:       fltConf.RewritesEnabled,
+			BlockedResponseTTL:    fltConf.BlockedResponseTTL,
+			SafeBrowsingCacheSize: fltConf.SafeBrowsingCacheSize,
+			SafeSearchCacheSize:   fltConf.SafeSearchCacheSize,
+			ParentalCacheSize:     fltConf.ParentalCacheSize,
+			CacheTime:             fltConf.CacheTime,
 		}
+
+		if !fltConf.BlockingIPv4.IsUnspecified() {
+			v4 := fltConf.BlockingIPv4
+			expFlt.BlockingIPv4 = &v4
+		}
+		if !fltConf.BlockingIPv6.IsUnspecified() {
+			v6 := fltConf.BlockingIPv6
+			expFlt.BlockingIPv6 = &v6
+		}
+
+		if fltConf.Rewrites != nil {
+			rewrites := make([]*exportRewrite, 0, len(fltConf.Rewrites))
+			for _, rw := range fltConf.Rewrites {
+				rewrites = append(rewrites, &exportRewrite{
+					Domain:  rw.Domain,
+					Answer:  rw.Answer,
+					Enabled: rw.Enabled,
+				})
+			}
+			expFlt.Rewrites = rewrites
+		}
+
+		export.Filtering = expFlt
 
 		if fltConf.SafeBrowsingEnabled {
 			t := true
@@ -149,25 +300,40 @@ func (web *webAPI) handleExportSettings(w http.ResponseWriter, r *http.Request) 
 	}
 
 	// Query log config.
+	qlConf := &exportQueryLogConfig{
+		Enabled:           config.QueryLog.Enabled,
+		Interval:          uint32(time.Duration(config.QueryLog.Interval).Hours()),
+		Ignored:           config.QueryLog.Ignored,
+		MemSize:           config.QueryLog.MemSize,
+		IgnoredEnabled:    config.QueryLog.IgnoredEnabled,
+		FileEnabled:       config.QueryLog.FileEnabled,
+		AnonymizeClientIP: config.DNS.AnonymizeClientIP,
+	}
 	if globalContext.queryLog != nil {
 		dc := querylog.Config{}
 		globalContext.queryLog.WriteDiskConfig(&dc)
-		export.QueryLog = &exportQueryLogConfig{
-			Enabled:           dc.Enabled,
-			Interval:          uint32(dc.RotationIvl.Hours()),
-			AnonymizeClientIP: dc.AnonymizeClientIP,
-		}
+		qlConf.Enabled = dc.Enabled
+		qlConf.Interval = uint32(dc.RotationIvl.Hours())
+		qlConf.AnonymizeClientIP = dc.AnonymizeClientIP
+		qlConf.MemSize = dc.MemSize
+		qlConf.FileEnabled = dc.FileEnabled
 	}
+	export.QueryLog = qlConf
 
 	// Statistics config.
+	stConf := &exportStatsConfig{
+		Enabled:        config.Stats.Enabled,
+		Interval:       uint32(time.Duration(config.Stats.Interval).Hours()),
+		Ignored:        config.Stats.Ignored,
+		IgnoredEnabled: config.Stats.IgnoredEnabled,
+	}
 	if globalContext.stats != nil {
 		sc := stats.Config{}
 		globalContext.stats.WriteDiskConfig(&sc)
-		export.Statistics = &exportStatsConfig{
-			Enabled:  sc.Enabled,
-			Interval: uint32(sc.Limit.Hours()),
-		}
+		stConf.Enabled = sc.Enabled
+		stConf.Interval = uint32(sc.Limit.Hours())
 	}
+	export.Statistics = stConf
 
 	// DHCP config.
 	if config.DHCP != nil {
@@ -176,16 +342,32 @@ func (web *webAPI) handleExportSettings(w http.ResponseWriter, r *http.Request) 
 
 	// Clients config.
 	clients := globalContext.clients.forConfig()
-	if len(clients) > 0 {
-		export.Clients = &exportClientsConfig{
-			Persistent: clients,
-		}
+	export.Clients = &exportClientsConfig{
+		Persistent: clients,
+		Sources:    config.Clients.Sources,
 	}
 
 	// TLS config (sensitive fields cleared).
 	tlsConf := config.TLS
 	tlsConf.PrivateKey = ""
 	export.TLS = &tlsConf
+
+	// Notifications config.
+	if tg := config.Notifications.Telegram; tg != nil {
+		export.Notifications = &exportNotificationsConfig{
+			Telegram: &exportTelegramConfig{
+				Enabled:         tg.Enabled,
+				BotToken:        tg.BotToken,
+				ChatID:          tg.ChatID,
+				CPUThreshold:    tg.CPUThreshold,
+				MemoryThreshold: tg.MemoryThreshold,
+				DiskThreshold:   tg.DiskThreshold,
+				CheckInterval:   tg.CheckInterval,
+				Cooldown:        tg.Cooldown,
+				CustomMessage:   tg.CustomMessage,
+			},
+		}
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Content-Disposition", `attachment; filename="adguardhome-settings.json"`)
@@ -244,6 +426,10 @@ func (web *webAPI) handleImportSettings(w http.ResponseWriter, r *http.Request) 
 // applyImportedSettings applies all imported settings to the running
 // configuration.
 func applyImportedSettings(_ *slog.Logger, imp *exportConfig) (err error) {
+	if imp.General != nil {
+		applyGeneralImport(imp.General)
+	}
+
 	if imp.DNS != nil {
 		applyDNSImport(imp.DNS)
 	}
@@ -284,7 +470,21 @@ func applyImportedSettings(_ *slog.Logger, imp *exportConfig) (err error) {
 		applyTLSImport(imp.TLS)
 	}
 
+	if imp.Notifications != nil {
+		applyNotificationsImport(imp.Notifications)
+	}
+
 	return nil
+}
+
+// applyGeneralImport applies the imported general settings.
+func applyGeneralImport(gen *exportGeneralConfig) {
+	if gen.Language != "" {
+		config.Language = gen.Language
+	}
+	if gen.Theme != "" {
+		config.Theme = Theme(gen.Theme)
+	}
 }
 
 // applyDNSImport applies the imported DNS settings.
@@ -302,6 +502,22 @@ func applyDNSImport(dns *exportDNSConfig) {
 	config.DNS.PrivateRDNSResolvers = dns.LocalPTRUpstream
 	config.DNS.UseDNS64 = dns.UseDNS64
 	config.DNS.DNS64Prefixes = dns.DNS64Prefixes
+	config.DNS.AnonymizeClientIP = dns.AnonymizeClientIP
+	config.DNS.ServeHTTP3 = dns.ServeHTTP3
+	config.DNS.UseHTTP3Upstreams = dns.UseHTTP3Upstreams
+
+	if dns.UpstreamTimeout != 0 {
+		config.DNS.UpstreamTimeout = dns.UpstreamTimeout
+	}
+	if dns.PrivateNets != nil {
+		config.DNS.PrivateNets = dns.PrivateNets
+	}
+	if dns.PendingRequests != nil {
+		if config.DNS.PendingRequests == nil {
+			config.DNS.PendingRequests = &pendingRequests{}
+		}
+		config.DNS.PendingRequests.Enabled = *dns.PendingRequests
+	}
 
 	if s := globalContext.dnsServer; s != nil {
 		c := dnsforward.Config{}
@@ -330,6 +546,40 @@ func applyDNSImport(dns *exportDNSConfig) {
 			c.UpstreamMode = dnsforward.UpstreamMode(dns.UpstreamMode)
 		}
 
+		c.RatelimitSubnetLenIPv4 = dns.RatelimitSubnetLenIPv4
+		c.RatelimitSubnetLenIPv6 = dns.RatelimitSubnetLenIPv6
+		if dns.RatelimitWhitelist != nil {
+			c.RatelimitWhitelist = dns.RatelimitWhitelist
+		}
+		c.RefuseAny = dns.RefuseAny
+		c.FastestTimeout = dns.FastestTimeout
+		if dns.AllowedClients != nil {
+			c.AllowedClients = dns.AllowedClients
+		}
+		if dns.DisallowedClients != nil {
+			c.DisallowedClients = dns.DisallowedClients
+		}
+		if dns.BlockedHosts != nil {
+			c.BlockedHosts = dns.BlockedHosts
+		}
+		if dns.TrustedProxies != nil {
+			c.TrustedProxies = dns.TrustedProxies
+		}
+		c.CacheOptimisticAnswerTTL = dns.CacheOptimisticTTL
+		c.CacheOptimisticMaxAge = dns.CacheOptimisticMaxAge
+		if dns.BogusNXDomain != nil {
+			c.BogusNXDomain = dns.BogusNXDomain
+		}
+		if dns.EDNSClientSubnet != nil {
+			c.EDNSClientSubnet = dns.EDNSClientSubnet
+		}
+		c.MaxGoroutines = dns.MaxGoroutines
+		c.HandleDDR = dns.HandleDDR
+		if dns.IpsetList != nil {
+			c.IpsetList = dns.IpsetList
+		}
+		c.BootstrapPreferIPv6 = dns.BootstrapPreferIPv6
+
 		config.DNS.Config = c
 	}
 }
@@ -342,6 +592,54 @@ func applyFilteringImport(flt *exportFilteringConfig) {
 
 	config.Filtering.ProtectionEnabled = flt.Enabled
 	config.Filtering.FiltersUpdateIntervalHours = flt.Interval
+	config.Filtering.FilteringEnabled = flt.FilteringEnabled
+	config.Filtering.RewritesEnabled = flt.RewritesEnabled
+
+	if flt.BlockingMode != "" {
+		config.Filtering.BlockingMode = filtering.BlockingMode(flt.BlockingMode)
+	}
+	if flt.BlockingIPv4 != nil {
+		config.Filtering.BlockingIPv4 = *flt.BlockingIPv4
+	}
+	if flt.BlockingIPv6 != nil {
+		config.Filtering.BlockingIPv6 = *flt.BlockingIPv6
+	}
+	if flt.BlockedServices != nil {
+		config.Filtering.BlockedServices = flt.BlockedServices
+	}
+	if flt.ParentalBlockHost != "" {
+		config.Filtering.ParentalBlockHost = flt.ParentalBlockHost
+	}
+	if flt.SafeBrowsingBlockHost != "" {
+		config.Filtering.SafeBrowsingBlockHost = flt.SafeBrowsingBlockHost
+	}
+	if flt.BlockedResponseTTL > 0 {
+		config.Filtering.BlockedResponseTTL = flt.BlockedResponseTTL
+	}
+	if flt.SafeBrowsingCacheSize > 0 {
+		config.Filtering.SafeBrowsingCacheSize = flt.SafeBrowsingCacheSize
+	}
+	if flt.SafeSearchCacheSize > 0 {
+		config.Filtering.SafeSearchCacheSize = flt.SafeSearchCacheSize
+	}
+	if flt.ParentalCacheSize > 0 {
+		config.Filtering.ParentalCacheSize = flt.ParentalCacheSize
+	}
+	if flt.CacheTime > 0 {
+		config.Filtering.CacheTime = flt.CacheTime
+	}
+
+	if flt.Rewrites != nil {
+		rewrites := make([]*filtering.LegacyRewrite, 0, len(flt.Rewrites))
+		for _, rw := range flt.Rewrites {
+			rewrites = append(rewrites, &filtering.LegacyRewrite{
+				Domain:  rw.Domain,
+				Answer:  rw.Answer,
+				Enabled: rw.Enabled,
+			})
+		}
+		config.Filtering.Rewrites = rewrites
+	}
 
 	if flt.Filters != nil {
 		config.Filters = flt.Filters
@@ -362,18 +660,35 @@ func applyQueryLogImport(ql *exportQueryLogConfig) {
 	config.QueryLog.Enabled = ql.Enabled
 	config.QueryLog.Interval = timeutil.Duration(time.Duration(ql.Interval) * time.Hour)
 	config.DNS.AnonymizeClientIP = ql.AnonymizeClientIP
+	config.QueryLog.FileEnabled = ql.FileEnabled
+	config.QueryLog.IgnoredEnabled = ql.IgnoredEnabled
+
+	if ql.MemSize > 0 {
+		config.QueryLog.MemSize = ql.MemSize
+	}
+	if ql.Ignored != nil {
+		config.QueryLog.Ignored = ql.Ignored
+	}
 }
 
 // applyStatsImport applies the imported statistics settings.
 func applyStatsImport(st *exportStatsConfig) {
 	config.Stats.Enabled = st.Enabled
 	config.Stats.Interval = timeutil.Duration(time.Duration(st.Interval) * time.Hour)
+	config.Stats.IgnoredEnabled = st.IgnoredEnabled
+
+	if st.Ignored != nil {
+		config.Stats.Ignored = st.Ignored
+	}
 }
 
 // applyClientsImport applies the imported client settings.
 func applyClientsImport(cl *exportClientsConfig) {
 	if cl.Persistent != nil {
 		config.Clients.Persistent = cl.Persistent
+	}
+	if cl.Sources != nil {
+		config.Clients.Sources = cl.Sources
 	}
 }
 
@@ -385,4 +700,40 @@ func applyTLSImport(tls *tlsConfigSettings) {
 	if tls.PrivateKey == "" {
 		config.TLS.PrivateKey = existingKey
 	}
+}
+
+// applyNotificationsImport applies the imported notification settings.
+func applyNotificationsImport(notif *exportNotificationsConfig) {
+	if notif.Telegram == nil {
+		return
+	}
+
+	tg := notif.Telegram
+	if config.Notifications.Telegram == nil {
+		config.Notifications.Telegram = defaultTelegramConfig()
+	}
+
+	config.Notifications.Telegram.Enabled = tg.Enabled
+	if tg.BotToken != "" {
+		config.Notifications.Telegram.BotToken = tg.BotToken
+	}
+	if tg.ChatID != "" {
+		config.Notifications.Telegram.ChatID = tg.ChatID
+	}
+	if tg.CPUThreshold > 0 {
+		config.Notifications.Telegram.CPUThreshold = tg.CPUThreshold
+	}
+	if tg.MemoryThreshold > 0 {
+		config.Notifications.Telegram.MemoryThreshold = tg.MemoryThreshold
+	}
+	if tg.DiskThreshold > 0 {
+		config.Notifications.Telegram.DiskThreshold = tg.DiskThreshold
+	}
+	if tg.CheckInterval != 0 {
+		config.Notifications.Telegram.CheckInterval = tg.CheckInterval
+	}
+	if tg.Cooldown != 0 {
+		config.Notifications.Telegram.Cooldown = tg.Cooldown
+	}
+	config.Notifications.Telegram.CustomMessage = tg.CustomMessage
 }
