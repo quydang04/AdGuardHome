@@ -38,12 +38,12 @@ const GAFAM_DOMAINS: Record<string, string[]> = {
 };
 
 const GAFAM_COLORS: Record<string, string> = {
-    Google: '#4285F4',
-    Amazon: '#FF9800',
+    Google: '#EA4335',
+    Amazon: '#FF9900',
     Facebook: '#1877F2',
-    Apple: '#555555',
-    Microsoft: '#7CB342',
-    Others: '#9e9e9e',
+    Apple: '#A2AAAD',
+    Microsoft: '#7FBA00',
+    Others: '#6B7280',
 };
 
 function matchesGafam(domain: string): string | null {

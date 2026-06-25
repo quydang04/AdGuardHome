@@ -53,6 +53,11 @@ type changePasswordJSON struct {
 	NewPassword     string `json:"new_password"`
 }
 
+// changeUsernameJSON is the JSON structure for the username change request.
+type changeUsernameJSON struct {
+	NewUsername string `json:"new_username"`
+}
+
 // changePortJSON is the JSON structure for the port change request.
 type changePortJSON struct {
 	Port uint16 `json:"port"`
@@ -204,6 +209,62 @@ func (web *webAPI) handleChangePassword(w http.ResponseWriter, r *http.Request) 
 	web.confModifier.Apply(ctx)
 
 	l.InfoContext(ctx, "password changed", "login", u.Login)
+
+	aghhttp.OK(ctx, l, w)
+}
+
+// handleChangeUsername is the handler for POST /control/profile/username
+// endpoint.
+func (web *webAPI) handleChangeUsername(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	l := web.logger
+
+	if web.auth.isUserless {
+		aghhttp.ErrorAndLog(ctx, l, r, w, http.StatusForbidden, "no users configured")
+
+		return
+	}
+
+	u, ok := webUserFromContext(ctx)
+	if !ok {
+		w.WriteHeader(http.StatusUnauthorized)
+
+		return
+	}
+
+	req := &changeUsernameJSON{}
+	err := json.NewDecoder(r.Body).Decode(req)
+	if err != nil {
+		aghhttp.ErrorAndLog(ctx, l, r, w, http.StatusBadRequest, "reading req: %s", err)
+
+		return
+	}
+
+	if req.NewUsername == "" {
+		aghhttp.ErrorAndLog(ctx, l, r, w, http.StatusBadRequest, "username must not be empty")
+
+		return
+	}
+
+	oldLogin := u.Login
+	u.Login = aghuser.Login(req.NewUsername)
+
+	func() {
+		config.Lock()
+		defer config.Unlock()
+
+		for i, wu := range config.Users {
+			if aghuser.Login(wu.Name) == oldLogin {
+				config.Users[i].Name = req.NewUsername
+
+				break
+			}
+		}
+	}()
+
+	web.confModifier.Apply(ctx)
+
+	l.InfoContext(ctx, "username changed", "old", oldLogin, "new", req.NewUsername)
 
 	aghhttp.OK(ctx, l, w)
 }

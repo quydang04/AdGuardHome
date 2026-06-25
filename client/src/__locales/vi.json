@@ -852,5 +852,8 @@
     "port_changed": "Đổi cổng thành công. Đang chuyển hướng...",
     "port_invalid": "Cổng phải nằm trong khoảng 1 đến 65535",
     "port_change_failed": "Đổi cổng thất bại",
-    "system_info": "Thông tin hệ thống"
+    "system_info": "Thông tin hệ thống",
+    "username_required": "Tên đăng nhập không được để trống",
+    "username_changed": "Đổi tên đăng nhập thành công",
+    "username_change_failed": "Đổi tên đăng nhập thất bại"
 }

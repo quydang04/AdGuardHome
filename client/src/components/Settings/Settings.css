@@ -170,51 +170,39 @@
         0.3s ease-in-out color;
 }
 
-/* Theme & Language buttons */
-.settings__theme-buttons {
-    display: inline-flex;
-    gap: 0.35rem;
+/* Theme selector */
+.settings__theme-select {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.settings__theme-option {
+    display: flex;
     align-items: center;
-}
-
-.settings__theme-button {
-    height: 36px;
-    min-width: 40px;
-    padding: 0 0.6rem;
-    border-radius: 8px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.settings__theme-icon {
-    display: inline-block;
-    vertical-align: middle;
-    width: 18px;
-    height: 18px;
-    color: var(--gray-ac);
-}
-
-[data-theme='dark'] .settings__theme-icon {
+    gap: 0.4rem;
+    padding: 0.45rem 0.9rem;
+    border-radius: 6px;
+    border: 1px solid var(--card-border-color, #dee2e6);
+    background: transparent;
     color: var(--mcolor);
-}
-
-.settings__theme-icon--active,
-[data-theme='dark'] .settings__theme-icon--active {
-    color: var(--btn-success-bgcolor);
-}
-
-.settings__language-buttons {
-    display: inline-flex;
-    gap: 0.35rem;
-    align-items: center;
-}
-
-.settings__language-buttons .btn {
-    height: 36px;
-    padding: 0 1rem;
     font-size: 0.85rem;
-    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.settings__theme-option:hover {
+    border-color: var(--btn-success-bgcolor);
+}
+
+.settings__theme-option--active {
+    border-color: var(--btn-success-bgcolor);
+    background: var(--btn-success-bgcolor);
+    color: #fff;
+}
+
+.settings__theme-option-icon {
+    width: 16px;
+    height: 16px;
 }
 
 /* System info */

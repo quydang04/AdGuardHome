@@ -679,6 +679,16 @@ class Api {
         return this.makeRequest(path, method, config);
     }
 
+    // Change Username
+    CHANGE_USERNAME = { path: 'profile/username', method: 'POST' };
+
+    changeUsername(data: { new_username: string }) {
+        const { path, method } = this.CHANGE_USERNAME;
+        const config = { data };
+
+        return this.makeRequest(path, method, config);
+    }
+
     // Change Port
     CHANGE_PORT = { path: 'change_port', method: 'POST' };
 

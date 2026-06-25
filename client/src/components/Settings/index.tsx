@@ -92,6 +92,10 @@ interface SettingsState {
     portMessage: string;
     portMessageType: 'success' | 'error' | '';
     portProcessing: boolean;
+    username: string;
+    usernameMessage: string;
+    usernameMessageType: 'success' | 'error' | '';
+    usernameProcessing: boolean;
 }
 
 class Settings extends Component<SettingsProps, SettingsState> {
@@ -106,6 +110,10 @@ class Settings extends Component<SettingsProps, SettingsState> {
         portMessage: '',
         portMessageType: '',
         portProcessing: false,
+        username: '',
+        usernameMessage: '',
+        usernameMessageType: '',
+        usernameProcessing: false,
     };
 
     componentDidMount() {
@@ -118,6 +126,11 @@ class Settings extends Component<SettingsProps, SettingsState> {
         if (httpPort) {
             this.setState({ port: String(httpPort) });
         }
+
+        const profileName = this.props.dashboard?.name || '';
+        if (profileName) {
+            this.setState({ username: profileName });
+        }
     }
 
     componentDidUpdate(prevProps: SettingsProps) {
@@ -125,6 +138,12 @@ class Settings extends Component<SettingsProps, SettingsState> {
         const prevPort = prevProps.dashboard?.httpPort;
         if (httpPort && httpPort !== prevPort && this.state.port === '') {
             this.setState({ port: String(httpPort) });
+        }
+
+        const profileName = this.props.dashboard?.name || '';
+        const prevName = prevProps.dashboard?.name || '';
+        if (profileName && profileName !== prevName && this.state.username === '') {
+            this.setState({ username: profileName });
         }
     }
 
@@ -287,6 +306,37 @@ class Settings extends Component<SettingsProps, SettingsState> {
         this.setState({ portProcessing: false });
     };
 
+    onUsernameSave = async (e: React.FormEvent) => {
+        e.preventDefault();
+        const { t } = this.props;
+        const { username } = this.state;
+
+        if (!username.trim()) {
+            this.setState({
+                usernameMessage: t('username_required') as string,
+                usernameMessageType: 'error',
+            });
+            return;
+        }
+
+        this.setState({ usernameProcessing: true, usernameMessage: '', usernameMessageType: '' });
+
+        try {
+            await apiClient.changeUsername({ new_username: username.trim() });
+            this.setState({
+                usernameMessage: t('username_changed') as string,
+                usernameMessageType: 'success',
+            });
+        } catch (error) {
+            this.setState({
+                usernameMessage: t('username_change_failed') as string,
+                usernameMessageType: 'error',
+            });
+        }
+
+        this.setState({ usernameProcessing: false });
+    };
+
     renderThemeIcons = (): Record<ThemeName, (className: string) => JSX.Element> => ({
         auto: (className) => (
             <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false">
@@ -337,52 +387,50 @@ class Settings extends Component<SettingsProps, SettingsState> {
         const languageOptions = Object.keys(LANGUAGES);
         const icons = this.renderThemeIcons();
 
-        const themeContent: Record<ThemeName, { desc: string }> = {
-            auto: { desc: t('theme_auto_desc') as string },
-            dark: { desc: t('theme_dark_desc') as string },
-            light: { desc: t('theme_light_desc') as string },
+        const themeLabels: Record<ThemeName, string> = {
+            auto: t('theme_auto') as string,
+            dark: t('theme_dark') as string,
+            light: t('theme_light') as string,
         };
 
         return (
             <Card title={t('appearance') as string} bodyType="card-body box-body--settings">
-                <div className="form__group">
-                    <label className="form__label form__label--bold">{t('theme')}</label>
-                    <div className="settings__theme-buttons">
-                        {(Object.values(THEMES) as ThemeName[]).map((theme) => (
-                            <button
-                                key={theme}
-                                type="button"
-                                className="btn btn-sm btn-secondary settings__theme-button"
-                                onClick={() => this.onThemeChange(theme)}
-                                title={themeContent[theme].desc}>
-                                {icons[theme](
-                                    cn('settings__theme-icon', {
-                                        'settings__theme-icon--active': currentTheme === theme,
-                                    }),
-                                )}
-                            </button>
-                        ))}
-                    </div>
-                </div>
-
-                <div className="form__group">
-                    <label className="form__label form__label--bold">{t('language')}</label>
-                    <div className="settings__language-buttons">
-                        {languageOptions.map((lang) => {
-                            const active = i18next.language === lang;
-                            return (
+                <div className="settings__password-form">
+                    <div className="form-group">
+                        <label className="form__label" htmlFor="themeSelect">
+                            {t('theme')}
+                        </label>
+                        <div className="settings__theme-select">
+                            {(Object.values(THEMES) as ThemeName[]).map((theme) => (
                                 <button
-                                    key={lang}
+                                    key={theme}
                                     type="button"
-                                    className={cn('btn btn-sm', {
-                                        'btn-secondary': !active,
-                                        'btn-primary': active,
+                                    className={cn('settings__theme-option', {
+                                        'settings__theme-option--active': currentTheme === theme,
                                     })}
-                                    onClick={() => this.onLanguageChange(lang)}>
-                                    {LANGUAGES[lang]}
+                                    onClick={() => this.onThemeChange(theme)}>
+                                    {icons[theme]('settings__theme-option-icon')}
+                                    <span>{themeLabels[theme]}</span>
                                 </button>
-                            );
-                        })}
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className="form-group">
+                        <label className="form__label" htmlFor="languageSelect">
+                            {t('language')}
+                        </label>
+                        <select
+                            id="languageSelect"
+                            className="form-control"
+                            value={i18next.language}
+                            onChange={(e) => this.onLanguageChange(e.target.value)}>
+                            {languageOptions.map((lang) => (
+                                <option key={lang} value={lang}>
+                                    {LANGUAGES[lang]}
+                                </option>
+                            ))}
+                        </select>
                     </div>
                 </div>
             </Card>
@@ -395,17 +443,49 @@ class Settings extends Component<SettingsProps, SettingsState> {
             currentPassword, newPassword, confirmPassword,
             passwordMessage, passwordMessageType, passwordProcessing,
             port, portMessage, portMessageType, portProcessing,
+            username, usernameMessage, usernameMessageType, usernameProcessing,
         } = this.state;
         const profileName = dashboard?.name || '';
 
         return (
             <Card title={t('system_info') as string} bodyType="card-body box-body--settings">
-                <div className="settings__info-row">
-                    <span className="settings__info-label">{t('username')}</span>
-                    <span className="settings__info-value">{profileName || '—'}</span>
-                </div>
+                {profileName && (
+                    <>
+                        <h6 className="settings__section-title">{t('username')}</h6>
+                        <form className="settings__password-form" onSubmit={this.onUsernameSave}>
+                            <div className="form-group">
+                                <label className="form__label" htmlFor="usernameInput">
+                                    {t('username_label')}
+                                </label>
+                                <input
+                                    type="text"
+                                    className="form-control"
+                                    id="usernameInput"
+                                    value={username}
+                                    onChange={(e) => this.setState({ username: e.target.value })}
+                                    placeholder={t('username_placeholder') as string}
+                                />
+                            </div>
+                            <button
+                                type="submit"
+                                className="btn btn-success btn-standard"
+                                disabled={usernameProcessing}>
+                                {t('save_btn')}
+                            </button>
+                            {usernameMessage && (
+                                <div
+                                    className={cn('settings__message', {
+                                        'settings__message--success': usernameMessageType === 'success',
+                                        'settings__message--error': usernameMessageType === 'error',
+                                    })}>
+                                    {usernameMessage}
+                                </div>
+                            )}
+                        </form>
+                        <hr />
+                    </>
+                )}
 
-                <hr />
                 <h6 className="settings__section-title">{t('adguard_home_port')}</h6>
                 <form className="settings__password-form" onSubmit={this.onPortSave}>
                     <div className="form-group">

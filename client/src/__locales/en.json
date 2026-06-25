@@ -852,5 +852,11 @@
     "port_changed": "Port changed successfully. Redirecting...",
     "port_invalid": "Port must be between 1 and 65535",
     "port_change_failed": "Failed to change port",
-    "system_info": "System Information"
+    "system_info": "System Information",
+    "username_required": "Username is required",
+    "username_changed": "Username changed successfully",
+    "username_change_failed": "Failed to change username",
+    "theme_auto": "Auto",
+    "theme_light": "Light",
+    "theme_dark": "Dark"
 }
