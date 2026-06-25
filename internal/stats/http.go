@@ -41,6 +41,7 @@ type StatsResp struct {
 
 	TopUpstreamsResponses []topAddrs      `json:"top_upstreams_responses"`
 	TopUpstreamsAvgTime   []topAddrsFloat `json:"top_upstreams_avg_time"`
+	TopBlockedFilterLists []topAddrs      `json:"top_blocked_filter_lists"`
 
 	DNSQueries []uint64 `json:"dns_queries"`
 

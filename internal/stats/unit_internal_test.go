@@ -24,6 +24,7 @@ func TestUnit_Deserialize(t *testing.T) {
 			timeSum:            0,
 			upstreamsResponses: map[string]uint64{},
 			upstreamsTimeSum:   map[string]uint64{},
+			blockedFilterLists: map[string]uint64{},
 		},
 		db: &unitDB{
 			NResult:            []uint64{0, 0, 0, 0, 0, 0},
@@ -57,6 +58,7 @@ func TestUnit_Deserialize(t *testing.T) {
 			upstreamsTimeSum: map[string]uint64{
 				"1.2.3.4": 246912,
 			},
+			blockedFilterLists: map[string]uint64{},
 		},
 		db: &unitDB{
 			NResult: []uint64{0, 1, 1, 0, 0, 0},

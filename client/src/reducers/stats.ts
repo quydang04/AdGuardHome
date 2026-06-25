@@ -22,6 +22,7 @@ const defaultStats = {
     numDnssec: 0,
     avgProcessingTime: 0,
     timeUnits: TIME_UNITS.HOURS,
+    topBlockedFilterLists: [],
     systemInfo: null,
 };
 
@@ -116,6 +117,7 @@ const stats = handleActions(
                 avg_processing_time: avgProcessingTime,
                 top_upstreams_responses: topUpstreamsResponses,
                 top_upstrems_avg_time: topUpstreamsAvgTime,
+                top_blocked_filter_lists: topBlockedFilterLists,
                 time_units: timeUnits,
                 system,
             } = payload;
@@ -141,6 +143,7 @@ const stats = handleActions(
                 avgProcessingTime,
                 topUpstreamsResponses,
                 topUpstreamsAvgTime,
+                topBlockedFilterLists,
                 timeUnits,
                 systemInfo: normalizeSystemInfo(system),
             };

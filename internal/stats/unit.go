@@ -25,6 +25,9 @@ const (
 
 	// maxUpstreams is the max number of top upstreams to return.
 	maxUpstreams = 100
+
+	// maxFilterLists is the max number of top filter lists to return.
+	maxFilterLists = 50
 )
 
 // UnitIDGenFunc is the signature of a function that generates a unique ID for
@@ -74,6 +77,11 @@ type Entry struct {
 	// of the request including timeouts.
 	ProcessingTime time.Duration
 
+	// FilterListID is the ID of the filter list that blocked this request.
+	// Zero means no filter list was involved (not blocked or blocked by a
+	// built-in mechanism).
+	FilterListID int64
+
 	// IsEncrypted is true if the query was made using an encrypted transport
 	// (DoH, DoT, DoQ, or DNSCrypt).
 	IsEncrypted bool
@@ -117,6 +125,10 @@ type unit struct {
 	// microseconds to each upstream.
 	upstreamsTimeSum map[string]uint64
 
+	// blockedFilterLists stores the number of requests blocked by each
+	// filter list, keyed by filter list ID as string.
+	blockedFilterLists map[string]uint64
+
 	// nResult stores the number of requests grouped by it's result.
 	nResult []uint64
 
@@ -149,6 +161,7 @@ func newUnit(id uint32) (u *unit) {
 		clients:            map[string]uint64{},
 		upstreamsResponses: map[string]uint64{},
 		upstreamsTimeSum:   map[string]uint64{},
+		blockedFilterLists: map[string]uint64{},
 		nResult:            make([]uint64, resultLast),
 		id:                 id,
 	}
@@ -184,6 +197,10 @@ type unitDB struct {
 	// UpstreamsTimeSum is the sum of processing time in microseconds of
 	// responses from each upstream.
 	UpstreamsTimeSum []countPair
+
+	// BlockedFilterLists is the number of requests blocked by each filter
+	// list, keyed by filter list ID.
+	BlockedFilterLists []countPair
 
 	// NTotal is the total number of requests.
 	NTotal uint64
@@ -288,6 +305,7 @@ func (u *unit) serialize() (udb *unitDB) {
 		Clients:            convertMapToSlice(u.clients, maxClients),
 		UpstreamsResponses: convertMapToSlice(u.upstreamsResponses, maxUpstreams),
 		UpstreamsTimeSum:   convertMapToSlice(u.upstreamsTimeSum, maxUpstreams),
+		BlockedFilterLists: convertMapToSlice(u.blockedFilterLists, maxFilterLists),
 		TimeAvg:            timeAvg,
 		NEncrypted:         u.nEncrypted,
 		NDNSSEC:            u.nDNSSEC,
@@ -332,6 +350,7 @@ func (u *unit) deserialize(udb *unitDB) {
 	u.clients = convertSliceToMap(udb.Clients)
 	u.upstreamsResponses = convertSliceToMap(udb.UpstreamsResponses)
 	u.upstreamsTimeSum = convertSliceToMap(udb.UpstreamsTimeSum)
+	u.blockedFilterLists = convertSliceToMap(udb.BlockedFilterLists)
 	u.timeSum = uint64(udb.TimeAvg) * udb.NTotal
 	u.nEncrypted = udb.NEncrypted
 	u.nDNSSEC = udb.NDNSSEC
@@ -344,6 +363,9 @@ func (u *unit) add(e *Entry) {
 		u.domains[e.Domain]++
 	} else {
 		u.blockedDomains[e.Domain]++
+		if e.FilterListID != 0 {
+			u.blockedFilterLists[fmt.Sprintf("%d", e.FilterListID)]++
+		}
 	}
 
 	u.clients[e.Client]++
@@ -449,6 +471,7 @@ func (s *StatsCtx) getData(limit uint32) (resp *StatsResp, ok bool) {
 			TopQueried:            []topAddrs{},
 			TopUpstreamsResponses: []topAddrs{},
 			TopUpstreamsAvgTime:   []topAddrsFloat{},
+			TopBlockedFilterLists: []topAddrs{},
 
 			BlockedFiltering:     []uint64{},
 			DNSQueries:           []uint64{},
@@ -470,11 +493,12 @@ func (s *StatsCtx) dataFromUnits(units []*unitDB, curID uint32) (resp *StatsResp
 	topUpstreamsResponses, topUpstreamsAvgTime := topUpstreamsPairs(units)
 
 	resp = &StatsResp{
-		TopQueried:            topsCollector(units, maxDomains, s.ignored, func(u *unitDB) (pairs []countPair) { return u.Domains }),
-		TopBlocked:            topsCollector(units, maxDomains, s.ignored, func(u *unitDB) (pairs []countPair) { return u.BlockedDomains }),
-		TopUpstreamsResponses: topUpstreamsResponses,
-		TopUpstreamsAvgTime:   topUpstreamsAvgTime,
-		TopClients:            topsCollector(units, maxClients, nil, topClientPairs(s)),
+		TopQueried:             topsCollector(units, maxDomains, s.ignored, func(u *unitDB) (pairs []countPair) { return u.Domains }),
+		TopBlocked:             topsCollector(units, maxDomains, s.ignored, func(u *unitDB) (pairs []countPair) { return u.BlockedDomains }),
+		TopUpstreamsResponses:  topUpstreamsResponses,
+		TopUpstreamsAvgTime:    topUpstreamsAvgTime,
+		TopClients:             topsCollector(units, maxClients, nil, topClientPairs(s)),
+		TopBlockedFilterLists:  topsCollector(units, maxFilterLists, nil, func(u *unitDB) (pairs []countPair) { return u.BlockedFilterLists }),
 	}
 
 	s.fillCollectedStats(resp, units, curID)

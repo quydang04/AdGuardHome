@@ -265,6 +265,7 @@ export type StatsData = {
     enabled: boolean;
     topUpstreamsAvgTime: { name: string; count: number }[];
     topUpstreamsResponses: { name: string; count: number }[];
+    topBlockedFilterLists: { name: string; count: number }[];
     systemInfo: SystemInfoData | null;
 };
 
@@ -672,6 +673,7 @@ export const initialState: RootState = {
         enabled: true,
         topUpstreamsAvgTime: [],
         topUpstreamsResponses: [],
+        topBlockedFilterLists: [],
         systemInfo: null,
     },
     notifications: {

@@ -21,6 +21,7 @@ import Dropdown from '../ui/Dropdown';
 import UpstreamResponses from './UpstreamResponses';
 
 import UpstreamAvgTime from './UpstreamAvgTime';
+import BlockedReasons from './BlockedReasons';
 import GafamDominance from './GafamDominance';
 import EncryptedDns from './EncryptedDns';
 import DnssecStats from './DnssecStats';
@@ -278,6 +279,15 @@ const Dashboard = ({
                         <UpstreamAvgTime
                             subtitle={subtitle}
                             topUpstreamsAvgTime={stats.topUpstreamsAvgTime}
+                            refreshButton={refreshButton}
+                        />
+                    </div>
+
+                    <div className="col-lg-6">
+                        <BlockedReasons
+                            subtitle={subtitle}
+                            topBlockedFilterLists={stats.topBlockedFilterLists}
+                            numBlockedFiltering={stats.numBlockedFiltering}
                             refreshButton={refreshButton}
                         />
                     </div>

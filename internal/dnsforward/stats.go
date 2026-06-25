@@ -184,5 +184,9 @@ func (s *Server) updateStats(dctx *dnsContext, clientIP string, processingTime t
 		e.Result = stats.RFiltered
 	}
 
+	if len(dctx.result.Rules) > 0 {
+		e.FilterListID = int64(dctx.result.Rules[0].FilterListID)
+	}
+
 	s.stats.Update(e)
 }

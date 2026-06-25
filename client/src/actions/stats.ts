@@ -57,6 +57,7 @@ export const getStats = () => async (dispatch: any) => {
             avg_processing_time: secondsToMilliseconds(stats.avg_processing_time),
             top_upstreams_responses: normalizeTopStats(stats.top_upstreams_responses),
             top_upstrems_avg_time: normalizeTopStats(stats.top_upstreams_avg_time),
+            top_blocked_filter_lists: normalizeTopStats(stats.top_blocked_filter_lists),
         };
 
         dispatch(getStatsSuccess(normalizedStats));

@@ -105,6 +105,7 @@ func TestStats(t *testing.T) {
 			TopBlocked:            []map[string]uint64{0: {reqDomain: 1}},
 			TopUpstreamsResponses: []map[string]uint64{0: {respUpstream: 2}},
 			TopUpstreamsAvgTime:   []map[string]float64{0: {respUpstream: 0.222222}},
+			TopBlockedFilterLists: []map[string]uint64{},
 			DNSQueries: []uint64{
 				0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 				0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2,
@@ -161,6 +162,7 @@ func TestStats(t *testing.T) {
 			TopBlocked:            []map[string]uint64{},
 			TopUpstreamsResponses: []map[string]uint64{},
 			TopUpstreamsAvgTime:   []map[string]float64{},
+			TopBlockedFilterLists: []map[string]uint64{},
 			DNSQueries:            _24zeroes[:],
 			BlockedFiltering:      _24zeroes[:],
 			ReplacedSafebrowsing:  _24zeroes[:],
