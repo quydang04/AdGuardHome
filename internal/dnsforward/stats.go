@@ -153,6 +153,24 @@ func (s *Server) updateStats(dctx *dnsContext, clientIP string, processingTime t
 		pctx.Proto == proxy.ProtoQUIC ||
 		pctx.Proto == proxy.ProtoDNSCrypt
 
+	var countries []string
+	if s.geoIP != nil && pctx.Res != nil {
+		for _, rr := range pctx.Res.Answer {
+			var ip net.IP
+			switch a := rr.(type) {
+			case *dns.A:
+				ip = a.A
+			case *dns.AAAA:
+				ip = a.AAAA
+			}
+			if ip != nil {
+				if c := s.geoIP.LookupIP(ip); c != "" {
+					countries = append(countries, c)
+				}
+			}
+		}
+	}
+
 	e := &stats.Entry{
 		UpstreamStats:  upstreamStats,
 		Domain:         aghnet.NormalizeDomain(pctx.Req.Question[0].Name),
@@ -160,6 +178,7 @@ func (s *Server) updateStats(dctx *dnsContext, clientIP string, processingTime t
 		ProcessingTime: processingTime,
 		IsEncrypted:    isEncrypted,
 		DNSSEC:         dctx.responseAD,
+		Countries:      countries,
 	}
 
 	if clientID := dctx.clientID; clientID != "" {

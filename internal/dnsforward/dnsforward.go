@@ -38,6 +38,19 @@ import (
 // DefaultTimeout is the default upstream timeout
 const DefaultTimeout = 10 * time.Second
 
+// GeoIPLookup resolves IP addresses to ISO 3166-1 alpha-2 country codes.
+type GeoIPLookup interface {
+	LookupIP(ip net.IP) (country string)
+}
+
+// SetGeoIP sets the GeoIP database for resolving DNS response IPs to countries.
+func (s *Server) SetGeoIP(g GeoIPLookup) {
+	s.serverLock.Lock()
+	defer s.serverLock.Unlock()
+
+	s.geoIP = g
+}
+
 // defaultLocalTimeout is the default timeout for resolving addresses from
 // locally-served networks.  It is assumed that local resolvers should work much
 // faster than ordinary upstreams.
@@ -129,6 +142,9 @@ type Server struct {
 
 	// stats is the statistics collector for client's DNS usage data.
 	stats stats.Interface
+
+	// geoIP resolves IP addresses to country codes.  May be nil.
+	geoIP GeoIPLookup
 
 	// sysResolvers used to fetch system resolvers to use by default for private
 	// PTR resolving.

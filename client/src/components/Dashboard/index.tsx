@@ -24,6 +24,7 @@ import UpstreamAvgTime from './UpstreamAvgTime';
 import GafamDominance from './GafamDominance';
 import EncryptedDns from './EncryptedDns';
 import DnssecStats from './DnssecStats';
+import TrafficDestination from './TrafficDestination';
 import { AccessData, DashboardData, StatsData } from '../../initialState';
 
 const STATS_POLLING_INTERVAL_MS = 5000;
@@ -309,6 +310,16 @@ const Dashboard = ({
                             refreshButton={refreshButton}
                         />
                     </div>
+
+                    {stats.topCountries && stats.topCountries.length > 0 && (
+                        <div className="col-lg-12">
+                            <TrafficDestination
+                                topCountries={stats.topCountries}
+                                subtitle={subtitle}
+                                refreshButton={refreshButton}
+                            />
+                        </div>
+                    )}
 
                 </div>
             )}

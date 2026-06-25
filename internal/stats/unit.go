@@ -74,6 +74,10 @@ type Entry struct {
 	// of the request including timeouts.
 	ProcessingTime time.Duration
 
+	// Countries is the list of ISO 3166-1 alpha-2 country codes resolved from
+	// DNS response answer IPs.
+	Countries []string
+
 	// IsEncrypted is true if the query was made using an encrypted transport
 	// (DoH, DoT, DoQ, or DNSCrypt).
 	IsEncrypted bool
@@ -134,6 +138,9 @@ type unit struct {
 	// written by the unit.
 	timeSum uint64
 
+	// countries stores the number of queries per destination country.
+	countries map[string]uint64
+
 	// nEncrypted stores the number of queries made using encrypted transports.
 	nEncrypted uint64
 
@@ -149,6 +156,7 @@ func newUnit(id uint32) (u *unit) {
 		clients:            map[string]uint64{},
 		upstreamsResponses: map[string]uint64{},
 		upstreamsTimeSum:   map[string]uint64{},
+		countries:          map[string]uint64{},
 		nResult:            make([]uint64, resultLast),
 		id:                 id,
 	}
@@ -191,6 +199,9 @@ type unitDB struct {
 	// TimeAvg is the average of processing times in microseconds of all the
 	// requests in the unit.
 	TimeAvg uint32
+
+	// Countries is the number of queries per destination country.
+	Countries []countPair
 
 	// NEncrypted is the number of queries made using encrypted transports.
 	NEncrypted uint64
@@ -289,6 +300,7 @@ func (u *unit) serialize() (udb *unitDB) {
 		UpstreamsResponses: convertMapToSlice(u.upstreamsResponses, maxUpstreams),
 		UpstreamsTimeSum:   convertMapToSlice(u.upstreamsTimeSum, maxUpstreams),
 		TimeAvg:            timeAvg,
+		Countries:          convertMapToSlice(u.countries, maxDomains),
 		NEncrypted:         u.nEncrypted,
 		NDNSSEC:            u.nDNSSEC,
 	}
@@ -333,6 +345,7 @@ func (u *unit) deserialize(udb *unitDB) {
 	u.upstreamsResponses = convertSliceToMap(udb.UpstreamsResponses)
 	u.upstreamsTimeSum = convertSliceToMap(udb.UpstreamsTimeSum)
 	u.timeSum = uint64(udb.TimeAvg) * udb.NTotal
+	u.countries = convertSliceToMap(udb.Countries)
 	u.nEncrypted = udb.NEncrypted
 	u.nDNSSEC = udb.NDNSSEC
 }
@@ -350,6 +363,14 @@ func (u *unit) add(e *Entry) {
 	pt := uint64(e.ProcessingTime.Microseconds())
 	u.timeSum += pt
 	u.nTotal++
+
+	seen := map[string]bool{}
+	for _, c := range e.Countries {
+		if c != "" && !seen[c] {
+			u.countries[c]++
+			seen[c] = true
+		}
+	}
 
 	if e.IsEncrypted {
 		u.nEncrypted++
@@ -449,6 +470,7 @@ func (s *StatsCtx) getData(limit uint32) (resp *StatsResp, ok bool) {
 			TopQueried:            []topAddrs{},
 			TopUpstreamsResponses: []topAddrs{},
 			TopUpstreamsAvgTime:   []topAddrsFloat{},
+			TopCountries:          []topAddrs{},
 
 			BlockedFiltering:     []uint64{},
 			DNSQueries:           []uint64{},
@@ -475,6 +497,7 @@ func (s *StatsCtx) dataFromUnits(units []*unitDB, curID uint32) (resp *StatsResp
 		TopUpstreamsResponses: topUpstreamsResponses,
 		TopUpstreamsAvgTime:   topUpstreamsAvgTime,
 		TopClients:            topsCollector(units, maxClients, nil, topClientPairs(s)),
+		TopCountries:          topsCollector(units, maxDomains, nil, func(u *unitDB) (pairs []countPair) { return u.Countries }),
 	}
 
 	s.fillCollectedStats(resp, units, curID)
