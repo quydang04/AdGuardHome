@@ -88,6 +88,10 @@ interface SettingsState {
     passwordMessage: string;
     passwordMessageType: 'success' | 'error' | '';
     passwordProcessing: boolean;
+    port: string;
+    portMessage: string;
+    portMessageType: 'success' | 'error' | '';
+    portProcessing: boolean;
 }
 
 class Settings extends Component<SettingsProps, SettingsState> {
@@ -98,6 +102,10 @@ class Settings extends Component<SettingsProps, SettingsState> {
         passwordMessage: '',
         passwordMessageType: '',
         passwordProcessing: false,
+        port: '',
+        portMessage: '',
+        portMessageType: '',
+        portProcessing: false,
     };
 
     componentDidMount() {
@@ -105,6 +113,19 @@ class Settings extends Component<SettingsProps, SettingsState> {
         this.props.getStatsConfig();
         this.props.getLogsConfig();
         this.props.getFilteringStatus();
+
+        const httpPort = this.props.dashboard?.httpPort;
+        if (httpPort) {
+            this.setState({ port: String(httpPort) });
+        }
+    }
+
+    componentDidUpdate(prevProps: SettingsProps) {
+        const httpPort = this.props.dashboard?.httpPort;
+        const prevPort = prevProps.dashboard?.httpPort;
+        if (httpPort && httpPort !== prevPort && this.state.port === '') {
+            this.setState({ port: String(httpPort) });
+        }
     }
 
     renderSettings = (settings: any) =>
@@ -230,6 +251,42 @@ class Settings extends Component<SettingsProps, SettingsState> {
         this.setState({ passwordProcessing: false });
     };
 
+    onPortSave = async (e: React.FormEvent) => {
+        e.preventDefault();
+        const { t } = this.props;
+        const { port } = this.state;
+
+        const portNum = parseInt(port, 10);
+        if (!portNum || portNum < 1 || portNum > 65535) {
+            this.setState({
+                portMessage: t('port_invalid') as string,
+                portMessageType: 'error',
+            });
+            return;
+        }
+
+        this.setState({ portProcessing: true, portMessage: '', portMessageType: '' });
+
+        try {
+            await apiClient.changePort({ port: portNum });
+            this.setState({
+                portMessage: t('port_changed') as string,
+                portMessageType: 'success',
+            });
+            setTimeout(() => {
+                const { protocol, hostname } = window.location;
+                window.location.href = `${protocol}//${hostname}:${portNum}`;
+            }, 1500);
+        } catch (error) {
+            this.setState({
+                portMessage: t('port_change_failed') as string,
+                portMessageType: 'error',
+            });
+        }
+
+        this.setState({ portProcessing: false });
+    };
+
     renderThemeIcons = (): Record<ThemeName, (className: string) => JSX.Element> => ({
         auto: (className) => (
             <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false">
@@ -334,10 +391,12 @@ class Settings extends Component<SettingsProps, SettingsState> {
 
     renderAccountCard = () => {
         const { t, dashboard } = this.props;
-        const { currentPassword, newPassword, confirmPassword, passwordMessage, passwordMessageType, passwordProcessing } = this.state;
+        const {
+            currentPassword, newPassword, confirmPassword,
+            passwordMessage, passwordMessageType, passwordProcessing,
+            port, portMessage, portMessageType, portProcessing,
+        } = this.state;
         const profileName = dashboard?.name || '';
-        const httpPort = dashboard?.httpPort || '';
-        const dnsPort = dashboard?.dnsPort || '';
 
         return (
             <Card title={t('system_info') as string} bodyType="card-body box-body--settings">
@@ -345,14 +404,40 @@ class Settings extends Component<SettingsProps, SettingsState> {
                     <span className="settings__info-label">{t('username')}</span>
                     <span className="settings__info-value">{profileName || '—'}</span>
                 </div>
-                <div className="settings__info-row">
-                    <span className="settings__info-label">{t('http_port')}</span>
-                    <span className="settings__info-value">{httpPort}</span>
-                </div>
-                <div className="settings__info-row">
-                    <span className="settings__info-label">{t('dns_port_label')}</span>
-                    <span className="settings__info-value">{dnsPort}</span>
-                </div>
+
+                <hr />
+                <h6 className="settings__section-title">{t('adguard_home_port')}</h6>
+                <form className="settings__password-form" onSubmit={this.onPortSave}>
+                    <div className="form-group">
+                        <label className="form__label" htmlFor="portInput">
+                            Port
+                        </label>
+                        <input
+                            type="number"
+                            className="form-control"
+                            id="portInput"
+                            min="1"
+                            max="65535"
+                            value={port}
+                            onChange={(e) => this.setState({ port: e.target.value })}
+                        />
+                    </div>
+                    <button
+                        type="submit"
+                        className="btn btn-success btn-standard"
+                        disabled={portProcessing}>
+                        {t('save_btn')}
+                    </button>
+                    {portMessage && (
+                        <div
+                            className={cn('settings__message', {
+                                'settings__message--success': portMessageType === 'success',
+                                'settings__message--error': portMessageType === 'error',
+                            })}>
+                            {portMessage}
+                        </div>
+                    )}
+                </form>
 
                 {profileName && (
                     <>

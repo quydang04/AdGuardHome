@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/netip"
 
 	"github.com/AdguardTeam/AdGuardHome/internal/aghhttp"
 	"github.com/AdguardTeam/AdGuardHome/internal/aghuser"
@@ -50,6 +51,11 @@ type profileJSON struct {
 type changePasswordJSON struct {
 	CurrentPassword string `json:"current_password"`
 	NewPassword     string `json:"new_password"`
+}
+
+// changePortJSON is the JSON structure for the port change request.
+type changePortJSON struct {
+	Port uint16 `json:"port"`
 }
 
 // handleGetProfile is the handler for GET /control/profile endpoint.
@@ -198,6 +204,40 @@ func (web *webAPI) handleChangePassword(w http.ResponseWriter, r *http.Request) 
 	web.confModifier.Apply(ctx)
 
 	l.InfoContext(ctx, "password changed", "login", u.Login)
+
+	aghhttp.OK(ctx, l, w)
+}
+
+// handleChangePort is the handler for POST /control/change_port endpoint.
+func (web *webAPI) handleChangePort(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	l := web.logger
+
+	req := &changePortJSON{}
+	err := json.NewDecoder(r.Body).Decode(req)
+	if err != nil {
+		aghhttp.ErrorAndLog(ctx, l, r, w, http.StatusBadRequest, "reading req: %s", err)
+
+		return
+	}
+
+	if req.Port == 0 {
+		aghhttp.ErrorAndLog(ctx, l, r, w, http.StatusBadRequest, "port must not be zero")
+
+		return
+	}
+
+	func() {
+		config.Lock()
+		defer config.Unlock()
+
+		addr := config.HTTPConfig.Address.Addr()
+		config.HTTPConfig.Address = netip.AddrPortFrom(addr, req.Port)
+	}()
+
+	web.confModifier.Apply(ctx)
+
+	l.InfoContext(ctx, "http port changed", "port", req.Port)
 
 	aghhttp.OK(ctx, l, w)
 }

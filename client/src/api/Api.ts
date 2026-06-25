@@ -679,6 +679,16 @@ class Api {
         return this.makeRequest(path, method, config);
     }
 
+    // Change Port
+    CHANGE_PORT = { path: 'change_port', method: 'POST' };
+
+    changePort(data: { port: number }) {
+        const { path, method } = this.CHANGE_PORT;
+        const config = { data };
+
+        return this.makeRequest(path, method, config);
+    }
+
     // Notifications
     NOTIFICATIONS_TELEGRAM_GET = { path: 'notifications/telegram', method: 'GET' };
 

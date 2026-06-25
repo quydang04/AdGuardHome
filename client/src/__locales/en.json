@@ -848,7 +848,9 @@
     "password_required": "Password is required",
     "password_incorrect": "Current password is incorrect",
     "username": "Username",
-    "http_port": "HTTP Port",
-    "dns_port_label": "DNS Port",
+    "adguard_home_port": "AdGuard Home Port",
+    "port_changed": "Port changed successfully. Redirecting...",
+    "port_invalid": "Port must be between 1 and 65535",
+    "port_change_failed": "Failed to change port",
     "system_info": "System Information"
 }

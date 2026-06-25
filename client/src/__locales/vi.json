@@ -848,7 +848,9 @@
     "password_required": "Mật khẩu là bắt buộc",
     "password_incorrect": "Mật khẩu hiện tại không đúng",
     "username": "Tên đăng nhập",
-    "http_port": "Cổng HTTP",
-    "dns_port_label": "Cổng DNS",
+    "adguard_home_port": "Cổng AdGuard Home",
+    "port_changed": "Đổi cổng thành công. Đang chuyển hướng...",
+    "port_invalid": "Cổng phải nằm trong khoảng 1 đến 65535",
+    "port_change_failed": "Đổi cổng thất bại",
     "system_info": "Thông tin hệ thống"
 }
