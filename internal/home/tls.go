@@ -36,7 +36,7 @@ type tlsManager struct {
 	// logger is used for logging the operation of the TLS Manager.
 	logger *slog.Logger
 
-	// mu protects status, certLastMod, conf, and servePlainDNS.
+	// mu protects status, certLastMod, extTLSConf, and servePlainDNS.
 	mu *sync.Mutex
 
 	// status is the current status of the configuration.  It is never nil.
@@ -54,14 +54,22 @@ type tlsManager struct {
 	// Resolve it.
 	web *webAPI
 
-	// conf contains the TLS configuration settings.  It must not be nil.
-	conf *tlsConfigSettings
+	// extTLSConf contains extended TLS configuration settings.  It must not be
+	// nil.
+	// TODO(m.kazantsev):  Add a field of a type of [*tls.Config] which will
+	// represent the TLS settings. This is why these settings are called
+	// 'extended'.
+	extTLSConf *tlsConfigSettings
 
 	// confModifier is used to update the global configuration.
 	confModifier agh.ConfigModifier
 
 	// httpReg registers HTTP handlers.  It must not be nil.
 	httpReg aghhttp.Registrar
+
+	// manager is used to manage the TLS certificate and key files.  It must not
+	// be nil.
+	manager aghtls.Manager
 
 	// customCipherIDs are the IDs of the cipher suites that AdGuard Home must
 	// use.
@@ -80,6 +88,10 @@ type tlsManagerConfig struct {
 	// confModifier is used to update the global configuration.  It must not be
 	// nil.
 	confModifier agh.ConfigModifier
+
+	// manager is used to manage the TLS certificate and key files.  It must not
+	// be nil.
+	manager aghtls.Manager
 
 	httpReg aghhttp.Registrar
 
@@ -101,8 +113,9 @@ func newTLSManager(ctx context.Context, conf *tlsManagerConfig) (m *tlsManager, 
 		mu:            &sync.Mutex{},
 		confModifier:  conf.confModifier,
 		httpReg:       conf.httpReg,
+		manager:       conf.manager,
 		status:        &tlsConfigStatus{},
-		conf:          &conf.tlsSettings,
+		extTLSConf:    &conf.tlsSettings,
 		servePlainDNS: conf.servePlainDNS,
 	}
 
@@ -124,13 +137,21 @@ func newTLSManager(ctx context.Context, conf *tlsManagerConfig) (m *tlsManager, 
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	if !m.conf.Enabled {
+	if !m.extTLSConf.Enabled {
 		return m, nil
 	}
 
-	err = m.load(ctx)
+	err = m.manager.Set(ctx, aghtls.TLSPair{
+		CertPath: m.extTLSConf.CertificatePath,
+		KeyPath:  m.extTLSConf.PrivateKeyPath,
+	})
 	if err != nil {
-		m.conf.Enabled = false
+		m.logger.ErrorContext(ctx, "setting tls files", slogutil.KeyError, err)
+	}
+
+	err = m.loadTLSConfig(ctx, m.extTLSConf, m.status)
+	if err != nil {
+		m.extTLSConf.Enabled = false
 
 		return m, err
 	}
@@ -149,33 +170,22 @@ func (m *tlsManager) setWebAPI(webAPI *webAPI) {
 	m.web = webAPI
 }
 
-// load reloads the TLS configuration from files or data from the config file.
-// m.mu is expected to be locked.
-func (m *tlsManager) load(ctx context.Context) (err error) {
-	err = m.loadTLSConfig(ctx, m.conf, m.status)
-	if err != nil {
-		return fmt.Errorf("loading config: %w", err)
-	}
-
-	return nil
-}
-
-// config returns a deep copy of the stored TLS configuration.
-func (m *tlsManager) config() (conf *tlsConfigSettings) {
+// extendedTLSConfig returns a deep copy of the stored TLS configuration.
+func (m *tlsManager) extendedTLSConfig() (extTLSConf *tlsConfigSettings) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	return m.conf.clone()
+	return m.extTLSConf.clone()
 }
 
 // setCertFileTime sets [tlsManager.certLastMod] from the certificate.  If there
 // are errors, setCertFileTime logs them.  m.mu is expected to be locked.
 func (m *tlsManager) setCertFileTime(ctx context.Context) {
-	if len(m.conf.CertificatePath) == 0 {
+	if len(m.extTLSConf.CertificatePath) == 0 {
 		return
 	}
 
-	fi, err := os.Stat(m.conf.CertificatePath)
+	fi, err := os.Stat(m.extTLSConf.CertificatePath)
 	if err != nil {
 		m.logger.ErrorContext(ctx, "looking up certificate path", slogutil.KeyError, err)
 
@@ -188,7 +198,7 @@ func (m *tlsManager) setCertFileTime(ctx context.Context) {
 // start updates the configuration of t and starts it.
 //
 // TODO(s.chzhen):  Use context.
-func (m *tlsManager) start(_ context.Context) {
+func (m *tlsManager) start(ctx context.Context) {
 	m.registerWebHandlers()
 
 	m.mu.Lock()
@@ -197,7 +207,28 @@ func (m *tlsManager) start(_ context.Context) {
 	// The background context is used because the TLSConfigChanged wraps context
 	// with timeout on its own and shuts down the server, which handles current
 	// request.
-	m.web.tlsConfigChanged(context.Background(), m.conf)
+	m.web.tlsConfigChanged(context.Background(), m.extTLSConf)
+
+	go m.handleCertFileChange(ctx)
+}
+
+// handleCertFileChange handles changes in the certificate file.  It's intended
+// to be run as a goroutine.
+func (m *tlsManager) handleCertFileChange(ctx context.Context) {
+	defer slogutil.RecoverAndLog(ctx, m.logger)
+
+	updates := m.manager.Updates(ctx)
+	if updates == nil {
+		m.logger.ErrorContext(ctx, "no updates channel")
+
+		return
+	}
+
+	for range updates {
+		m.logger.DebugContext(ctx, "reloading")
+
+		m.reload(ctx)
+	}
 }
 
 // reload updates the configuration and restarts the TLS manager.  It logs any
@@ -208,13 +239,13 @@ func (m *tlsManager) reload(ctx context.Context) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	tlsConf := m.conf
+	tlsConfPtr := m.extTLSConf
 
-	if !tlsConf.Enabled || len(tlsConf.CertificatePath) == 0 {
+	if !tlsConfPtr.Enabled || len(tlsConfPtr.CertificatePath) == 0 {
 		return
 	}
 
-	certPath := tlsConf.CertificatePath
+	certPath := tlsConfPtr.CertificatePath
 	fi, err := os.Stat(certPath)
 	if err != nil {
 		m.logger.ErrorContext(ctx, "checking certificate file", slogutil.KeyError, err)
@@ -230,12 +261,18 @@ func (m *tlsManager) reload(ctx context.Context) {
 
 	m.logger.InfoContext(ctx, "certificate file is modified")
 
-	err = m.load(ctx)
+	tlsConf := *tlsConfPtr
+	status := &tlsConfigStatus{}
+
+	err = m.loadTLSConfig(ctx, &tlsConf, status)
 	if err != nil {
-		m.logger.ErrorContext(ctx, "reloading", slogutil.KeyError, err)
+		m.logger.WarnContext(ctx, "reloading interrupted", slogutil.KeyError, err)
 
 		return
 	}
+
+	m.extTLSConf = &tlsConf
+	m.status = status
 
 	m.certLastMod = fi.ModTime().UTC()
 
@@ -247,7 +284,7 @@ func (m *tlsManager) reload(ctx context.Context) {
 	// The background context is used because the TLSConfigChanged wraps context
 	// with timeout on its own and shuts down the server, which handles current
 	// request.
-	m.web.tlsConfigChanged(context.Background(), tlsConf)
+	m.web.tlsConfigChanged(context.Background(), m.extTLSConf)
 }
 
 // reconfigureDNSServer updates the DNS server configuration using the stored
@@ -256,7 +293,8 @@ func (m *tlsManager) reconfigureDNSServer(ctx context.Context) (err error) {
 	newConf, err := newServerConfig(
 		&config.DNS,
 		config.Clients.Sources,
-		m.conf,
+		m.extTLSConf,
+		config.HTTPConfig.DoH,
 		m,
 		m.httpReg,
 		globalContext.clients.storage,
@@ -280,7 +318,7 @@ func (m *tlsManager) reconfigureDNSServer(ctx context.Context) (err error) {
 // set in status.WarningValidation.
 func (m *tlsManager) loadTLSConfig(
 	ctx context.Context,
-	tlsConf *tlsConfigSettings,
+	extTLSConf *tlsConfigSettings,
 	status *tlsConfigStatus,
 ) (err error) {
 	defer func() {
@@ -293,13 +331,13 @@ func (m *tlsManager) loadTLSConfig(
 		}
 	}()
 
-	err = loadCertificateChainData(tlsConf, status)
+	err = loadCertificateChainData(extTLSConf)
 	if err != nil {
 		// Don't wrap the error, because it's informative enough as is.
 		return err
 	}
 
-	err = loadPrivateKeyData(tlsConf, status)
+	err = loadPrivateKeyData(extTLSConf)
 	if err != nil {
 		// Don't wrap the error, because it's informative enough as is.
 		return err
@@ -308,51 +346,49 @@ func (m *tlsManager) loadTLSConfig(
 	err = m.validateCertificates(
 		ctx,
 		status,
-		tlsConf.CertificateChainData,
-		tlsConf.PrivateKeyData,
-		tlsConf.ServerName,
+		extTLSConf.CertificateChainData,
+		extTLSConf.PrivateKeyData,
+		extTLSConf.ServerName,
 	)
 
 	return errors.Annotate(err, "validating certificate pair: %w")
 }
 
 // loadCertificateChainData loads PEM-encoded certificates chain data to the
-// TLS configuration.
-func loadCertificateChainData(tlsConf *tlsConfigSettings, status *tlsConfigStatus) (err error) {
-	tlsConf.CertificateChainData = []byte(tlsConf.CertificateChain)
-	if tlsConf.CertificatePath != "" {
-		if tlsConf.CertificateChain != "" {
+// TLS configuration. tlsConf must be not nil. tlsConf.CertificateChainData
+// struct field will be modified in case tlsConfig.CertificatePath is not an
+// empty string.  extTLSConf must not be nil.
+func loadCertificateChainData(extTLSConf *tlsConfigSettings) (err error) {
+	extTLSConf.CertificateChainData = []byte(extTLSConf.CertificateChain)
+	if extTLSConf.CertificatePath != "" {
+		if extTLSConf.CertificateChain != "" {
 			return errors.Error("certificate data and file can't be set together")
 		}
 
-		tlsConf.CertificateChainData, err = os.ReadFile(tlsConf.CertificatePath)
+		extTLSConf.CertificateChainData, err = os.ReadFile(extTLSConf.CertificatePath)
 		if err != nil {
 			return fmt.Errorf("reading cert file: %w", err)
 		}
-
-		// Set status.ValidCert to true to signal the frontend that the
-		// certificate opens successfully while the private key can't be opened.
-		status.ValidCert = true
 	}
 
 	return nil
 }
 
 // loadPrivateKeyData loads PEM-encoded private key data to the TLS
-// configuration.
-func loadPrivateKeyData(tlsConf *tlsConfigSettings, status *tlsConfigStatus) (err error) {
-	tlsConf.PrivateKeyData = []byte(tlsConf.PrivateKey)
-	if tlsConf.PrivateKeyPath != "" {
-		if tlsConf.PrivateKey != "" {
+// configuration. tlsConf must be not nil. tlsConf.PrivateKeyData struct field
+// will be modified in case tlsConfig.PrivateKeyPath is not an empty string.
+// extTLSConf must not be nil.
+func loadPrivateKeyData(extTLSConf *tlsConfigSettings) (err error) {
+	extTLSConf.PrivateKeyData = []byte(extTLSConf.PrivateKey)
+	if extTLSConf.PrivateKeyPath != "" {
+		if extTLSConf.PrivateKey != "" {
 			return errors.Error("private key data and file can't be set together")
 		}
 
-		tlsConf.PrivateKeyData, err = os.ReadFile(tlsConf.PrivateKeyPath)
+		extTLSConf.PrivateKeyData, err = os.ReadFile(extTLSConf.PrivateKeyPath)
 		if err != nil {
 			return fmt.Errorf("reading key file: %w", err)
 		}
-
-		status.ValidKey = true
 	}
 
 	return nil
@@ -429,7 +465,7 @@ func (m *tlsManager) handleTLSStatus(w http.ResponseWriter, r *http.Request) {
 		m.mu.Lock()
 		defer m.mu.Unlock()
 
-		tlsConf = m.conf.clone()
+		tlsConf = m.extTLSConf.clone()
 		servePlainDNS = m.servePlainDNS
 	}()
 
@@ -463,7 +499,7 @@ func (m *tlsManager) handleTLSValidate(w http.ResponseWriter, r *http.Request) {
 	defer m.mu.Unlock()
 
 	if setts.PrivateKeySaved {
-		setts.PrivateKey = m.conf.PrivateKey
+		setts.PrivateKey = m.extTLSConf.PrivateKey
 	}
 
 	if err = m.validateTLSSettings(setts); err != nil {
@@ -494,19 +530,32 @@ func (m *tlsManager) setConfig(
 	status *tlsConfigStatus,
 	servePlain aghalg.NullBool,
 ) (restartHTTPS bool) {
-	if !m.conf.setPrivateFieldsAndCompare(&newConf) {
+	if !m.extTLSConf.setPrivateFieldsAndCompare(&newConf) {
 		m.logger.InfoContext(ctx, "config has changed, restarting https server")
 		restartHTTPS = true
 	} else {
 		m.logger.InfoContext(ctx, "config has not changed")
 	}
 
-	m.conf = &newConf
+	m.extTLSConf = &newConf
 
 	m.status = status
 
 	if servePlain != aghalg.NBNull {
 		m.servePlainDNS = servePlain == aghalg.NBTrue
+	}
+
+	certPath, keyPath := "", ""
+	if newConf.Enabled {
+		certPath, keyPath = newConf.CertificatePath, newConf.PrivateKeyPath
+	}
+
+	err := m.manager.Set(ctx, aghtls.TLSPair{
+		CertPath: certPath,
+		KeyPath:  keyPath,
+	})
+	if err != nil {
+		m.logger.ErrorContext(ctx, "setting tls files", slogutil.KeyError, err)
 	}
 
 	return restartHTTPS
@@ -543,8 +592,10 @@ func (m *tlsManager) handleTLSConfigure(w http.ResponseWriter, r *http.Request) 
 	defer m.mu.Unlock()
 
 	if req.PrivateKeySaved {
-		req.PrivateKey = m.conf.PrivateKey
+		req.PrivateKey = m.extTLSConf.PrivateKey
 	}
+
+	req.StrictSNICheck = m.extTLSConf.StrictSNICheck
 
 	if err = m.validateTLSSettings(req); err != nil {
 		aghhttp.ErrorAndLog(ctx, m.logger, r, w, http.StatusBadRequest, "%s", err)
@@ -685,7 +736,11 @@ func validatePorts(
 }
 
 // validateCertChain verifies certs using the first as the main one and others
-// as intermediate.  srvName stands for the expected DNS name.
+// as intermediate.  srvName stands for the expected DNS name.  certs must not
+// be empty.
+//
+// TODO(e.burkov):  Pass logger and rootCerts through arguments and remove
+// dependency on tlsManager.
 func (m *tlsManager) validateCertChain(
 	ctx context.Context,
 	certs []*x509.Certificate,
@@ -788,6 +843,9 @@ const errNoIPInCert errors.Error = `certificates has no IP addresses; ` +
 
 // parseCertChain parses the certificate chain from raw data, and returns it.
 // If ok is true, the returned error, if any, is not critical.
+//
+// TODO(e.burkov):  Pass logger through arguments and remove dependency on
+// tlsManager.
 func (m *tlsManager) parseCertChain(
 	ctx context.Context,
 	chain []byte,
@@ -901,6 +959,8 @@ func (m *tlsManager) validateCertificates(
 			return keyErr
 		}
 
+		// Set status.ValidKey to true to signal the frontend that the
+		// key is valid.
 		status.ValidKey = true
 	}
 
@@ -929,6 +989,9 @@ func (m *tlsManager) validateCertificate(
 	// parseErr is a non-critical parse warning.
 	var parseErr error
 	var certs []*x509.Certificate
+
+	// Set status.ValidCert to true to signal the frontend that the
+	// certificate opens successfully and certificate chain is valid.
 	certs, status.ValidCert, parseErr = m.parseCertChain(ctx, certChain)
 	if !status.ValidCert {
 		// Don't wrap the error, since it's informative enough as is.
@@ -997,9 +1060,9 @@ func parsePrivateKey(der []byte) (key crypto.PrivateKey, typ string, err error) 
 }
 
 // unmarshalTLS handles base64-encoded certificates transparently
-func unmarshalTLS(r *http.Request) (tlsConfigSettingsExt, error) {
-	data := tlsConfigSettingsExt{}
-	err := json.NewDecoder(r.Body).Decode(&data)
+func unmarshalTLS(r *http.Request) (data tlsConfigSettingsExt, err error) {
+	data = tlsConfigSettingsExt{}
+	err = json.NewDecoder(r.Body).Decode(&data)
 	if err != nil {
 		return data, fmt.Errorf("failed to parse new TLS config json: %w", err)
 	}

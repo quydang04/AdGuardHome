@@ -4,7 +4,9 @@ package stats
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/AdguardTeam/AdGuardHome/internal/aghalg"
@@ -12,7 +14,15 @@ import (
 	"github.com/AdguardTeam/AdGuardHome/internal/aghnet"
 	"github.com/AdguardTeam/AdGuardHome/internal/systeminfo"
 	"github.com/AdguardTeam/golibs/timeutil"
+	"github.com/AdguardTeam/golibs/validate"
 )
+
+// queryKeyRecent is the key of the query parameter that contains the lookback
+// interval for statistics.
+const queryKeyRecent = "recent"
+
+// millisecondsInHour contains number of milliseconds in one hour.
+const millisecondsInHour = int64(time.Hour / time.Millisecond)
 
 // topAddrs is an alias for the types of the TopFoo fields of statsResponse.
 // The key is either a client's address or a requested address.
@@ -25,34 +35,29 @@ type topAddrsFloat = map[string]float64
 type StatsResp struct {
 	TimeUnits string `json:"time_units"`
 
-	DNSQueries           []uint64 `json:"dns_queries"`
+	TopQueried []topAddrs `json:"top_queried_domains"`
+	TopClients []topAddrs `json:"top_clients"`
+	TopBlocked []topAddrs `json:"top_blocked_domains"`
+
+	TopUpstreamsResponses []topAddrs      `json:"top_upstreams_responses"`
+	TopUpstreamsAvgTime   []topAddrsFloat `json:"top_upstreams_avg_time"`
+
+	DNSQueries []uint64 `json:"dns_queries"`
+
 	BlockedFiltering     []uint64 `json:"blocked_filtering"`
 	ReplacedSafebrowsing []uint64 `json:"replaced_safebrowsing"`
 	ReplacedParental     []uint64 `json:"replaced_parental"`
 
-	TopQueried            []topAddrs      `json:"top_queried_domains"`
-	TopClients            []topAddrs      `json:"top_clients"`
-	TopBlocked            []topAddrs      `json:"top_blocked_domains"`
-	TopUpstreamsResponses []topAddrs      `json:"top_upstreams_responses"`
-	TopUpstreamsAvgTime   []topAddrsFloat `json:"top_upstreams_avg_time"`
+	NumDNSQueries           uint64 `json:"num_dns_queries"`
+	NumBlockedFiltering     uint64 `json:"num_blocked_filtering"`
+	NumReplacedSafebrowsing uint64 `json:"num_replaced_safebrowsing"`
+	NumReplacedSafesearch   uint64 `json:"num_replaced_safesearch"`
+	NumReplacedParental     uint64 `json:"num_replaced_parental"`
+	NumEncryptedDNS         uint64 `json:"num_encrypted_dns"`
+	NumDNSSEC               uint64 `json:"num_dnssec"`
 
-	NumDNSQueries           uint64          `json:"num_dns_queries"`
-	NumBlockedFiltering     uint64          `json:"num_blocked_filtering"`
-	NumReplacedSafebrowsing uint64          `json:"num_replaced_safebrowsing"`
-	NumReplacedSafesearch   uint64          `json:"num_replaced_safesearch"`
-	NumReplacedParental     uint64          `json:"num_replaced_parental"`
-	NumEncryptedDNS         uint64          `json:"num_encrypted_dns"`
-	NumDNSSEC               uint64          `json:"num_dnssec"`
-	AvgProcessingTime       float64         `json:"avg_processing_time"`
-	System                  systeminfo.Info `json:"system"`
-}
-
-// currentLimit returns the current statistics retention limit.
-func (s *StatsCtx) currentLimit() time.Duration {
-	s.confMu.RLock()
-	defer s.confMu.RUnlock()
-
-	return s.limit
+	AvgProcessingTime float64         `json:"avg_processing_time"`
+	System            systeminfo.Info `json:"system"`
 }
 
 // handleStats is the handler for the GET /control/stats HTTP API.
@@ -62,16 +67,24 @@ func (s *StatsCtx) handleStats(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	l := s.logger
 
-	var (
-		resp *StatsResp
-		ok   bool
-	)
+	var limit time.Duration
 	func() {
 		s.confMu.RLock()
 		defer s.confMu.RUnlock()
 
-		resp, ok = s.getData(uint32(s.limit.Hours()))
+		limit = s.limit
 	}()
+
+	recent := r.URL.Query().Get(queryKeyRecent)
+
+	limit, err := parseRecent(recent, limit)
+	if err != nil {
+		aghhttp.ErrorAndLog(ctx, l, r, w, http.StatusBadRequest, "%s", err)
+
+		return
+	}
+
+	resp, ok := s.getData(uint32(limit.Hours()))
 
 	l.DebugContext(ctx, "prepared data", "elapsed", time.Since(start))
 
@@ -87,6 +100,31 @@ func (s *StatsCtx) handleStats(w http.ResponseWriter, r *http.Request) {
 	resp.System = systeminfo.Collect()
 
 	aghhttp.WriteJSONResponseOK(ctx, l, w, r, resp)
+}
+
+// parseRecent parses and validates the value of the recent URL parameter.  If
+// the parameter is empty, the original limit is returned.
+func parseRecent(recent string, limit time.Duration) (parsedLimit time.Duration, err error) {
+	if recent == "" {
+		return limit, nil
+	}
+
+	recentMs, err := strconv.ParseInt(recent, 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("%s: parsing interval: %s", queryKeyRecent, err)
+	}
+
+	err = validate.InRange(queryKeyRecent, recentMs, millisecondsInHour, limit.Milliseconds())
+	if err != nil {
+		// Don't wrap the error since it's already informative enough as is.
+		return 0, err
+	}
+
+	if recentMs%millisecondsInHour != 0 {
+		return 0, fmt.Errorf("%s: must be a multiple of 1 hour", queryKeyRecent)
+	}
+
+	return time.Duration(recentMs) * time.Millisecond, nil
 }
 
 // configResp is the response to the GET /control/stats_info.
@@ -105,6 +143,9 @@ type getConfigResp struct {
 	// Enabled shows if statistics are enabled.  It is an aghalg.NullBool to be
 	// able to tell when it's set without using pointers.
 	Enabled aghalg.NullBool `json:"enabled"`
+
+	// IgnoredEnabled defines if ignored list is enabled.
+	IgnoredEnabled aghalg.NullBool `json:"ignored_enabled"`
 }
 
 // handleStatsInfo is the handler for the GET /control/stats_info HTTP API.
@@ -147,9 +188,10 @@ func (s *StatsCtx) handleGetStatsConfig(w http.ResponseWriter, r *http.Request) 
 		defer s.confMu.RUnlock()
 
 		resp = &getConfigResp{
-			Ignored:  s.ignored.Values(),
-			Interval: float64(s.limit.Milliseconds()),
-			Enabled:  aghalg.BoolToNullBool(s.enabled),
+			Ignored:        s.ignored.Values(),
+			IgnoredEnabled: aghalg.BoolToNullBool(s.ignored.IsEnabled()),
+			Interval:       float64(s.limit.Milliseconds()),
+			Enabled:        aghalg.BoolToNullBool(s.enabled),
 		}
 	}()
 
@@ -199,7 +241,14 @@ func (s *StatsCtx) handlePutStatsConfig(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	engine, err := aghnet.NewIgnoreEngine(reqData.Ignored)
+	var ignoredEnabled bool
+	if reqData.IgnoredEnabled == aghalg.NBNull {
+		ignoredEnabled = len(reqData.Ignored) > 0
+	} else {
+		ignoredEnabled = reqData.IgnoredEnabled == aghalg.NBTrue
+	}
+
+	engine, err := aghnet.NewIgnoreEngine(reqData.Ignored, ignoredEnabled)
 	if err != nil {
 		aghhttp.ErrorAndLog(ctx, s.logger, r, w, http.StatusUnprocessableEntity, "ignored: %s", err)
 
@@ -251,8 +300,6 @@ func (s *StatsCtx) handleStatsReset(w http.ResponseWriter, r *http.Request) {
 			"stats: %s",
 			err,
 		)
-
-		return
 	}
 }
 

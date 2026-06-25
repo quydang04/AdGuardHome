@@ -22,8 +22,8 @@
     "dependencies": {
         "@fluentui/react-components": "^9.72.7",
         "@fluentui/react-icons": "^2.0.315",
-        "@nivo/line": "0.63.1",
         "axios": "^0.21.1",
+        "recharts": "^2.15.3",
         "classnames": "^2.5.1",
         "clsx": "^2.1.1",
         "countries-and-timezones": "^3.6.0",

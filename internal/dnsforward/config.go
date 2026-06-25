@@ -20,6 +20,7 @@ import (
 	"github.com/AdguardTeam/AdGuardHome/internal/aghtls"
 	"github.com/AdguardTeam/AdGuardHome/internal/client"
 	"github.com/AdguardTeam/dnsproxy/proxy"
+	"github.com/AdguardTeam/dnsproxy/ratelimit"
 	"github.com/AdguardTeam/dnsproxy/upstream"
 	"github.com/AdguardTeam/golibs/container"
 	"github.com/AdguardTeam/golibs/errors"
@@ -48,11 +49,11 @@ type Config struct {
 
 	// RatelimitSubnetLenIPv4 is a subnet length for IPv4 addresses used for
 	// rate limiting requests.
-	RatelimitSubnetLenIPv4 int `yaml:"ratelimit_subnet_len_ipv4"`
+	RatelimitSubnetLenIPv4 uint `yaml:"ratelimit_subnet_len_ipv4"`
 
 	// RatelimitSubnetLenIPv6 is a subnet length for IPv6 addresses used for
 	// rate limiting requests.
-	RatelimitSubnetLenIPv6 int `yaml:"ratelimit_subnet_len_ipv6"`
+	RatelimitSubnetLenIPv6 uint `yaml:"ratelimit_subnet_len_ipv6"`
 
 	// RatelimitWhitelist is the list of whitelisted client IP addresses.
 	RatelimitWhitelist []netip.Addr `yaml:"ratelimit_whitelist"`
@@ -122,6 +123,13 @@ type Config struct {
 	// CacheOptimistic defines if optimistic cache mechanism should be used.
 	CacheOptimistic bool `yaml:"cache_optimistic"`
 
+	// CacheOptimisticAnswerTTL is the default TTL for expired cached responses.
+	CacheOptimisticAnswerTTL timeutil.Duration `yaml:"cache_optimistic_answer_ttl"`
+
+	// CacheOptimisticMaxAge is the maximum time entries remain in the cache
+	// when cache is optimistic.
+	CacheOptimisticMaxAge timeutil.Duration `yaml:"cache_optimistic_max_age"`
+
 	// Other settings
 
 	// BogusNXDomain is the list of IP addresses, responses with them will be
@@ -132,7 +140,8 @@ type Config struct {
 	// requests.
 	AAAADisabled bool `yaml:"aaaa_disabled"`
 
-	// EnableDNSSEC, if true, set AD flag in outcoming DNS request.
+	// EnableDNSSEC defines whether the proxy should set the AD/DO bits in the
+	// upstream requests.
 	EnableDNSSEC bool `yaml:"enable_dnssec"`
 
 	// EDNSClientSubnet is the settings list for EDNS Client Subnet.
@@ -197,7 +206,7 @@ type TLSConfig struct {
 	// HTTPSListenAddrs should be the addresses AdGuard Home is listening on for
 	// DoH connections.  These addresses are announced with DDR.  Each item in
 	// the list must be non-nil.
-	HTTPSListenAddrs []*net.TCPAddr
+	HTTPSListenAddrs []netip.AddrPort
 
 	// ServerName is the hostname of the server.  Currently, it is only being
 	// used for ClientID checking and Discovery of Designated Resolvers (DDR).
@@ -255,6 +264,9 @@ type ServerConfig struct {
 	TLSConf *TLSConfig
 
 	Config
+
+	// TLSAllowUnencryptedDoH defines if unencrypted DoH connections are
+	// allowed.
 	TLSAllowUnencryptedDoH bool
 
 	// UpstreamTimeout is the timeout for querying upstream servers.
@@ -314,27 +326,36 @@ const (
 )
 
 // newProxyConfig creates and validates configuration for the main proxy.
+//
+// TODO(d.kolyshev):  Improve maintainability.
 func (s *Server) newProxyConfig(ctx context.Context) (conf *proxy.Config, err error) {
 	srvConf := s.conf
 	trustedPrefixes := netutil.UnembedPrefixes(srvConf.TrustedProxies)
 
+	ratelimitMw, err := newRatelimitMw(s.baseLogger, srvConf)
+	if err != nil {
+		return nil, fmt.Errorf("ratelimit middleware: %w", err)
+	}
+
+	logMw := newLogMiddleware(s.baseLogger, slogutil.LevelTrace)
+
+	httpConf := &proxy.HTTPConfig{
+		ServerHeader:    aghhttp.UserAgent(),
+		InsecureEnabled: s.conf.TLSAllowUnencryptedDoH,
+	}
+
 	conf = &proxy.Config{
 		Logger:                    s.baseLogger.With(slogutil.KeyPrefix, aghslog.PrefixDNSProxy),
-		HTTP3:                     srvConf.ServeHTTP3,
-		Ratelimit:                 int(srvConf.Ratelimit),
-		RatelimitSubnetLenIPv4:    srvConf.RatelimitSubnetLenIPv4,
-		RatelimitSubnetLenIPv6:    srvConf.RatelimitSubnetLenIPv6,
-		RatelimitWhitelist:        srvConf.RatelimitWhitelist,
 		RefuseAny:                 srvConf.RefuseAny,
 		TrustedProxies:            netutil.SliceSubnetSet(trustedPrefixes),
 		CacheMinTTL:               srvConf.CacheMinTTL,
 		CacheMaxTTL:               srvConf.CacheMaxTTL,
 		CacheOptimistic:           srvConf.CacheOptimistic,
+		CacheOptimisticAnswerTTL:  time.Duration(srvConf.CacheOptimisticAnswerTTL),
+		CacheOptimisticMaxAge:     time.Duration(srvConf.CacheOptimisticMaxAge),
 		UpstreamConfig:            srvConf.UpstreamConfig,
 		PrivateRDNSUpstreamConfig: srvConf.PrivateRDNSUpstreamConfig,
-		BeforeRequestHandler:      s,
-		RequestHandler:            s.handleDNSRequest,
-		HTTPSServerName:           aghhttp.UserAgent(),
+		RequestHandler:            ratelimitMw.Wrap(logMw.Wrap(s.Wrap(s))),
 		EnableEDNSClientSubnet:    srvConf.EDNSClientSubnet.Enabled,
 		MaxGoroutines:             srvConf.MaxGoroutines,
 		UseDNS64:                  srvConf.UseDNS64,
@@ -345,6 +366,8 @@ func (s *Server) newProxyConfig(ctx context.Context) (conf *proxy.Config, err er
 		PendingRequests: &proxy.PendingRequestsConfig{
 			Enabled: srvConf.PendingRequestsEnabled,
 		},
+		HTTPConfig:    httpConf,
+		DNSSECEnabled: srvConf.EnableDNSSEC,
 	}
 
 	if srvConf.EDNSClientSubnet.UseCustom {
@@ -384,6 +407,29 @@ func (s *Server) newProxyConfig(ctx context.Context) (conf *proxy.Config, err er
 	}
 
 	return conf, nil
+}
+
+// newRatelimitMw returns the ratelimit middleware.  In case of invalid
+// ratelimit configuration returns an error. l must not be nil.
+func newRatelimitMw(
+	l *slog.Logger,
+	conf ServerConfig,
+) (mw proxy.Middleware, err error) {
+	if conf.Ratelimit == 0 {
+		return proxy.MiddlewareFunc(proxy.PassThrough), nil
+	}
+
+	rlConf := &ratelimit.Config{
+		Logger:        l.With(slogutil.KeyPrefix, "ratelimit"),
+		Ratelimit:     uint(conf.Ratelimit),
+		SubnetLenIPv4: conf.RatelimitSubnetLenIPv4,
+		SubnetLenIPv6: conf.RatelimitSubnetLenIPv6,
+	}
+	if err = rlConf.Validate(); err != nil {
+		return nil, fmt.Errorf("invalid configuration: %w", err)
+	}
+
+	return ratelimit.NewMiddleware(rlConf), nil
 }
 
 // prepareCacheConfig prepares the cache configuration and returns an error if
@@ -490,6 +536,7 @@ func (conf *ServerConfig) loadUpstreams(
 	}
 
 	var data []byte
+	// #nosec G703 -- Trust the path explicitly given by the user.
 	data, err = os.ReadFile(conf.UpstreamDNSFileName)
 	if err != nil {
 		return nil, fmt.Errorf("reading upstream from file: %w", err)
@@ -497,7 +544,12 @@ func (conf *ServerConfig) loadUpstreams(
 
 	upstreams = stringutil.SplitTrimmed(string(data), "\n")
 
-	l.DebugContext(ctx, "got upstreams", "number", len(upstreams), "filename", conf.UpstreamDNSFileName)
+	l.DebugContext(
+		ctx,
+		"got upstreams",
+		"number", len(upstreams),
+		"filename", conf.UpstreamDNSFileName,
+	)
 
 	return stringutil.FilterOut(upstreams, aghnet.IsCommentOrEmpty), nil
 }
@@ -605,7 +657,10 @@ func filterOutAddrs(upsConf *proxy.UpstreamConfig, set addrPortSet) (err error) 
 
 // ourAddrsSet returns an addrPortSet that contains all the configured listening
 // addresses.  l must not be nil.
-func (conf *ServerConfig) ourAddrsSet(ctx context.Context, l *slog.Logger) (m addrPortSet, err error) {
+func (conf *ServerConfig) ourAddrsSet(
+	ctx context.Context,
+	l *slog.Logger,
+) (m addrPortSet, err error) {
 	addrs, unspecPorts := conf.collectDNSAddrs()
 	switch {
 	case addrs.Len() == 0:
@@ -734,8 +789,9 @@ func anyNameMatches(dnsNames []string, sni string) (ok bool) {
 	return false
 }
 
-// Called by 'tls' package when Client Hello is received
-// If the server name (from SNI) supplied by client is incorrect - we terminate the ongoing TLS handshake.
+// onGetCertificate is called by [tls] package when Client Hello is received. If
+// the server name (from SNI) supplied by client is incorrect - we terminate the
+// ongoing TLS handshake.
 func (s *Server) onGetCertificate(ch *tls.ClientHelloInfo) (*tls.Certificate, error) {
 	if s.conf.TLSConf.StrictSNICheck && !anyNameMatches(s.dnsNames, ch.ServerName) {
 		// TODO(s.chzhen):  Pass context.
@@ -751,8 +807,8 @@ func (s *Server) onGetCertificate(ch *tls.ClientHelloInfo) (*tls.Certificate, er
 	return s.conf.TLSConf.Cert, nil
 }
 
-// preparePlain prepares the plain-DNS configuration for the DNS proxy.
-// preparePlain assumes that prepareTLS has already been called.
+// preparePlain prepares the plain-DNS configuration for the DNS proxy. The
+// method assumes that prepareTLS has already been called.
 func (s *Server) preparePlain(ctx context.Context, proxyConf *proxy.Config) (err error) {
 	if s.conf.ServePlainDNS {
 		proxyConf.UDPListenAddr = s.conf.UDPListenAddrs
@@ -763,7 +819,7 @@ func (s *Server) preparePlain(ctx context.Context, proxyConf *proxy.Config) (err
 
 	lenEncrypted := len(proxyConf.DNSCryptTCPListenAddr) +
 		len(proxyConf.DNSCryptUDPListenAddr) +
-		len(proxyConf.HTTPSListenAddr) +
+		len(proxyConf.HTTPConfig.ListenAddresses) +
 		len(proxyConf.QUICListenAddr) +
 		len(proxyConf.TLSListenAddr)
 	if lenEncrypted == 0 {

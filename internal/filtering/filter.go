@@ -7,7 +7,6 @@ import (
 	"log/slog"
 	"net/http"
 	"net/netip"
-	neturl "net/url"
 	"os"
 	"path/filepath"
 	"slices"
@@ -27,25 +26,9 @@ import (
 // filters.
 const filterDir = "filters"
 
-// FilterYAML represents a filter list in the configuration file.
-//
-// TODO(e.burkov):  Investigate if the field ordering is important.
-type FilterYAML struct {
-	Enabled     bool
-	URL         string    // URL or a file path
-	Name        string    `yaml:"name"`
-	RulesCount  int       `yaml:"-"`
-	LastUpdated time.Time `yaml:"-"`
-	checksum    uint32    // checksum of the file data
-	white       bool
-
-	Filter `yaml:",inline"`
-}
-
-// ListType distinguishes between blocking and allowing filter lists.
+// ListType is the type of a filter list.
 type ListType string
 
-// List types used for notifications.
 const (
 	ListTypeBlock ListType = "blocklist"
 	ListTypeAllow ListType = "allowlist"
@@ -60,6 +43,21 @@ type ListUpdateEvent struct {
 	BytesWritten int
 	Enabled      bool
 	Type         ListType
+}
+
+// FilterYAML represents a filter list in the configuration file.
+//
+// TODO(e.burkov):  Investigate if the field ordering is important.
+type FilterYAML struct {
+	Enabled     bool
+	URL         string    // URL or a file path
+	Name        string    `yaml:"name"`
+	RulesCount  int       `yaml:"-"`
+	LastUpdated time.Time `yaml:"-"`
+	checksum    uint32    // checksum of the file data
+	white       bool
+
+	Filter `yaml:",inline"`
 }
 
 // Clear filter rules
@@ -90,75 +88,7 @@ func (filter *FilterYAML) ensureName(title string) {
 		return
 	}
 
-	if n := nameFromURL(filter.URL); n != "" {
-		filter.Name = n
-
-		return
-	}
-
 	filter.Name = fmt.Sprintf("List %d", filter.ID)
-}
-
-// nameFromURL derives a human-readable filter name from a URL.  It returns an
-// empty string if the URL cannot be parsed or has no useful path component.
-func nameFromURL(rawURL string) string {
-	if rawURL == "" {
-		return ""
-	}
-
-	u, err := neturl.Parse(rawURL)
-	if err != nil || u.Host == "" {
-		return ""
-	}
-
-	host := u.Hostname()
-
-	if _, err = netip.ParseAddr(host); err == nil {
-		return ""
-	}
-
-	path := strings.TrimRight(u.Path, "/")
-
-	if path == "" || path == "/" {
-		return host
-	}
-
-	parts := strings.Split(strings.TrimLeft(path, "/"), "/")
-
-	base := parts[len(parts)-1]
-	ext := filepath.Ext(base)
-	fileName := strings.TrimSuffix(base, ext)
-
-	if fileName == "" || fileName == "." {
-		fileName = ""
-	}
-
-	// raw.githubusercontent.com/{user}/{repo}/.../{file}
-	if host == "raw.githubusercontent.com" && len(parts) >= 3 {
-		prefix := parts[0] + "/" + parts[1]
-		if fileName != "" {
-			return prefix + " - " + fileName
-		}
-
-		return prefix
-	}
-
-	// {user}.github.io/{repo}/.../{file}
-	if strings.HasSuffix(host, ".github.io") && len(parts) >= 1 {
-		user := strings.TrimSuffix(host, ".github.io")
-		prefix := user + "/" + parts[0]
-		if fileName != "" && len(parts) > 1 {
-			return prefix + " - " + fileName
-		}
-
-		return prefix
-	}
-
-	if fileName != "" {
-		return host + " - " + fileName
-	}
-
-	return host
 }
 
 const (
@@ -657,7 +587,11 @@ func (d *DNSFilter) finalizeUpdate(
 	return nil
 }
 
-func (d *DNSFilter) notifyListUpdate(ctx context.Context, flt *FilterYAML, res *rulelist.ParseResult) {
+func (d *DNSFilter) notifyListUpdate(
+	ctx context.Context,
+	flt *FilterYAML,
+	res *rulelist.ParseResult,
+) {
 	if res == nil {
 		return
 	}

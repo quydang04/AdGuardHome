@@ -225,7 +225,6 @@ const Dashboard = ({
                         )}
 
                         <Statistics
-                            interval={msToDays(stats.interval)}
                             dnsQueries={stats.dnsQueries}
                             blockedFiltering={stats.blockedFiltering}
                             replacedSafebrowsing={stats.replacedSafebrowsing}

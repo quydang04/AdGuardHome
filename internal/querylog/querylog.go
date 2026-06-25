@@ -33,7 +33,7 @@ type QueryLog interface {
 	// ShouldLog returns true if request for the host should be logged.
 	ShouldLog(host string, qType, qClass uint16, ids []string) bool
 
-	// GetRecentQueries returns the most recent query log entries for display.
+	// GetRecentQueries returns the most recent query log entries up to limit.
 	GetRecentQueries(limit int) []notifications.QueryLogEntry
 }
 

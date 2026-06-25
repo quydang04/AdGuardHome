@@ -72,6 +72,9 @@ type Config struct {
 	Ignored *aghnet.IgnoreEngine
 
 	// Filename is the name of the database file.
+	//
+	// TODO(f.setrakov): Move the work with DB into a separate entity with
+	// interface.
 	Filename string
 
 	// Limit is an upper limit for collecting statistics.
@@ -101,20 +104,13 @@ type Interface interface {
 	// ShouldCount returns true if request for the host should be counted.
 	ShouldCount(host string, qType, qClass uint16, ids []string) bool
 
-	// GetCurrentStats returns aggregate DNS query statistics over the
-	// configured retention period.
+	// GetCurrentStats returns aggregate DNS query statistics.
 	GetCurrentStats() (numQueries, numBlocked, numSafeBrowsing, numParental uint64, avgProcessingTime float64)
 }
 
 // StatsCtx collects the statistics and flushes it to the database.  Its default
 // flushing interval is one hour.
 type StatsCtx struct {
-	// limit is an upper limit for collecting statistics.
-	limit time.Duration
-
-	// enabled tells if the statistics are enabled.
-	enabled bool
-
 	// logger is used for logging the operation of the statistics management.
 	// It must not be nil.
 	logger *slog.Logger
@@ -149,6 +145,12 @@ type StatsCtx struct {
 
 	// filename is the name of database file.
 	filename string
+
+	// limit is an upper limit for collecting statistics.
+	limit time.Duration
+
+	// enabled tells if the statistics are enabled.
+	enabled bool
 }
 
 // New creates s from conf and properly initializes it.  Don't use s before
@@ -258,16 +260,18 @@ func (s *StatsCtx) Close() (err error) {
 		err = errors.WithDeferred(err, cerr)
 	}()
 
+	// NOTE:  This mutex, when combined with the database transaction, is
+	// required to be locked first.
+	s.currMu.RLock()
+	defer s.currMu.RUnlock()
+
+	udb := s.curr.serialize()
+
 	tx, err := db.Begin(true)
 	if err != nil {
 		return fmt.Errorf("opening transaction: %w", err)
 	}
 	defer func() { err = errors.WithDeferred(err, finishTxn(tx, err == nil)) }()
-
-	s.currMu.RLock()
-	defer s.currMu.RUnlock()
-
-	udb := s.curr.serialize()
 
 	return s.flushUnitToDB(udb, tx, s.curr.id)
 }
@@ -276,11 +280,11 @@ func (s *StatsCtx) Close() (err error) {
 // nil.
 func (s *StatsCtx) Update(e *Entry) {
 	s.confMu.Lock()
+	defer s.confMu.Unlock()
+
 	if !s.enabled || s.limit == 0 {
-		s.confMu.Unlock()
 		return
 	}
-	s.confMu.Unlock()
 
 	err := e.validate()
 	if err != nil {
@@ -290,16 +294,15 @@ func (s *StatsCtx) Update(e *Entry) {
 	}
 
 	s.currMu.Lock()
+	defer s.currMu.Unlock()
+
 	if s.curr == nil {
 		s.logger.Error("current unit is nil")
-		s.currMu.Unlock()
 
 		return
 	}
 
 	s.curr.add(e)
-	s.currMu.Unlock()
-
 }
 
 // WriteDiskConfig implements the [Interface] interface for *StatsCtx.
@@ -423,6 +426,8 @@ func (s *StatsCtx) flush() (cont bool, sleepFor time.Duration) {
 	s.confMu.Lock()
 	defer s.confMu.Unlock()
 
+	// NOTE:  This mutex, when combined with the database transaction, is
+	// required to be locked first.
 	s.currMu.Lock()
 	defer s.currMu.Unlock()
 
@@ -573,6 +578,11 @@ func (s *StatsCtx) loadUnits(limit uint32) (units []*unitDB, curID uint32) {
 		return nil, 0
 	}
 
+	// NOTE:  This mutex, when combined with the database transaction, is
+	// required to be locked first.
+	s.currMu.RLock()
+	defer s.currMu.RUnlock()
+
 	// Use writable transaction to ensure any ongoing writable transaction is
 	// taken into account.
 	tx, err := db.Begin(true)
@@ -581,10 +591,6 @@ func (s *StatsCtx) loadUnits(limit uint32) (units []*unitDB, curID uint32) {
 
 		return nil, 0
 	}
-
-	s.currMu.RLock()
-	defer s.currMu.RUnlock()
-
 	cur := s.curr
 
 	if cur != nil {

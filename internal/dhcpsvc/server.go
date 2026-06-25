@@ -12,9 +12,9 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/AdguardTeam/golibs/container"
 	"github.com/AdguardTeam/golibs/errors"
 	"github.com/AdguardTeam/golibs/netutil"
-	"github.com/google/gopacket"
 )
 
 // DHCPServer is a DHCP server for both IPv4 and IPv6 address families.
@@ -28,10 +28,14 @@ type DHCPServer struct {
 	// logger logs common DHCP events.
 	logger *slog.Logger
 
-	// packetSource is the source of DHCP packets to process.
+	// deviceManager is the manager of network devices.
+	deviceManager NetworkDeviceManager
+
+	// devices are the network devices opened in [DHCPServer.Start], mapped to
+	// their names.  Those are closed in [DHCPServer.Shutdown].
 	//
-	// TODO(e.burkov):  Implement and set.
-	packetSource gopacket.PacketSource
+	// TODO(e.burkov):  Consider storing those within interfaces.
+	devices container.KeyValues[string, NetworkDevice]
 
 	// localTLD is the top-level domain name to use for resolving DHCP clients'
 	// hostnames.
@@ -70,12 +74,13 @@ func New(ctx context.Context, conf *Config) (srv *DHCPServer, err error) {
 	enabled.Store(conf.Enabled)
 
 	srv = &DHCPServer{
-		enabled:     enabled,
-		logger:      l,
-		localTLD:    conf.LocalDomainName,
-		leasesMu:    &sync.RWMutex{},
-		leases:      newLeaseIndex(conf.DBFilePath),
-		icmpTimeout: conf.ICMPTimeout,
+		enabled:       enabled,
+		logger:        l,
+		deviceManager: conf.NetworkDeviceManager,
+		localTLD:      conf.LocalDomainName,
+		leasesMu:      &sync.RWMutex{},
+		leases:        newLeaseIndex(conf.DBFilePath),
+		icmpTimeout:   conf.ICMPTimeout,
 	}
 
 	srv.interfaces4, srv.interfaces6 = srv.newInterfaces(ctx, l, conf.Interfaces)
@@ -137,19 +142,48 @@ func (srv *DHCPServer) newInterfaces(
 func (srv *DHCPServer) Start(ctx context.Context) (err error) {
 	srv.logger.DebugContext(ctx, "starting dhcp server")
 
-	// TODO(e.burkov):  Listen to configured interfaces.
+	var errs []error
+	for _, iface := range srv.interfaces4 {
+		netDevName := iface.common.name
 
-	go srv.serve(context.WithoutCancel(ctx))
+		var netDev NetworkDevice
+		netDev, err = srv.deviceManager.Open(ctx, &NetworkDeviceConfig{
+			Name: netDevName,
+		})
+		if err != nil {
+			errs = append(errs, err)
 
-	return nil
+			continue
+		}
+
+		srv.devices = append(srv.devices, container.KeyValue[string, NetworkDevice]{
+			Key:   netDevName,
+			Value: netDev,
+		})
+
+		go srv.serveEther4(context.WithoutCancel(ctx), iface, netDev)
+	}
+
+	// TODO(e.burkov):  Serve EthernetTypeIPv6.
+
+	return errors.Join(errs...)
 }
 
+// Shutdown implements the [Interface] interface for *DHCPServer.
 func (srv *DHCPServer) Shutdown(ctx context.Context) (err error) {
 	srv.logger.DebugContext(ctx, "shutting down dhcp server")
 
-	// TODO(e.burkov):  Close the packet source.
+	var errs []error
+	for _, kv := range srv.devices {
+		netDevName, netDev := kv.Key, kv.Value
 
-	return nil
+		err = netDev.Close()
+		if err != nil {
+			errs = append(errs, fmt.Errorf("closing device %q: %w", netDevName, err))
+		}
+	}
+
+	return errors.Join(errs...)
 }
 
 // Enabled implements the [Interface] interface for *DHCPServer.
@@ -163,7 +197,11 @@ func (srv *DHCPServer) Leases() (leases []*Lease) {
 	defer srv.leasesMu.RUnlock()
 
 	for l := range srv.leases.rangeLeases {
-		leases = append(leases, l)
+		if l.IsBlocked() {
+			continue
+		}
+
+		leases = append(leases, l.Clone())
 	}
 
 	return leases

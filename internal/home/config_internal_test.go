@@ -3,33 +3,12 @@ package home
 import (
 	"os"
 	"path/filepath"
-	"runtime"
 	"testing"
 
 	"github.com/AdguardTeam/golibs/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
-
-// requireSymlinkOrSkip tries to create a symlink and skips the test on Windows
-// when the operation is not permitted (for instance, on CI runners without
-// developer mode).
-func requireSymlinkOrSkip(t *testing.T, target, link string) {
-	t.Helper()
-
-	err := os.Symlink(target, link)
-	if err == nil {
-		return
-	}
-
-	if runtime.GOOS == "windows" {
-		t.Skipf("skipping symlink tests: %v", err)
-
-		return
-	}
-
-	require.NoError(t, err)
-}
 
 func TestConfigFilePath(t *testing.T) {
 	const (
@@ -45,8 +24,11 @@ func TestConfigFilePath(t *testing.T) {
 	missingPath := filepath.Join(workDir, missingConf)
 	brokenLinkPath := filepath.Join(workDir, brokenLinkConf)
 
-	requireSymlinkOrSkip(t, targetPath, linkPath)
-	requireSymlinkOrSkip(t, missingPath, brokenLinkPath)
+	err := os.Symlink(targetPath, linkPath)
+	require.NoError(t, err)
+
+	err = os.Symlink(missingPath, brokenLinkPath)
+	require.NoError(t, err)
 
 	f, err := os.Create(targetPath)
 	require.NoError(t, err)

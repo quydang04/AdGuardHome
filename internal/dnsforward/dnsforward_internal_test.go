@@ -2,7 +2,6 @@ package dnsforward
 
 import (
 	"cmp"
-	"context"
 	"crypto/ecdsa"
 	"crypto/rand"
 	"crypto/rsa"
@@ -16,6 +15,7 @@ import (
 	"math/big"
 	"net"
 	"net/netip"
+	"path/filepath"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -24,6 +24,7 @@ import (
 
 	"github.com/AdguardTeam/AdGuardHome/internal/agh"
 	"github.com/AdguardTeam/AdGuardHome/internal/aghnet"
+	"github.com/AdguardTeam/AdGuardHome/internal/aghos"
 	"github.com/AdguardTeam/AdGuardHome/internal/aghtest"
 	"github.com/AdguardTeam/AdGuardHome/internal/client"
 	"github.com/AdguardTeam/AdGuardHome/internal/filtering"
@@ -648,8 +649,8 @@ func TestSafeSearch(t *testing.T) {
 	}
 	s := createTestServer(t, filterConf, forwardConf)
 
+	pt := testutil.NewPanicT(t)
 	ups := aghtest.NewUpstreamMock(func(req *dns.Msg) (resp *dns.Msg, err error) {
-		pt := testutil.PanicT{}
 		assert.Equal(pt, googleSafeSearch, req.Question[0].Name)
 
 		return aghtest.MatchedResponse(req, dns.TypeA, googleSafeSearch, "1.2.3.4"), nil
@@ -805,6 +806,7 @@ func TestServerCustomClientUpstream(t *testing.T) {
 		Config: Config{
 			CacheSize:    defaultCacheSize,
 			UpstreamMode: UpstreamModeLoadBalance,
+			EnableDNSSEC: true,
 			EDNSClientSubnet: &EDNSClientSubnet{
 				Enabled: false,
 			},
@@ -1516,21 +1518,20 @@ func TestPTRResponseFromHosts(t *testing.T) {
 	}
 
 	var eventsCalledCounter uint32
+	watcher := aghtest.NewFSWatcher()
+	watcher.OnEvents = func() (e <-chan aghos.Event) {
+		assert.Equal(t, uint32(1), atomic.AddUint32(&eventsCalledCounter, 1))
+
+		return nil
+	}
+	watcher.OnAdd = func(name string) (err error) {
+		assert.Equal(t, filepath.Join(aghos.RootDir(), hostsFilename), name)
+
+		return nil
+	}
+
 	ctx := testutil.ContextWithTimeout(t, testTimeout)
-	hc, err := aghnet.NewHostsContainer(ctx, testLogger, testFS, &aghtest.FSWatcher{
-		OnStart: func(ctx context.Context) (_ error) { panic(testutil.UnexpectedCall(ctx)) },
-		OnEvents: func() (e <-chan struct{}) {
-			assert.Equal(t, uint32(1), atomic.AddUint32(&eventsCalledCounter, 1))
-
-			return nil
-		},
-		OnAdd: func(name string) (err error) {
-			assert.Equal(t, hostsFilename, name)
-
-			return nil
-		},
-		OnShutdown: func(ctx context.Context) (err error) { panic(testutil.UnexpectedCall(ctx)) },
-	}, hostsFilename)
+	hc, err := aghnet.NewHostsContainer(ctx, testLogger, testFS, watcher, hostsFilename)
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		assert.Equal(t, uint32(1), atomic.LoadUint32(&eventsCalledCounter))
@@ -1681,9 +1682,9 @@ func TestServer_Exchange(t *testing.T) {
 		onesIP  = netip.MustParseAddr("1.1.1.1")
 		twosIP  = netip.MustParseAddr("2.2.2.2")
 		localIP = netip.MustParseAddr("192.168.1.1")
-
-		pt = testutil.PanicT{}
 	)
+
+	pt := testutil.NewPanicT(t)
 
 	onesRevExtIPv4, err := netutil.IPToReversedAddr(onesIP.AsSlice())
 	require.NoError(t, err)

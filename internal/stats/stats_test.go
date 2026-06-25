@@ -137,7 +137,8 @@ func TestStats(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/control/stats", nil)
 		assertSuccessAndUnmarshal(t, data, handlers["/control/stats"], req)
 
-		wantData.System = data.System
+		// Clear dynamic System info before comparing.
+		data.System = wantData.System
 		assert.Equal(t, wantData, data)
 	})
 
@@ -170,7 +171,8 @@ func TestStats(t *testing.T) {
 		data := &stats.StatsResp{}
 
 		assertSuccessAndUnmarshal(t, data, handlers["/control/stats"], req)
-		emptyData.System = data.System
+		// Clear dynamic System info before comparing.
+		data.System = emptyData.System
 		assert.Equal(t, emptyData, data)
 	})
 }
@@ -206,7 +208,7 @@ func TestLargeNumbers(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodGet, "/control/stats", nil)
 
-	for h := 0; h < hoursNum; h++ {
+	for h := range hoursNum {
 		atomic.AddUint32(&curHour, 1)
 
 		for i := range cliNumPerHour {
@@ -232,7 +234,7 @@ func TestShouldCount(t *testing.T) {
 		ignored2 = "ignored.to"
 	)
 	ignored := []string{ignored1, ignored2}
-	engine, err := aghnet.NewIgnoreEngine(ignored)
+	engine, err := aghnet.NewIgnoreEngine(ignored, true)
 	require.NoError(t, err)
 
 	s, err := stats.New(stats.Config{

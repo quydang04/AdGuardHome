@@ -134,9 +134,9 @@ type configuration struct {
 
 	// TODO(a.garipov): Make DNS and the fields below pointers and validate
 	// and/or reset on explicit nulling.
-	DNS           dnsConfig           `yaml:"dns"`
-	TLS           tlsConfigSettings   `yaml:"tls"`
-	QueryLog      queryLogConfig      `yaml:"querylog"`
+	DNS      dnsConfig         `yaml:"dns"`
+	TLS      tlsConfigSettings `yaml:"tls"`
+	QueryLog queryLogConfig    `yaml:"querylog"`
 	Stats         statsConfig         `yaml:"statistics"`
 	Notifications notificationsConfig `yaml:"notifications"`
 
@@ -182,8 +182,11 @@ type configuration struct {
 // Field ordering is important, YAML fields better not to be reordered, if it's
 // not absolutely necessary.
 type httpConfig struct {
-	// Pprof defines the profiling HTTP handler.
+	// Pprof defines the profiling HTTP handler.  It is never nil.
 	Pprof *httpPprofConfig `yaml:"pprof"`
+
+	// DoH contains DNS-over-HTTPS configuration.  It is never nil.
+	DoH *doHConfig `yaml:"doh"`
 
 	// Address is the address to serve the web UI on.
 	Address netip.AddrPort
@@ -200,6 +203,20 @@ type httpPprofConfig struct {
 
 	// Enabled defines if the profiling handler is enabled.
 	Enabled bool `yaml:"enabled"`
+}
+
+// doHConfig is the block with DNS-over-HTTPS configuration.
+type doHConfig struct {
+	// Routes is the list of HTTP route patterns for DoH requests.  Default
+	// routes are:
+	//   - "GET /dns-query"
+	//   - "POST /dns-query"
+	//   - "GET /dns-query/{ClientID}"
+	//   - "POST /dns-query/{ClientID}"
+	Routes []string `yaml:"routes"`
+
+	// InsecureEnabled allows DoH queries via unencrypted HTTP.
+	InsecureEnabled bool `yaml:"insecure_enabled"`
 }
 
 // dnsConfig is a block with DNS configuration params.
@@ -313,12 +330,6 @@ type tlsConfigSettings struct {
 	// https://github.com/ameshkov/dnscrypt.
 	DNSCryptConfigFile string `yaml:"dnscrypt_config_file" json:"dnscrypt_config_file"`
 
-	// AllowUnencryptedDoH allows DoH queries via unencrypted HTTP (e.g. for
-	// reverse proxying).
-	//
-	// TODO(s.chzhen):  Add this option into the Web UI.
-	AllowUnencryptedDoH bool `yaml:"allow_unencrypted_doh" json:"allow_unencrypted_doh"`
-
 	// CertificateChain is the PEM-encoded certificate chain.  Must be empty if
 	// [tlsConfigSettings.CertificatePath] is provided.
 	CertificateChain string `yaml:"certificate_chain" json:"certificate_chain"`
@@ -369,7 +380,6 @@ func (c *tlsConfigSettings) clone() (clone *tlsConfigSettings) {
 // It sets the following properties because these are not accepted from the
 // frontend:
 //
-//	[tlsConfigSettings.AllowUnencryptedDoH]
 //	[tlsConfigSettings.DNSCryptConfigFile]
 //	[tlsConfigSettings.OverrideTLSCiphers]
 //	[tlsConfigSettings.PortDNSCrypt]
@@ -381,9 +391,6 @@ func (c *tlsConfigSettings) clone() (clone *tlsConfigSettings) {
 //	[tlsConfigSettings.PrivateKeyData]
 func (c *tlsConfigSettings) setPrivateFieldsAndCompare(conf *tlsConfigSettings) (equal bool) {
 	conf.OverrideTLSCiphers = slices.Clone(c.OverrideTLSCiphers)
-
-	// TODO(s.chzhen):  Remove this once the frontend supports it.
-	conf.AllowUnencryptedDoH = c.AllowUnencryptedDoH
 
 	conf.DNSCryptConfigFile = c.DNSCryptConfigFile
 	conf.PortDNSCrypt = c.PortDNSCrypt
@@ -411,6 +418,10 @@ type queryLogConfig struct {
 	// Enabled defines if the query log is enabled.
 	Enabled bool `yaml:"enabled"`
 
+	// IgnoredEnabled defines whether hosts from the ignored list should be
+	// ignored.
+	IgnoredEnabled bool `yaml:"ignored_enabled"`
+
 	// FileEnabled defines, if the query log is written to the file.
 	FileEnabled bool `yaml:"file_enabled"`
 }
@@ -428,6 +439,10 @@ type statsConfig struct {
 
 	// Enabled defines if the statistics are enabled.
 	Enabled bool `yaml:"enabled"`
+
+	// IgnoredEnabled defines whether hosts from the ignored list should be
+	// ignored.
+	IgnoredEnabled bool `yaml:"ignored_enabled"`
 }
 
 type notificationsConfig struct {
@@ -510,6 +525,15 @@ var config = &configuration{
 			Enabled: false,
 			Port:    6060,
 		},
+		DoH: &doHConfig{
+			Routes: []string{
+				"GET /dns-query",
+				"POST /dns-query",
+				"GET /dns-query/{ClientID}",
+				"POST /dns-query/{ClientID}",
+			},
+			InsecureEnabled: false,
+		},
 	},
 	DNS: dnsConfig{
 		BindHosts: []netip.Addr{netip.IPv4Unspecified()},
@@ -528,8 +552,11 @@ var config = &configuration{
 			}, {
 				Prefix: netip.MustParsePrefix("::1/128"),
 			}},
-			CacheEnabled: true,
-			CacheSize:    4 * 1024 * 1024,
+			CacheEnabled:             true,
+			CacheSize:                4 * 1024 * 1024,
+			CacheOptimisticAnswerTTL: timeutil.Duration(30 * time.Second),
+			CacheOptimisticMaxAge:    timeutil.Duration(12 * time.Hour),
+			EnableDNSSEC:             true,
 
 			EDNSClientSubnet: &dnsforward.EDNSClientSubnet{
 				CustomIP:  netip.Addr{},
@@ -557,16 +584,18 @@ var config = &configuration{
 		PortDNSOverQUIC: defaultPortQUIC,
 	},
 	QueryLog: queryLogConfig{
-		Enabled:     true,
-		FileEnabled: true,
-		Interval:    timeutil.Duration(90 * timeutil.Day),
-		MemSize:     1000,
-		Ignored:     []string{},
+		Enabled:        true,
+		FileEnabled:    true,
+		Interval:       timeutil.Duration(90 * timeutil.Day),
+		MemSize:        1000,
+		Ignored:        []string{},
+		IgnoredEnabled: false,
 	},
 	Stats: statsConfig{
-		Enabled:  true,
-		Interval: timeutil.Duration(1 * timeutil.Day),
-		Ignored:  []string{},
+		Enabled:        true,
+		Interval:       timeutil.Duration(1 * timeutil.Day),
+		Ignored:        []string{},
+		IgnoredEnabled: false,
 	},
 	Notifications: notificationsConfig{
 		Telegram: defaultTelegramConfig(),
@@ -753,8 +782,6 @@ func parseConfig(ctx context.Context, l *slog.Logger, workDir, confPath string) 
 		return err
 	}
 
-	config.normalize()
-
 	err = validateConfig(ctx, l, config.fileData)
 	if err != nil {
 		return err
@@ -922,8 +949,8 @@ func (c *configuration) write(
 	}
 
 	if tlsMgr != nil {
-		tlsConf := tlsMgr.config()
-		config.TLS = *tlsConf
+		extTLSConf := tlsMgr.extendedTLSConfig()
+		config.TLS = *extTLSConf
 	}
 
 	if globalContext.stats != nil {
@@ -932,6 +959,7 @@ func (c *configuration) write(
 		config.Stats.Interval = timeutil.Duration(statsConf.Limit)
 		config.Stats.Enabled = statsConf.Enabled
 		config.Stats.Ignored = statsConf.Ignored.Values()
+		config.Stats.IgnoredEnabled = statsConf.Ignored.IsEnabled()
 	}
 
 	if globalContext.queryLog != nil {
@@ -943,6 +971,7 @@ func (c *configuration) write(
 		config.QueryLog.Interval = timeutil.Duration(dc.RotationIvl)
 		config.QueryLog.MemSize = dc.MemSize
 		config.QueryLog.Ignored = dc.Ignored.Values()
+		config.QueryLog.IgnoredEnabled = dc.Ignored.IsEnabled()
 	}
 
 	if globalContext.filters != nil {
