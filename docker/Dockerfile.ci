@@ -142,6 +142,12 @@ EXPOSE 53/tcp 53/udp \
 # Volumes for persistent data
 VOLUME ["/opt/adguardhome/conf", "/opt/adguardhome/work"]
 
+# To show the real host hostname (instead of container ID) in the dashboard,
+# mount /etc/hostname from the host:
+#   -v /etc/hostname:/host/etc/hostname:ro
+# Or pass it as an environment variable:
+#   -e HOST_HOSTNAME=$(hostname)
+
 WORKDIR /opt/adguardhome/work
 
 ENTRYPOINT ["/opt/adguardhome/AdGuardHome"]

@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  adguardhome:
+    image: quydang04/adguardhome:latest
+    container_name: adguardhome
+    hostname: ${HOSTNAME}
+    restart: unless-stopped
+    ports:
+      - "53:53/tcp"
+      - "53:53/udp"
+      - "67:67/udp"
+      - "68:68/udp"
+      - "8080:80/tcp"
+      - "8443:443/tcp"
+      - "8443:443/udp"
+      - "853:853/tcp"
+      - "853:853/udp"
+      - "3000:3000/tcp"
+    volumes:
+      - ./conf:/opt/adguardhome/conf
+      - ./work:/opt/adguardhome/work
+      # Host info mounts (for System Overview dashboard)
+      - /etc/hostname:/host/etc/hostname:ro
+      - /etc/os-release:/host/etc/os-release:ro
