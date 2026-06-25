@@ -258,6 +258,8 @@ export type StatsData = {
     numReplacedParental: number;
     numReplacedSafebrowsing: number;
     numReplacedSafesearch: number;
+    numEncryptedDns: number;
+    numDnssec: number;
     avgProcessingTime: number;
     timeUnits: string;
     enabled: boolean;
@@ -663,6 +665,8 @@ export const initialState: RootState = {
         numReplacedParental: 0,
         numReplacedSafebrowsing: 0,
         numReplacedSafesearch: 0,
+        numEncryptedDns: 0,
+        numDnssec: 0,
         avgProcessingTime: 0,
         timeUnits: TIME_UNITS.HOURS,
         enabled: true,

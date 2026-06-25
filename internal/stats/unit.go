@@ -73,6 +73,13 @@ type Entry struct {
 	// ProcessingTime is the duration of the request processing from the start
 	// of the request including timeouts.
 	ProcessingTime time.Duration
+
+	// IsEncrypted is true if the query was made using an encrypted transport
+	// (DoH, DoT, DoQ, or DNSCrypt).
+	IsEncrypted bool
+
+	// DNSSEC is true if the response had the AD (Authenticated Data) bit set.
+	DNSSEC bool
 }
 
 // validate returns an error if entry is not valid.
@@ -126,6 +133,12 @@ type unit struct {
 	// timeSum stores the sum of processing time in microseconds of each request
 	// written by the unit.
 	timeSum uint64
+
+	// nEncrypted stores the number of queries made using encrypted transports.
+	nEncrypted uint64
+
+	// nDNSSEC stores the number of responses validated with DNSSEC.
+	nDNSSEC uint64
 }
 
 // newUnit allocates the new *unit.
@@ -178,6 +191,12 @@ type unitDB struct {
 	// TimeAvg is the average of processing times in microseconds of all the
 	// requests in the unit.
 	TimeAvg uint32
+
+	// NEncrypted is the number of queries made using encrypted transports.
+	NEncrypted uint64
+
+	// NDNSSEC is the number of responses validated with DNSSEC.
+	NDNSSEC uint64
 }
 
 // newUnitID is the default UnitIDGenFunc that generates the unique id hourly.
@@ -270,6 +289,8 @@ func (u *unit) serialize() (udb *unitDB) {
 		UpstreamsResponses: convertMapToSlice(u.upstreamsResponses, maxUpstreams),
 		UpstreamsTimeSum:   convertMapToSlice(u.upstreamsTimeSum, maxUpstreams),
 		TimeAvg:            timeAvg,
+		NEncrypted:         u.nEncrypted,
+		NDNSSEC:            u.nDNSSEC,
 	}
 }
 
@@ -312,6 +333,8 @@ func (u *unit) deserialize(udb *unitDB) {
 	u.upstreamsResponses = convertSliceToMap(udb.UpstreamsResponses)
 	u.upstreamsTimeSum = convertSliceToMap(udb.UpstreamsTimeSum)
 	u.timeSum = uint64(udb.TimeAvg) * udb.NTotal
+	u.nEncrypted = udb.NEncrypted
+	u.nDNSSEC = udb.NDNSSEC
 }
 
 // add adds new data to u.  It's safe for concurrent use.
@@ -327,6 +350,13 @@ func (u *unit) add(e *Entry) {
 	pt := uint64(e.ProcessingTime.Microseconds())
 	u.timeSum += pt
 	u.nTotal++
+
+	if e.IsEncrypted {
+		u.nEncrypted++
+	}
+	if e.DNSSEC {
+		u.nDNSSEC++
+	}
 
 	for _, s := range e.UpstreamStats {
 		if s.IsCached || s.Error != nil {
@@ -464,6 +494,8 @@ func (s *StatsCtx) dataFromUnits(units []*unitDB, curID uint32) (resp *StatsResp
 		sum.NResult[RSafeBrowsing] += u.NResult[RSafeBrowsing]
 		sum.NResult[RSafeSearch] += u.NResult[RSafeSearch]
 		sum.NResult[RParental] += u.NResult[RParental]
+		sum.NEncrypted += u.NEncrypted
+		sum.NDNSSEC += u.NDNSSEC
 	}
 
 	resp.NumDNSQueries = sum.NTotal
@@ -471,6 +503,8 @@ func (s *StatsCtx) dataFromUnits(units []*unitDB, curID uint32) (resp *StatsResp
 	resp.NumReplacedSafebrowsing = sum.NResult[RSafeBrowsing]
 	resp.NumReplacedSafesearch = sum.NResult[RSafeSearch]
 	resp.NumReplacedParental = sum.NResult[RParental]
+	resp.NumEncryptedDNS = sum.NEncrypted
+	resp.NumDNSSEC = sum.NDNSSEC
 
 	if timeN != 0 {
 		resp.AvgProcessingTime = microsecondsToSeconds(float64(sum.TimeAvg / timeN))

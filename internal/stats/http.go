@@ -41,6 +41,8 @@ type StatsResp struct {
 	NumReplacedSafebrowsing uint64          `json:"num_replaced_safebrowsing"`
 	NumReplacedSafesearch   uint64          `json:"num_replaced_safesearch"`
 	NumReplacedParental     uint64          `json:"num_replaced_parental"`
+	NumEncryptedDNS         uint64          `json:"num_encrypted_dns"`
+	NumDNSSEC               uint64          `json:"num_dnssec"`
 	AvgProcessingTime       float64         `json:"avg_processing_time"`
 	System                  systeminfo.Info `json:"system"`
 }

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 
 import { HashLink as Link } from 'react-router-hash-link';
 import { Trans, useTranslation } from 'react-i18next';
@@ -21,7 +21,12 @@ import Dropdown from '../ui/Dropdown';
 import UpstreamResponses from './UpstreamResponses';
 
 import UpstreamAvgTime from './UpstreamAvgTime';
+import GafamDominance from './GafamDominance';
+import EncryptedDns from './EncryptedDns';
+import DnssecStats from './DnssecStats';
 import { AccessData, DashboardData, StatsData } from '../../initialState';
+
+const STATS_POLLING_INTERVAL_MS = 5000;
 
 interface DashboardProps {
     dashboard: DashboardData;
@@ -46,6 +51,7 @@ const Dashboard = ({
     access,
 }: DashboardProps) => {
     const { t } = useTranslation();
+    const [initialLoadDone, setInitialLoadDone] = useState(false);
 
     const getAllStats = useCallback(() => {
         getAccessList();
@@ -57,6 +63,26 @@ const Dashboard = ({
     useEffect(() => {
         getAllStats();
     }, [getAllStats]);
+
+    const prevProcessing = useRef(true);
+    useEffect(() => {
+        if (prevProcessing.current && !stats.processingStats) {
+            setInitialLoadDone(true);
+        }
+        prevProcessing.current = stats.processingStats;
+    }, [stats.processingStats]);
+
+    const getStatsRef = useRef(getStats);
+    getStatsRef.current = getStats;
+
+    useEffect(() => {
+        const intervalId = setInterval(() => {
+            getStatsRef.current();
+        }, STATS_POLLING_INTERVAL_MS);
+
+        return () => clearInterval(intervalId);
+    }, []);
+
     const getSubtitle = () => {
         if (!stats.enabled) {
             return t('stats_disabled_short');
@@ -90,7 +116,7 @@ const Dashboard = ({
         </button>
     );
 
-    const statsProcessing = stats.processingStats || stats.processingGetConfig || access.processing;
+    const statsProcessing = !initialLoadDone && (stats.processingStats || stats.processingGetConfig || access.processing);
 
     const subtitle = getSubtitle();
 
@@ -253,6 +279,33 @@ const Dashboard = ({
                         <UpstreamAvgTime
                             subtitle={subtitle}
                             topUpstreamsAvgTime={stats.topUpstreamsAvgTime}
+                            refreshButton={refreshButton}
+                        />
+                    </div>
+
+                    <div className="col-lg-12">
+                        <GafamDominance
+                            topQueriedDomains={stats.topQueriedDomains}
+                            numDnsQueries={stats.numDnsQueries}
+                            subtitle={subtitle}
+                            refreshButton={refreshButton}
+                        />
+                    </div>
+
+                    <div className="col-lg-6">
+                        <EncryptedDns
+                            numEncryptedDns={stats.numEncryptedDns}
+                            numDnsQueries={stats.numDnsQueries}
+                            subtitle={subtitle}
+                            refreshButton={refreshButton}
+                        />
+                    </div>
+
+                    <div className="col-lg-6">
+                        <DnssecStats
+                            numDnssec={stats.numDnssec}
+                            numDnsQueries={stats.numDnsQueries}
+                            subtitle={subtitle}
                             refreshButton={refreshButton}
                         />
                     </div>

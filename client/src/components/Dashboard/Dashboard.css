@@ -94,3 +94,106 @@
         flex-shrink: 0;
     }
 }
+
+/* GAFAM Dominance */
+.gafam-dominance {
+    padding: 0.5rem 0;
+}
+
+.gafam-dominance__desc {
+    color: var(--card-subtitle-color, #9aa0ac);
+    font-size: 0.85rem;
+    margin-bottom: 1rem;
+    line-height: 1.4;
+}
+
+.gafam-dominance__content {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+}
+
+.gafam-dominance__chart {
+    flex-shrink: 0;
+}
+
+.gafam-dominance__legend {
+    flex: 1;
+    min-width: 0;
+}
+
+.gafam-dominance__legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.25rem 0;
+    font-size: 0.85rem;
+}
+
+.gafam-dominance__legend-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.gafam-dominance__legend-count {
+    color: var(--card-subtitle-color, #9aa0ac);
+}
+
+@media (max-width: 575.98px) {
+    .gafam-dominance__content {
+        flex-direction: column;
+    }
+}
+
+/* Progress stat (Encrypted DNS, DNSSEC) */
+.progress-stat {
+    padding: 0.5rem 0;
+}
+
+.progress-stat__desc {
+    color: var(--card-subtitle-color, #9aa0ac);
+    font-size: 0.85rem;
+    margin-bottom: 1rem;
+    line-height: 1.4;
+}
+
+.progress-stat__bar-wrapper {
+    margin-bottom: 0.5rem;
+}
+
+.progress-stat__bar {
+    width: 100%;
+    height: 8px;
+    background-color: var(--card-border-color, #e0e0e0);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.progress-stat__bar-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.3s ease;
+}
+
+.progress-stat__bar-fill--green {
+    background-color: #2fb344;
+}
+
+.progress-stat__bar-fill--blue {
+    background-color: #206bc4;
+}
+
+.progress-stat__value {
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.progress-stat__value--green {
+    color: #2fb344;
+}
+
+.progress-stat__value--blue {
+    color: #206bc4;
+}

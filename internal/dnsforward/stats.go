@@ -148,11 +148,18 @@ func (s *Server) updateStats(dctx *dnsContext, clientIP string, processingTime t
 		upstreamStats = append(upstreamStats, qs.Fallback()...)
 	}
 
+	isEncrypted := pctx.Proto == proxy.ProtoHTTPS ||
+		pctx.Proto == proxy.ProtoTLS ||
+		pctx.Proto == proxy.ProtoQUIC ||
+		pctx.Proto == proxy.ProtoDNSCrypt
+
 	e := &stats.Entry{
 		UpstreamStats:  upstreamStats,
 		Domain:         aghnet.NormalizeDomain(pctx.Req.Question[0].Name),
 		Result:         stats.RNotFiltered,
 		ProcessingTime: processingTime,
+		IsEncrypted:    isEncrypted,
+		DNSSEC:         dctx.responseAD,
 	}
 
 	if clientID := dctx.clientID; clientID != "" {

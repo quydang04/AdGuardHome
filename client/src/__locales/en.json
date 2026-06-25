@@ -821,5 +821,13 @@
     "saturday_short": "Sat",
     "upstream_dns_cache_configuration": "Upstream DNS cache configuration",
     "enable_upstream_dns_cache": "Enable DNS caching for this client's custom upstream configuration",
-    "dns_cache_size": "DNS cache size, in bytes"
+    "dns_cache_size": "DNS cache size, in bytes",
+    "gafam_dominance": "GAFAM Dominance",
+    "gafam_dominance_desc": "The \"GAFAM\" (Google, Amazon, Facebook, Apple and Microsoft) are the 5 dominant Internet companies that own many popular services, often operating under a different name.",
+    "gafam_queries": "{{count}} queries",
+    "gafam_others": "Others",
+    "encrypted_dns": "Encrypted DNS",
+    "encrypted_dns_desc": "Percentage of queries made using an encrypted transport (DNS-over-HTTPS, DNS-over-TLS, DNS-over-QUIC, or DNSCrypt).",
+    "dnssec": "DNSSEC",
+    "dnssec_desc": "Percentage of queries validated with DNSSEC (Authenticated Data)."
 }
