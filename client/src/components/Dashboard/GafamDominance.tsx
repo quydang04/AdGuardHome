@@ -39,11 +39,11 @@ const GAFAM_DOMAINS: Record<string, string[]> = {
 
 const GAFAM_COLORS: Record<string, string> = {
     Google: '#4285F4',
-    Amazon: '#8BC34A',
+    Amazon: '#FF9800',
     Facebook: '#1877F2',
-    Apple: '#A2AAAD',
-    Microsoft: '#F25022',
-    Others: '#6c757d',
+    Apple: '#555555',
+    Microsoft: '#7CB342',
+    Others: '#9e9e9e',
 };
 
 function matchesGafam(domain: string): string | null {
@@ -70,7 +70,7 @@ const DonutChart = ({ data, total }: DonutChartProps) => {
     const circumference = 2 * Math.PI * radius;
     const center = size / 2;
 
-    let accumulatedOffset = 0;
+    let accumulatedLength = 0;
 
     return (
         <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
@@ -86,8 +86,8 @@ const DonutChart = ({ data, total }: DonutChartProps) => {
                 const pct = total > 0 ? segment.value / total : 0;
                 const dashLength = pct * circumference;
                 const dashGap = circumference - dashLength;
-                const offset = -accumulatedOffset * circumference;
-                accumulatedOffset += pct;
+                const dashOffset = circumference / 4 - accumulatedLength;
+                accumulatedLength += dashLength;
 
                 return (
                     <circle
@@ -99,8 +99,7 @@ const DonutChart = ({ data, total }: DonutChartProps) => {
                         stroke={segment.color}
                         strokeWidth={strokeWidth}
                         strokeDasharray={`${dashLength} ${dashGap}`}
-                        strokeDashoffset={-offset}
-                        transform={`rotate(-90 ${center} ${center})`}
+                        strokeDashoffset={dashOffset}
                         style={{ transition: 'stroke-dasharray 0.3s ease' }}
                     />
                 );
