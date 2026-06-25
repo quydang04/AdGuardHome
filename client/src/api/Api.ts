@@ -702,7 +702,7 @@ class Api {
     // Notifications
     NOTIFICATIONS_TELEGRAM_GET = { path: 'notifications/telegram', method: 'GET' };
 
-    NOTIFICATIONS_TELEGRAM_SET = { path: 'notifications/telegram', method: 'PUT' };
+    NOTIFICATIONS_TELEGRAM_SET = { path: 'notifications/telegram/update', method: 'PUT' };
 
     NOTIFICATIONS_TELEGRAM_TEST = { path: 'notifications/telegram/test', method: 'POST' };
 

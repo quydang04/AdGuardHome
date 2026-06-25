@@ -7,15 +7,12 @@ import (
 	"io"
 	"net/http"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/AdguardTeam/AdGuardHome/internal/aghhttp"
 	"github.com/AdguardTeam/AdGuardHome/internal/notifications"
 	"github.com/AdguardTeam/golibs/timeutil"
 )
-
-var registerNotificationHandlersOnce sync.Once
 
 const (
 	minTelegramInterval = time.Minute
@@ -37,11 +34,9 @@ type telegramConfigJSON struct {
 }
 
 func (web *webAPI) registerNotificationHandlers() {
-	registerNotificationHandlersOnce.Do(func() {
-		web.httpReg.Register(http.MethodGet, "/control/notifications/telegram", web.handleGetTelegramConfig)
-		web.httpReg.Register(http.MethodPut, "/control/notifications/telegram", web.handlePutTelegramConfig)
-		web.httpReg.Register(http.MethodPost, "/control/notifications/telegram/test", web.handlePostTelegramTest)
-	})
+	web.httpReg.Register(http.MethodGet, "/control/notifications/telegram", web.handleGetTelegramConfig)
+	web.httpReg.Register(http.MethodPut, "/control/notifications/telegram/update", web.handlePutTelegramConfig)
+	web.httpReg.Register(http.MethodPost, "/control/notifications/telegram/test", web.handlePostTelegramTest)
 }
 
 func (web *webAPI) handleGetTelegramConfig(w http.ResponseWriter, r *http.Request) {
