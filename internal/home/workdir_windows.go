@@ -8,10 +8,15 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"sync/atomic"
 	"syscall"
 
 	"github.com/AdguardTeam/AdGuardHome/internal/aghos"
 )
+
+// fallbackWorkDirUsed tracks whether the fallback writable directory was
+// selected instead of the default working directory.
+var fallbackWorkDirUsed atomic.Bool
 
 // ensureWritableWorkDir verifies that workDir can be used for mutable data and
 // falls back to a per-user writable directory when it is not.
