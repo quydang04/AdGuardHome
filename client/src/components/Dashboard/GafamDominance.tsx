@@ -140,7 +140,6 @@ const GafamDominance = ({ topQueriedDomains, numDnsQueries, subtitle, refreshBut
         const total = numDnsQueries;
 
         const segments = Object.entries(counts)
-            .filter(([, count]) => count > 0)
             .sort(([, a], [, b]) => b - a)
             .map(([label, value]) => ({
                 label,
