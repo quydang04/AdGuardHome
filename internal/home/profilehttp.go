@@ -6,6 +6,8 @@ import (
 	"net/http"
 
 	"github.com/AdguardTeam/AdGuardHome/internal/aghhttp"
+	"github.com/AdguardTeam/AdGuardHome/internal/aghuser"
+	"golang.org/x/crypto/bcrypt"
 )
 
 // Theme is an enum of all allowed UI themes.
@@ -42,6 +44,12 @@ type profileJSON struct {
 	Name     string `json:"name"`
 	Language string `json:"language"`
 	Theme    Theme  `json:"theme"`
+}
+
+// changePasswordJSON is the JSON structure for the password change request.
+type changePasswordJSON struct {
+	CurrentPassword string `json:"current_password"`
+	NewPassword     string `json:"new_password"`
 }
 
 // handleGetProfile is the handler for GET /control/profile endpoint.
@@ -122,6 +130,74 @@ func (web *webAPI) handlePutProfile(w http.ResponseWriter, r *http.Request) {
 	if changed {
 		web.confModifier.Apply(ctx)
 	}
+
+	aghhttp.OK(ctx, l, w)
+}
+
+// handleChangePassword is the handler for POST /control/profile/password
+// endpoint.
+func (web *webAPI) handleChangePassword(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	l := web.logger
+
+	if web.auth.isUserless {
+		aghhttp.ErrorAndLog(ctx, l, r, w, http.StatusForbidden, "no users configured")
+
+		return
+	}
+
+	u, ok := webUserFromContext(ctx)
+	if !ok {
+		w.WriteHeader(http.StatusUnauthorized)
+
+		return
+	}
+
+	req := &changePasswordJSON{}
+	err := json.NewDecoder(r.Body).Decode(req)
+	if err != nil {
+		aghhttp.ErrorAndLog(ctx, l, r, w, http.StatusBadRequest, "reading req: %s", err)
+
+		return
+	}
+
+	if req.CurrentPassword == "" || req.NewPassword == "" {
+		aghhttp.ErrorAndLog(ctx, l, r, w, http.StatusBadRequest, "passwords must not be empty")
+
+		return
+	}
+
+	if !u.Password.Authenticate(ctx, req.CurrentPassword) {
+		aghhttp.ErrorAndLog(ctx, l, r, w, http.StatusForbidden, "current password is incorrect")
+
+		return
+	}
+
+	hash, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcrypt.DefaultCost)
+	if err != nil {
+		aghhttp.ErrorAndLog(ctx, l, r, w, http.StatusInternalServerError, "generating hash: %s", err)
+
+		return
+	}
+
+	u.Password = aghuser.NewDefaultPassword(string(hash))
+
+	func() {
+		config.Lock()
+		defer config.Unlock()
+
+		for i, wu := range config.Users {
+			if aghuser.Login(wu.Name) == u.Login {
+				config.Users[i].PasswordHash = string(hash)
+
+				break
+			}
+		}
+	}()
+
+	web.confModifier.Apply(ctx)
+
+	l.InfoContext(ctx, "password changed", "login", u.Login)
 
 	aghhttp.OK(ctx, l, w)
 }

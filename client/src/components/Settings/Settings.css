@@ -169,3 +169,121 @@
         0.3s ease-in-out background-color,
         0.3s ease-in-out color;
 }
+
+/* Theme & Language buttons */
+.settings__theme-buttons {
+    display: inline-flex;
+    gap: 0.35rem;
+    align-items: center;
+}
+
+.settings__theme-button {
+    height: 36px;
+    min-width: 40px;
+    padding: 0 0.6rem;
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.settings__theme-icon {
+    display: inline-block;
+    vertical-align: middle;
+    width: 18px;
+    height: 18px;
+    color: var(--gray-ac);
+}
+
+[data-theme='dark'] .settings__theme-icon {
+    color: var(--mcolor);
+}
+
+.settings__theme-icon--active,
+[data-theme='dark'] .settings__theme-icon--active {
+    color: var(--btn-success-bgcolor);
+}
+
+.settings__language-buttons {
+    display: inline-flex;
+    gap: 0.35rem;
+    align-items: center;
+}
+
+.settings__language-buttons .btn {
+    height: 36px;
+    padding: 0 1rem;
+    font-size: 0.85rem;
+    border-radius: 8px;
+}
+
+/* System info */
+.settings__info-row {
+    display: flex;
+    align-items: center;
+    padding: 0.6rem 0;
+    border-bottom: 1px solid var(--card-border-color);
+}
+
+.settings__info-row:last-child {
+    border-bottom: none;
+}
+
+.settings__info-label {
+    font-weight: 600;
+    min-width: 120px;
+    color: var(--scolor);
+    font-size: 0.9rem;
+}
+
+.settings__info-value {
+    font-size: 0.9rem;
+}
+
+.settings__section-title {
+    font-size: 1rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+}
+
+/* Password form */
+.settings__password-form {
+    max-width: 400px;
+}
+
+.settings__password-form .form-group {
+    margin-bottom: 1rem;
+}
+
+.settings__password-form label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin-bottom: 0.35rem;
+}
+
+.settings__password-form .form-control {
+    font-size: 0.9rem;
+}
+
+.settings__password-form .btn {
+    margin-top: 0.5rem;
+}
+
+.settings__message {
+    margin-top: 0.75rem;
+    font-size: 0.85rem;
+    padding: 0.5rem 0.75rem;
+    border-radius: 6px;
+}
+
+.settings__message--success {
+    color: #155724;
+    background-color: #d4edda;
+    border: 1px solid #c3e6cb;
+}
+
+.settings__message--error {
+    color: #721c24;
+    background-color: #f8d7da;
+    border: 1px solid #f5c6cb;
+}

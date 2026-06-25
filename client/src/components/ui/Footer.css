@@ -14,99 +14,13 @@ body .footer {
     gap: 0.5rem;
 }
 
-.footer__row + .footer__row {
-    margin-top: 0.55rem;
-    padding-top: 0.55rem;
-    border-top: 1px solid var(--card-border-color);
-}
-
 .footer__column {
     margin-bottom: 0;
     font-size: 0.88rem;
 }
 
-.footer__column--links {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    gap: 0.75rem;
-}
-
-.footer__link {
-    display: inline-block;
-    vertical-align: middle;
-    margin-bottom: 0;
-    font-weight: 600;
-    font-size: 0.82rem;
-}
-
-.footer__link--report {
-    position: relative;
-    top: 1px;
-    margin-right: 0;
-}
-
-@media screen and (min-width: 768px) {
-    .footer__copyright {
-        margin-right: 25px;
-    }
-
-    .footer__column--language,
-    .footer__column--theme {
-        margin-left: auto;
-        display: flex;
-        align-items: center;
-        gap: 1.25rem;
-    }
-
-    .footer__column--language .version {
-        margin-left: 1.25rem;
-    }
-
-    .footer__link {
-        margin: 0 20px 0 0;
-    }
-}
-
-.footer__column--theme .btn,
-.footer__column--language .btn {
-    height: 28px;
-    min-width: 32px;
-    padding: 0 0.45rem;
-    font-size: 0.8rem;
-    border-radius: 8px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.footer__theme-icon {
-    display: inline-block;
-    vertical-align: middle;
-    width: 16px;
-    height: 16px;
-    color: var(--gray-ac);
-}
-
-[data-theme='dark'] .footer__theme-icon {
-    color: var(--mcolor);
-}
-
-.footer__theme-icon--active,
-[data-theme='dark'] .footer__theme-icon--active {
-    color: var(--btn-success-bgcolor);
-}
-
-.footer__custom {
-    color: var(--mcolor);
-    margin-left: 0.35rem;
-}
-
-.footer__themes,
-.footer__language-buttons {
-    display: inline-flex;
-    gap: 0.25rem;
-    align-items: center;
+.footer__column--version {
+    margin-left: auto;
 }
 
 @media screen and (max-width: 767.98px) {
@@ -114,21 +28,22 @@ body .footer {
         flex-direction: column !important;
         align-items: center !important;
         text-align: center !important;
-        gap: 0.75rem !important;
+        gap: 0.5rem !important;
     }
 
-    .footer__column--language {
-        justify-content: center !important;
-        width: 100% !important;
-        display: flex !important;
-        flex-direction: row !important;
-        flex-wrap: wrap !important;
-        gap: 1rem !important;
+    .footer__column--version {
+        margin-left: 0;
     }
 
     .footer__copyright {
         margin-right: 0 !important;
         text-align: center !important;
         line-height: 1.4 !important;
+    }
+}
+
+@media screen and (min-width: 768px) {
+    .footer__copyright {
+        margin-right: 25px;
     }
 }

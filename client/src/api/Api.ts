@@ -669,6 +669,16 @@ class Api {
         return this.makeRequest(path, method, config);
     }
 
+    // Change Password
+    CHANGE_PASSWORD = { path: 'profile/password', method: 'POST' };
+
+    changePassword(data: { current_password: string; new_password: string }) {
+        const { path, method } = this.CHANGE_PASSWORD;
+        const config = { data };
+
+        return this.makeRequest(path, method, config);
+    }
+
     // Notifications
     NOTIFICATIONS_TELEGRAM_GET = { path: 'notifications/telegram', method: 'GET' };
 

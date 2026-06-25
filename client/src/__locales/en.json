@@ -833,5 +833,22 @@
     "encrypted_dns_desc": "Percentage of queries made using an encrypted transport (DNS-over-HTTPS, DNS-over-TLS, DNS-over-QUIC, or DNSCrypt).",
     "dnssec": "DNSSEC",
     "dnssec_desc": "Percentage of plain DNS queries (non-encrypted) validated with DNSSEC (Authenticated Data).",
-    "dnssec_plain_dns_count": "Based on {{count}} plain DNS queries"
+    "dnssec_plain_dns_count": "Based on {{count}} plain DNS queries",
+    "account_settings": "Settings",
+    "account_settings_desc": "Manage your account, appearance, and system settings",
+    "appearance": "Appearance",
+    "theme": "Theme",
+    "language": "Language",
+    "change_password": "Change Password",
+    "current_password": "Current password",
+    "new_password": "New password",
+    "confirm_password": "Confirm new password",
+    "password_changed": "Password changed successfully",
+    "password_mismatch": "Passwords do not match",
+    "password_required": "Password is required",
+    "password_incorrect": "Current password is incorrect",
+    "username": "Username",
+    "http_port": "HTTP Port",
+    "dns_port_label": "DNS Port",
+    "system_info": "System Information"
 }
