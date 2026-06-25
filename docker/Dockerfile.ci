@@ -30,7 +30,7 @@ RUN npm --prefix client run build-prod
 # ============== Go Build Stage (cross-compile from build platform) ==============
 FROM --platform=$BUILDPLATFORM alpine:3.21 AS go-builder
 
-ARG GO_VERSION=1.25.3
+ARG GO_VERSION=1.26.3
 ARG BUILDARCH
 
 RUN apk --no-cache add \
