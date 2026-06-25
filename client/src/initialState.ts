@@ -260,7 +260,6 @@ export type StatsData = {
     numReplacedSafesearch: number;
     numEncryptedDns: number;
     numDnssec: number;
-    topCountries: { name: string; count: number }[];
     avgProcessingTime: number;
     timeUnits: string;
     enabled: boolean;
@@ -668,7 +667,6 @@ export const initialState: RootState = {
         numReplacedSafesearch: 0,
         numEncryptedDns: 0,
         numDnssec: 0,
-        topCountries: [],
         avgProcessingTime: 0,
         timeUnits: TIME_UNITS.HOURS,
         enabled: true,

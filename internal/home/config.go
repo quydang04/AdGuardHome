@@ -222,10 +222,6 @@ type dnsConfig struct {
 	// UpstreamTimeout is the timeout for querying upstream servers.
 	UpstreamTimeout timeutil.Duration `yaml:"upstream_timeout"`
 
-	// GeoIPPath is the path to the MaxMind-format GeoIP database for resolving
-	// DNS response IPs to countries.  If empty, country tracking is disabled.
-	GeoIPPath string `yaml:"geoip_path"`
-
 	// PrivateNets is the set of IP networks for which the private reverse DNS
 	// resolver should be used.
 	PrivateNets []netutil.Prefix `yaml:"private_networks"`

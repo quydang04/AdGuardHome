@@ -71,7 +71,6 @@ require (
 	github.com/kisielk/errcheck v1.9.0 // indirect
 	github.com/lufia/plan9stats v0.0.0-20211012122336-39d0f177ccd0 // indirect
 	github.com/mdlayher/socket v0.5.1 // indirect
-	github.com/oschwald/maxminddb-golang/v2 v2.4.0 // indirect
 	github.com/patrickmn/go-cache v2.1.0+incompatible // indirect
 	github.com/pierrec/lz4/v4 v4.1.22 // indirect
 	github.com/pkg/errors v0.9.1 // indirect

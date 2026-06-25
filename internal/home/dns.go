@@ -19,7 +19,6 @@ import (
 	"github.com/AdguardTeam/AdGuardHome/internal/client"
 	"github.com/AdguardTeam/AdGuardHome/internal/dnsforward"
 	"github.com/AdguardTeam/AdGuardHome/internal/filtering"
-	"github.com/AdguardTeam/AdGuardHome/internal/geoip"
 	"github.com/AdguardTeam/AdGuardHome/internal/querylog"
 	"github.com/AdguardTeam/AdGuardHome/internal/stats"
 	"github.com/AdguardTeam/golibs/errors"
@@ -157,16 +156,6 @@ func initDNSServer(
 	}()
 	if err != nil {
 		return fmt.Errorf("dnsforward.NewServer: %w", err)
-	}
-
-	if geoIPPath := config.DNS.GeoIPPath; geoIPPath != "" {
-		geoIPDB := geoip.New(&geoip.Config{
-			Logger: l.With("prefix", "geoip"),
-			Path:   geoIPPath,
-		})
-		if geoIPDB != nil {
-			globalContext.dnsServer.SetGeoIP(geoIPDB)
-		}
 	}
 
 	globalContext.clients.clientChecker = globalContext.dnsServer

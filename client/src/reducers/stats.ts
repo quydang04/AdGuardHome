@@ -20,7 +20,6 @@ const defaultStats = {
     numReplacedSafesearch: 0,
     numEncryptedDns: 0,
     numDnssec: 0,
-    topCountries: [],
     avgProcessingTime: 0,
     timeUnits: TIME_UNITS.HOURS,
     systemInfo: null,
@@ -114,7 +113,6 @@ const stats = handleActions(
                 num_replaced_safesearch: numReplacedSafesearch,
                 num_encrypted_dns: numEncryptedDns,
                 num_dnssec: numDnssec,
-                top_countries: topCountries,
                 avg_processing_time: avgProcessingTime,
                 top_upstreams_responses: topUpstreamsResponses,
                 top_upstrems_avg_time: topUpstreamsAvgTime,
@@ -140,10 +138,6 @@ const stats = handleActions(
                 numReplacedSafesearch,
                 numEncryptedDns,
                 numDnssec,
-                topCountries: (topCountries || []).map((entry: any) => {
-                    const key = Object.keys(entry)[0];
-                    return { name: key, count: entry[key] };
-                }),
                 avgProcessingTime,
                 topUpstreamsResponses,
                 topUpstreamsAvgTime,

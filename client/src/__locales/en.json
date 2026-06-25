@@ -829,8 +829,5 @@
     "encrypted_dns": "Encrypted DNS",
     "encrypted_dns_desc": "Percentage of queries made using an encrypted transport (DNS-over-HTTPS, DNS-over-TLS, DNS-over-QUIC, or DNSCrypt).",
     "dnssec": "DNSSEC",
-    "dnssec_desc": "Percentage of queries validated with DNSSEC (Authenticated Data).",
-    "traffic_destination": "Traffic Destination",
-    "traffic_destination_desc": "Countries where your DNS traffic is directed, based on GeoIP lookups of resolved IP addresses in DNS responses.",
-    "traffic_destination_empty": "No country data available. Configure a GeoIP database (MaxMind MMDB format) to enable traffic destination tracking."
+    "dnssec_desc": "Percentage of queries validated with DNSSEC (Authenticated Data)."
 }
