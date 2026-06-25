@@ -676,6 +676,7 @@ export const initialState: RootState = {
         topUpstreamsResponses: [],
         topBlockedFilterLists: [],
         systemInfo: null,
+        gafamStats: {},
     },
     notifications: {
         processingGet: false,

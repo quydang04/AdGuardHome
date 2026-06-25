@@ -78,13 +78,13 @@ const GafamDominance = ({ gafamStats, numDnsQueries, subtitle, refreshButton }: 
         const total = numDnsQueries;
         let gafamTotal = 0;
 
-        const segments = GAFAM_COMPANIES
+        const segments: { label: string; value: number; color: string; pct: string }[] = GAFAM_COMPANIES
             .map((company) => {
                 const value = gafamStats[company] || 0;
                 gafamTotal += value;
 
                 return {
-                    label: company,
+                    label: company as string,
                     value,
                     color: GAFAM_COLORS[company],
                     pct: total > 0 ? ((value / total) * 100).toFixed(2) : '0',
