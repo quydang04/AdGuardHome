@@ -59,6 +59,8 @@ type StatsResp struct {
 
 	AvgProcessingTime float64         `json:"avg_processing_time"`
 	System            systeminfo.Info `json:"system"`
+
+	GafamStats map[string]uint64 `json:"gafam_stats"`
 }
 
 // handleStats is the handler for the GET /control/stats HTTP API.

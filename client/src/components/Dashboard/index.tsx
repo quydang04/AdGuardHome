@@ -315,7 +315,7 @@ const Dashboard = ({
 
                     <div className="col-lg-12">
                         <GafamDominance
-                            topQueriedDomains={stats.topQueriedDomains}
+                            gafamStats={stats.gafamStats}
                             numDnsQueries={stats.numDnsQueries}
                             subtitle={subtitle}
                             refreshButton={refreshButton}

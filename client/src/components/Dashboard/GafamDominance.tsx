@@ -3,60 +3,16 @@ import { useTranslation } from 'react-i18next';
 
 import Card from '../ui/Card';
 
-const GAFAM_DOMAINS: Record<string, string[]> = {
-    Google: [
-        'google.com', 'googleapis.com', 'gstatic.com', 'youtube.com', 'ytimg.com',
-        'googlevideo.com', 'googleusercontent.com', 'google-analytics.com',
-        'googleadservices.com', 'doubleclick.net', 'googlesyndication.com',
-        'googletagmanager.com', 'google.co', 'gmail.com', 'goog',
-        'android.com', 'chromium.org', 'withgoogle.com', 'blogger.com',
-        'appspot.com', 'googledomains.com', 'ggpht.com',
-    ],
-    Amazon: [
-        'amazon.com', 'amazonaws.com', 'amazontrust.com', 'cloudfront.net',
-        'amazonvideo.com', 'primevideo.com', 'alexa.com', 'amazon.co',
-        'amzn.to', 'amzn.com', 'media-amazon.com', 'ssl-images-amazon.com',
-    ],
-    Facebook: [
-        'facebook.com', 'fbcdn.net', 'fb.com', 'instagram.com',
-        'whatsapp.com', 'whatsapp.net', 'messenger.com', 'fbsbx.com',
-        'facebook.net', 'oculus.com', 'threads.net', 'cdninstagram.com',
-    ],
-    Apple: [
-        'apple.com', 'icloud.com', 'mzstatic.com', 'apple-dns.net',
-        'cdn-apple.com', 'apple.news', 'itunes.com', 'me.com',
-        'icloud-content.com', 'aaplimg.com',
-    ],
-    Microsoft: [
-        'microsoft.com', 'msftncsi.com', 'msedge.net', 'windows.com',
-        'windows.net', 'microsoftonline.com', 'office.com', 'office365.com',
-        'live.com', 'outlook.com', 'skype.com', 'bing.com', 'msn.com',
-        'azure.com', 'azureedge.net', 'windowsupdate.com', 'xbox.com',
-        'linkedin.com', 'github.com', 'visualstudio.com', 'hotmail.com',
-        'sharepoint.com', 'onedrive.com', 'aka.ms',
-    ],
-};
+const GAFAM_COMPANIES = ['Google', 'Amazon', 'Meta', 'Apple', 'Microsoft'] as const;
 
 const GAFAM_COLORS: Record<string, string> = {
     Google: '#EA4335',
     Amazon: '#FF9900',
-    Facebook: '#1877F2',
+    Meta: '#0668E1',
     Apple: '#A2AAAD',
     Microsoft: '#7FBA00',
     Others: '#6B7280',
 };
-
-function matchesGafam(domain: string): string | null {
-    const lower = domain.toLowerCase();
-    for (const [company, domains] of Object.entries(GAFAM_DOMAINS)) {
-        for (const gafamDomain of domains) {
-            if (lower === gafamDomain || lower.endsWith(`.${gafamDomain}`)) {
-                return company;
-            }
-        }
-    }
-    return null;
-}
 
 interface DonutChartProps {
     data: { label: string; value: number; color: string }[];
@@ -109,45 +65,34 @@ const DonutChart = ({ data, total }: DonutChartProps) => {
 };
 
 interface GafamDominanceProps {
-    topQueriedDomains: { name: string; count: number }[];
+    gafamStats: Record<string, number>;
     numDnsQueries: number;
     subtitle: string;
     refreshButton: React.ReactNode;
 }
 
-const GafamDominance = ({ topQueriedDomains, numDnsQueries, subtitle, refreshButton }: GafamDominanceProps) => {
+const GafamDominance = ({ gafamStats, numDnsQueries, subtitle, refreshButton }: GafamDominanceProps) => {
     const { t } = useTranslation();
 
     const gafamData = useMemo(() => {
-        const counts: Record<string, number> = {
-            Google: 0,
-            Amazon: 0,
-            Facebook: 0,
-            Apple: 0,
-            Microsoft: 0,
-        };
+        const total = numDnsQueries;
         let gafamTotal = 0;
 
-        for (const { name, count } of topQueriedDomains) {
-            const company = matchesGafam(name);
-            if (company) {
-                counts[company] += count;
-                gafamTotal += count;
-            }
-        }
+        const segments = GAFAM_COMPANIES
+            .map((company) => {
+                const value = gafamStats[company] || 0;
+                gafamTotal += value;
 
-        const othersCount = numDnsQueries - gafamTotal;
-        const total = numDnsQueries;
+                return {
+                    label: company,
+                    value,
+                    color: GAFAM_COLORS[company],
+                    pct: total > 0 ? ((value / total) * 100).toFixed(2) : '0',
+                };
+            })
+            .sort((a, b) => b.value - a.value);
 
-        const segments = Object.entries(counts)
-            .sort(([, a], [, b]) => b - a)
-            .map(([label, value]) => ({
-                label,
-                value,
-                color: GAFAM_COLORS[label],
-                pct: total > 0 ? ((value / total) * 100).toFixed(2) : '0',
-            }));
-
+        const othersCount = total - gafamTotal;
         if (othersCount > 0) {
             segments.push({
                 label: 'Others',
@@ -158,7 +103,7 @@ const GafamDominance = ({ topQueriedDomains, numDnsQueries, subtitle, refreshBut
         }
 
         return { segments, total };
-    }, [topQueriedDomains, numDnsQueries]);
+    }, [gafamStats, numDnsQueries]);
 
     return (
         <Card

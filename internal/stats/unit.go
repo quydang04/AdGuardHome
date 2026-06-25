@@ -151,6 +151,9 @@ type unit struct {
 
 	// nDNSSEC stores the number of responses validated with DNSSEC.
 	nDNSSEC uint64
+
+	// gafamQueries stores query counts per GAFAM company.
+	gafamQueries [gafamCount]uint64
 }
 
 // newUnit allocates the new *unit.
@@ -214,6 +217,10 @@ type unitDB struct {
 
 	// NDNSSEC is the number of responses validated with DNSSEC.
 	NDNSSEC uint64
+
+	// GafamQueries stores query counts per GAFAM company (indexed by
+	// GafamCompany).
+	GafamQueries []uint64
 }
 
 // newUnitID is the default UnitIDGenFunc that generates the unique id hourly.
@@ -309,6 +316,7 @@ func (u *unit) serialize() (udb *unitDB) {
 		TimeAvg:            timeAvg,
 		NEncrypted:         u.nEncrypted,
 		NDNSSEC:            u.nDNSSEC,
+		GafamQueries:       u.gafamQueries[:],
 	}
 }
 
@@ -354,6 +362,9 @@ func (u *unit) deserialize(udb *unitDB) {
 	u.timeSum = uint64(udb.TimeAvg) * udb.NTotal
 	u.nEncrypted = udb.NEncrypted
 	u.nDNSSEC = udb.NDNSSEC
+	if len(udb.GafamQueries) >= int(gafamCount) {
+		copy(u.gafamQueries[:], udb.GafamQueries[:gafamCount])
+	}
 }
 
 // add adds new data to u.  It's safe for concurrent use.
@@ -366,6 +377,10 @@ func (u *unit) add(e *Entry) {
 		if e.FilterListID != 0 {
 			u.blockedFilterLists[fmt.Sprintf("%d", e.FilterListID)]++
 		}
+	}
+
+	if c := matchGafamCompany(e.Domain); c >= 0 {
+		u.gafamQueries[c]++
 	}
 
 	u.clients[e.Client]++
@@ -477,6 +492,8 @@ func (s *StatsCtx) getData(limit uint32) (resp *StatsResp, ok bool) {
 			DNSQueries:           []uint64{},
 			ReplacedParental:     []uint64{},
 			ReplacedSafebrowsing: []uint64{},
+
+			GafamStats: map[string]uint64{},
 		}, true
 	}
 
@@ -532,6 +549,22 @@ func (s *StatsCtx) dataFromUnits(units []*unitDB, curID uint32) (resp *StatsResp
 
 	if timeN != 0 {
 		resp.AvgProcessingTime = microsecondsToSeconds(float64(sum.TimeAvg / timeN))
+	}
+
+	var gafamTotals [gafamCount]uint64
+	for _, u := range units {
+		if len(u.GafamQueries) >= int(gafamCount) {
+			for i := GafamCompany(0); i < gafamCount; i++ {
+				gafamTotals[i] += u.GafamQueries[i]
+			}
+		}
+	}
+	resp.GafamStats = map[string]uint64{
+		"Google":    gafamTotals[GafamGoogle],
+		"Amazon":    gafamTotals[GafamAmazon],
+		"Meta":      gafamTotals[GafamMeta],
+		"Apple":     gafamTotals[GafamApple],
+		"Microsoft": gafamTotals[GafamMicrosoft],
 	}
 
 	return resp

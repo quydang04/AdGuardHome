@@ -267,6 +267,7 @@ export type StatsData = {
     topUpstreamsResponses: { name: string; count: number }[];
     topBlockedFilterLists: { name: string; count: number }[];
     systemInfo: SystemInfoData | null;
+    gafamStats: Record<string, number>;
 };
 
 export type ClientsData = {

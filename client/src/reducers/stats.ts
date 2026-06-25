@@ -24,6 +24,7 @@ const defaultStats = {
     timeUnits: TIME_UNITS.HOURS,
     topBlockedFilterLists: [],
     systemInfo: null,
+    gafamStats: {},
 };
 
 const normalizeSystemInfo = (system: any) => {
@@ -146,6 +147,7 @@ const stats = handleActions(
                 topBlockedFilterLists,
                 timeUnits,
                 systemInfo: normalizeSystemInfo(system),
+                gafamStats: payload.gafam_stats || {},
             };
 
             return newState;

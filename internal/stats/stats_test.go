@@ -128,6 +128,9 @@ func TestStats(t *testing.T) {
 			NumReplacedSafesearch:   0,
 			NumReplacedParental:     0,
 			AvgProcessingTime:       0.123456,
+			GafamStats: map[string]uint64{
+				"Google": 0, "Amazon": 0, "Meta": 0, "Apple": 0, "Microsoft": 0,
+			},
 		}
 
 		for _, e := range entries {
@@ -167,6 +170,9 @@ func TestStats(t *testing.T) {
 			BlockedFiltering:      _24zeroes[:],
 			ReplacedSafebrowsing:  _24zeroes[:],
 			ReplacedParental:      _24zeroes[:],
+			GafamStats: map[string]uint64{
+				"Google": 0, "Amazon": 0, "Meta": 0, "Apple": 0, "Microsoft": 0,
+			},
 		}
 
 		req = httptest.NewRequest(http.MethodGet, "/control/stats", nil)
