@@ -858,5 +858,18 @@
     "username_change_failed": "Failed to change username",
     "theme_auto": "Auto",
     "theme_light": "Light",
-    "theme_dark": "Dark"
+    "theme_dark": "Dark",
+    "import_export_settings": "Import / Export Settings",
+    "import_export_settings_desc": "Export all settings to a JSON file for backup or migration, or import settings from a previously exported file.",
+    "export_settings": "Export Settings",
+    "import_settings": "Import Settings",
+    "export_settings_desc": "Download all current settings as a JSON file.",
+    "import_settings_desc": "Upload a JSON settings file to restore configuration.",
+    "settings_exported": "Settings exported successfully",
+    "settings_imported": "Settings imported successfully. Please restart AdGuard Home for all changes to take effect.",
+    "settings_export_error": "Failed to export settings",
+    "settings_import_error": "Failed to import settings",
+    "settings_import_confirm": "Are you sure you want to import these settings? This will overwrite your current configuration.",
+    "settings_import_invalid_file": "Invalid settings file. Please select a valid JSON file.",
+    "select_file": "Select file"
 }

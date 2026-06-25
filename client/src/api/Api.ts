@@ -699,6 +699,24 @@ class Api {
         return this.makeRequest(path, method, config);
     }
 
+    // Settings Export/Import
+    SETTINGS_EXPORT = { path: 'settings/export', method: 'GET' };
+
+    SETTINGS_IMPORT = { path: 'settings/import', method: 'POST' };
+
+    exportSettings() {
+        const { path, method } = this.SETTINGS_EXPORT;
+
+        return this.makeRequest(path, method);
+    }
+
+    importSettings(data: any) {
+        const { path, method } = this.SETTINGS_IMPORT;
+        const config = { data };
+
+        return this.makeRequest(path, method, config);
+    }
+
     // Notifications
     NOTIFICATIONS_TELEGRAM_GET = { path: 'notifications/telegram', method: 'GET' };
 

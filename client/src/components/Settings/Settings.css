@@ -275,3 +275,27 @@
     background-color: #f8d7da;
     border: 1px solid #f5c6cb;
 }
+
+/* Import/Export */
+.settings__import-export {
+    max-width: 500px;
+}
+
+.settings__import-export-section {
+    margin-bottom: 1rem;
+}
+
+.settings__import-btn {
+    cursor: pointer;
+    position: relative;
+}
+
+.settings__import-input {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    cursor: pointer;
+}

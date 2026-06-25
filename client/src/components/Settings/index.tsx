@@ -96,6 +96,9 @@ interface SettingsState {
     usernameMessage: string;
     usernameMessageType: 'success' | 'error' | '';
     usernameProcessing: boolean;
+    importExportMessage: string;
+    importExportMessageType: 'success' | 'error' | '';
+    importExportProcessing: boolean;
 }
 
 class Settings extends Component<SettingsProps, SettingsState> {
@@ -114,6 +117,9 @@ class Settings extends Component<SettingsProps, SettingsState> {
         usernameMessage: '',
         usernameMessageType: '',
         usernameProcessing: false,
+        importExportMessage: '',
+        importExportMessageType: '',
+        importExportProcessing: false,
     };
 
     componentDidMount() {
@@ -585,6 +591,122 @@ class Settings extends Component<SettingsProps, SettingsState> {
         );
     };
 
+    onExportSettings = async () => {
+        const { t } = this.props;
+        this.setState({ importExportProcessing: true, importExportMessage: '', importExportMessageType: '' });
+
+        try {
+            const data = await apiClient.exportSettings();
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            const date = new Date().toISOString().slice(0, 10);
+            a.download = `adguardhome-settings-${date}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            this.setState({
+                importExportMessage: t('settings_exported') as string,
+                importExportMessageType: 'success',
+            });
+        } catch (error) {
+            this.setState({
+                importExportMessage: t('settings_export_error') as string,
+                importExportMessageType: 'error',
+            });
+        }
+
+        this.setState({ importExportProcessing: false });
+    };
+
+    onImportSettings = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const { t } = this.props;
+        const file = e.target.files?.[0];
+        if (!file) {
+            return;
+        }
+
+        // Reset file input so the same file can be selected again.
+        e.target.value = '';
+
+        try {
+            const text = await file.text();
+            const data = JSON.parse(text);
+
+            if (!window.confirm(t('settings_import_confirm') as string)) {
+                return;
+            }
+
+            this.setState({ importExportProcessing: true, importExportMessage: '', importExportMessageType: '' });
+
+            await apiClient.importSettings(data);
+            this.setState({
+                importExportMessage: t('settings_imported') as string,
+                importExportMessageType: 'success',
+            });
+        } catch (error) {
+            this.setState({
+                importExportMessage: error instanceof SyntaxError
+                    ? t('settings_import_invalid_file') as string
+                    : t('settings_import_error') as string,
+                importExportMessageType: 'error',
+            });
+        }
+
+        this.setState({ importExportProcessing: false });
+    };
+
+    renderImportExportCard = () => {
+        const { t } = this.props;
+        const { importExportMessage, importExportMessageType, importExportProcessing } = this.state;
+
+        return (
+            <Card title={t('import_export_settings') as string} bodyType="card-body box-body--settings">
+                <p className="form__desc form__desc--top">{t('import_export_settings_desc')}</p>
+                <div className="settings__import-export">
+                    <div className="settings__import-export-section">
+                        <h6 className="settings__section-title">{t('export_settings')}</h6>
+                        <p className="form__desc form__desc--top">{t('export_settings_desc')}</p>
+                        <button
+                            type="button"
+                            className="btn btn-success btn-standard"
+                            onClick={this.onExportSettings}
+                            disabled={importExportProcessing}>
+                            {t('export_settings')}
+                        </button>
+                    </div>
+                    <hr />
+                    <div className="settings__import-export-section">
+                        <h6 className="settings__section-title">{t('import_settings')}</h6>
+                        <p className="form__desc form__desc--top">{t('import_settings_desc')}</p>
+                        <label className="btn btn-outline-secondary btn-standard settings__import-btn" htmlFor="importFile">
+                            {importExportProcessing ? '...' : t('select_file')}
+                            <input
+                                type="file"
+                                id="importFile"
+                                accept=".json"
+                                onChange={this.onImportSettings}
+                                disabled={importExportProcessing}
+                                className="settings__import-input"
+                            />
+                        </label>
+                    </div>
+                    {importExportMessage && (
+                        <div
+                            className={cn('settings__message', {
+                                'settings__message--success': importExportMessageType === 'success',
+                                'settings__message--error': importExportMessageType === 'error',
+                            })}>
+                            {importExportMessage}
+                        </div>
+                    )}
+                </div>
+            </Card>
+        );
+    };
+
     render() {
         const {
             settings,
@@ -660,6 +782,10 @@ class Settings extends Component<SettingsProps, SettingsState> {
                                     setStatsConfig={setStatsConfig}
                                     resetStats={resetStats}
                                 />
+                            </div>
+
+                            <div className="col-md-12">
+                                {this.renderImportExportCard()}
                             </div>
                         </div>
                     </div>

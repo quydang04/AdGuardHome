@@ -202,6 +202,9 @@ func (web *webAPI) registerControlHandlers() {
 	web.httpReg.Register(http.MethodPost, "/control/profile/username", web.handleChangeUsername)
 	web.httpReg.Register(http.MethodPost, "/control/change_port", web.handleChangePort)
 
+	web.httpReg.Register(http.MethodGet, "/control/settings/export", web.handleExportSettings)
+	web.httpReg.Register(http.MethodPost, "/control/settings/import", web.handleImportSettings)
+
 	web.registerNotificationHandlers()
 
 	mobileConfHandler := newMobileConfigHandler(&mobileConfigHandlerConfig{
