@@ -274,7 +274,7 @@ func composeSystemStatusMessage(info systeminfo.Info, ioStats IOStats) string {
 
 	if info.SystemTime != "" {
 		if t, err := time.Parse(time.RFC3339, info.SystemTime); err == nil {
-			lines = append(lines, fmt.Sprintf("  🕐 <b>Time:</b>     <code>%s</code>", t.Format("15:04:05 02/01/2006")))
+			lines = append(lines, fmt.Sprintf("  🕐 <b>Time:</b>     <code>%s</code>", toLocal(t).Format("15:04:05 02/01/2006")))
 		}
 	}
 
@@ -285,7 +285,7 @@ func composeSystemStatusMessage(info systeminfo.Info, ioStats IOStats) string {
 	lines = append(lines, fmt.Sprintf("  ⏱️ <b>Uptime:</b>   %s", uptime))
 
 	if info.BootTime > 0 {
-		bootT := time.Unix(int64(info.BootTime), 0)
+		bootT := toLocal(time.Unix(int64(info.BootTime), 0))
 		lines = append(lines, fmt.Sprintf("  🚀 <b>Boot:</b>     <code>%s</code>", bootT.Format("02/01/2006 15:04")))
 	}
 
@@ -480,7 +480,7 @@ func composeRecentLogsMessage(entries []QueryLogEntry) string {
 				statusIcon = "🚫"
 			}
 
-			timeStr := e.Time.Format("15:04:05")
+			timeStr := toLocal(e.Time).Format("15:04:05")
 			durationStr := ""
 			if e.Duration > 0 {
 				durationStr = fmt.Sprintf(" <i>(%s)</i>", e.Duration.Truncate(time.Microsecond).String())
