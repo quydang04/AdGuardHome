@@ -9,7 +9,6 @@ import {
     formatPercentage,
     formatUptime,
     getUnitIndex,
-    renderCapacity,
     renderUsage,
 } from '../../helpers/systemInfoHelpers';
 import { SystemInfoData } from '../../initialState';
@@ -179,13 +178,6 @@ const DISK_ICON = (
         <ellipse cx="12" cy="5" rx="9" ry="3" />
         <path d="M3 5v6c0 1.66 4 3 9 3s9-1.34 9-3V5" />
         <path d="M3 11v6c0 1.66 4 3 9 3s9-1.34 9-3v-6" />
-    </svg>
-);
-
-const DISK_FREE_ICON = (
-    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z" />
-        <path d="M8 12l3 3 5-5" />
     </svg>
 );
 
@@ -384,11 +376,6 @@ const SystemOverview = ({ systemInfo, processing, getStats }: SystemOverviewProp
                             label: t('system_overview_disk_usage'),
                             value: renderUsage(systemInfo.diskUsed, systemInfo.diskTotal, systemInfo.diskUsage),
                             icon: DISK_ICON,
-                        },
-                        {
-                            label: t('system_overview_disk_free'),
-                            value: renderCapacity(systemInfo.diskFree, systemInfo.diskTotal),
-                            icon: DISK_FREE_ICON,
                         },
                         { label: t('system_overview_disk_path'), value: systemInfo.diskPath || '–', icon: PATH_ICON },
                     ]}
