@@ -976,14 +976,14 @@ body {
     }
     
     .mobile-menu .nav-tabs {
-        padding: 1.5rem !important;
-        gap: 0.5rem !important;
+        padding: 0.75rem !important;
+        gap: 0.25rem !important;
     }
 
     .mobile-menu .nav-tabs .nav-link {
         width: 100% !important;
         border-radius: 12px !important;
-        padding: 0.75rem 1.25rem !important;
+        padding: 0.75rem 1rem !important;
         justify-content: flex-start !important;
         display: flex !important;
     }

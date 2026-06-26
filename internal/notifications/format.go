@@ -3,6 +3,7 @@ package notifications
 import (
 	"fmt"
 	"math"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -58,7 +59,7 @@ func systemOverviewLines(info systeminfo.Info) []string {
 	lines = append(lines, fmt.Sprintf("  🌍 <b>Public IP:</b> <code>%s</code>", fallbackString(info.PublicIP)))
 	if info.SystemTime != "" {
 		if t, err := time.Parse(time.RFC3339, info.SystemTime); err == nil {
-			lines = append(lines, fmt.Sprintf("  🕐 <b>Time:</b> <code>%s</code>", t.Format("15:04:05 02/01/2006")))
+			lines = append(lines, fmt.Sprintf("  🕐 <b>Time:</b> <code>%s</code>", toLocal(t).Format("15:04:05 02/01/2006")))
 		}
 	}
 	uptime := formatUptime(info.UptimeSeconds)
@@ -267,11 +268,42 @@ func formatUptime(seconds uint64) string {
 	return strings.Join(parts, " ")
 }
 
+// systemLocation reads the current system timezone from OS configuration,
+// bypassing Go's cached time.Local which is set once at process startup.
+func systemLocation() *time.Location {
+	if data, err := os.ReadFile("/etc/timezone"); err == nil {
+		if name := strings.TrimSpace(string(data)); name != "" {
+			if loc, err := time.LoadLocation(name); err == nil {
+				return loc
+			}
+		}
+	}
+
+	if target, err := os.Readlink("/etc/localtime"); err == nil {
+		if idx := strings.Index(target, "zoneinfo/"); idx >= 0 {
+			name := target[idx+len("zoneinfo/"):]
+			if loc, err := time.LoadLocation(name); err == nil {
+				return loc
+			}
+		}
+	}
+
+	return time.Local
+}
+
+// localNow returns the current time in the system's configured timezone.
+func localNow() time.Time {
+	return time.Now().In(systemLocation())
+}
+
+// toLocal converts a time value to the system's configured timezone.
+func toLocal(t time.Time) time.Time {
+	return t.In(systemLocation())
+}
+
 // timestampLine returns a formatted timestamp line for message footers.
-// It uses the server's local timezone so the displayed time matches the
-// system clock regardless of the process TZ environment variable.
 func timestampLine() string {
-	now := time.Now().Local()
+	now := localNow()
 	return fmt.Sprintf("🕐 <i>Updated: %s</i>", now.Format("15:04:05 02/01/2006"))
 }
 
