@@ -15,6 +15,7 @@ import settings from './settings';
 import dashboard from './dashboard';
 import dhcp from './dhcp';
 import notifications from './notifications';
+import youtube from './youtube';
 
 export default combineReducers({
     settings,
@@ -31,5 +32,6 @@ export default combineReducers({
     stats,
     dnsConfig,
     notifications,
+    youtube,
     loadingBar: loadingBarReducer,
 });

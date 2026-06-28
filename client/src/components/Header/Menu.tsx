@@ -90,6 +90,10 @@ const FILTERS_ITEMS = [
         route: FILTERS_URLS.custom_rules,
         text: 'custom_filtering_rules',
     },
+    {
+        route: FILTERS_URLS.block_youtube,
+        text: 'block_youtube',
+    },
 ];
 
 interface MenuProps {

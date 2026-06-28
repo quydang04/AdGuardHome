@@ -206,6 +206,7 @@ func (web *webAPI) registerControlHandlers() {
 	web.httpReg.Register(http.MethodPost, "/control/settings/import", web.handleImportSettings)
 
 	web.registerNotificationHandlers()
+	web.registerYouTubeHandlers()
 
 	mobileConfHandler := newMobileConfigHandler(&mobileConfigHandlerConfig{
 		logger: web.baseLogger,

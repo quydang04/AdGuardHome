@@ -431,6 +431,19 @@ export type ServicesData = {
     allServices: any[];
 };
 
+export type YoutubeData = {
+    processingGet: boolean;
+    processingSet: boolean;
+    enabled: boolean;
+    route_server: string;
+    block_ads: boolean;
+    block_tracking: boolean;
+    custom_domains: string[];
+    ad_domains: string[];
+    tracking_domains: string[];
+    rewrite_domains: string[];
+};
+
 export type RootState = {
     access?: AccessData;
     clients?: ClientsData;
@@ -445,6 +458,7 @@ export type RootState = {
     settings?: SettingsData;
     stats?: StatsData;
     notifications?: NotificationsState;
+    youtube?: YoutubeData;
     install?: InstallData;
     toasts: { notices: any[] };
     loadingBar: any;
@@ -693,6 +707,18 @@ export const initialState: RootState = {
             cooldown: 5 * 60 * 1000,
             custom_message: '',
         },
+    },
+    youtube: {
+        processingGet: true,
+        processingSet: false,
+        enabled: false,
+        route_server: '',
+        block_ads: true,
+        block_tracking: true,
+        custom_domains: [],
+        ad_domains: [],
+        tracking_domains: [],
+        rewrite_domains: [],
     },
     toasts: { notices: [] },
     loadingBar: {},

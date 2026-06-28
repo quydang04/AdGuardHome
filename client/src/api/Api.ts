@@ -742,6 +742,23 @@ class Api {
         return this.makeRequest(path, method, { data });
     }
 
+    // YouTube blocking
+    YOUTUBE_GET_CONFIG = { path: 'youtube/config', method: 'GET' };
+
+    YOUTUBE_SET_CONFIG = { path: 'youtube/config/update', method: 'PUT' };
+
+    getYoutubeConfig() {
+        const { path, method } = this.YOUTUBE_GET_CONFIG;
+
+        return this.makeRequest(path, method);
+    }
+
+    setYoutubeConfig(data: any) {
+        const { path, method } = this.YOUTUBE_SET_CONFIG;
+
+        return this.makeRequest(path, method, { data });
+    }
+
     // DNS config
     GET_DNS_CONFIG = { path: 'dns_info', method: 'GET' };
 

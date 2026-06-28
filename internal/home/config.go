@@ -139,6 +139,7 @@ type configuration struct {
 	QueryLog queryLogConfig    `yaml:"querylog"`
 	Stats         statsConfig         `yaml:"statistics"`
 	Notifications notificationsConfig `yaml:"notifications"`
+	YouTube       *youtubeConfig      `yaml:"youtube"`
 
 	// Filters reflects the filters from [filtering.Config].  It's cloned to the
 	// config used in the filtering module at the startup.  Afterwards it's
@@ -504,6 +505,10 @@ func (c *configuration) normalize() {
 	} else {
 		c.Notifications.Telegram.applyDefaults()
 	}
+
+	if c.YouTube == nil {
+		c.YouTube = defaultYoutubeConfig()
+	}
 }
 
 // Default block host constants.
@@ -600,6 +605,7 @@ var config = &configuration{
 	Notifications: notificationsConfig{
 		Telegram: defaultTelegramConfig(),
 	},
+	YouTube: defaultYoutubeConfig(),
 	// NOTE: Keep these parameters in sync with the one put into
 	// client/src/helpers/filters/filters.ts by scripts/vetted-filters.
 	//
