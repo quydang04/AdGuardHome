@@ -230,6 +230,11 @@ func (d *DNSFilter) setRewriteResult(
 	}
 }
 
+// Normalize is the exported version of normalize.
+func (rw *LegacyRewrite) Normalize(ctx context.Context, l *slog.Logger) (err error) {
+	return rw.normalize(ctx, l)
+}
+
 // cloneRewrites returns a deep copy of entries.
 func cloneRewrites(entries []*LegacyRewrite) (clone []*LegacyRewrite) {
 	clone = make([]*LegacyRewrite, len(entries))

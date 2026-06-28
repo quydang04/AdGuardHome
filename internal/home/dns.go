@@ -520,6 +520,8 @@ func stopDNSServer(ctx context.Context) (err error) {
 }
 
 func closeDNSServer(ctx context.Context) {
+	stopYoutubeManager(ctx)
+
 	// DNS forward module must be closed BEFORE stats or queryLog because it depends on them
 	if globalContext.dnsServer != nil {
 		globalContext.dnsServer.Close(ctx)
