@@ -150,6 +150,16 @@
     }
 }
 
+/* Stacked layout: label on top, control full-width below */
+.yt-setting--stacked {
+    flex-direction: column !important;
+}
+
+.yt-setting__control--full {
+    flex: 1 1 100% !important;
+    width: 100%;
+}
+
 .yt-setting__label {
     display: block;
     font-size: 1.05rem;

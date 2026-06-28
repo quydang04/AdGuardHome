@@ -316,7 +316,7 @@ const BlockYoutube = () => {
                     </div>
 
                     {/* Custom Domains */}
-                    <div className="yt-setting">
+                    <div className="yt-setting yt-setting--stacked">
                         <div className="yt-setting__header">
                             <label className="yt-setting__label" htmlFor="custom_domains">
                                 {t('youtube_custom_domains')}
@@ -325,7 +325,7 @@ const BlockYoutube = () => {
                                 {t('youtube_custom_domains_desc')}
                             </p>
                         </div>
-                        <div className="yt-setting__control">
+                        <div className="yt-setting__control yt-setting__control--full">
                             <textarea
                                 id="custom_domains"
                                 className="form-control"
