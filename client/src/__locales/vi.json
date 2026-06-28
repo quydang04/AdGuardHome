@@ -923,5 +923,7 @@
     "youtube_fail_count": "Số lỗi",
     "youtube_last_check": "Kiểm tra lần cuối",
     "youtube_ip_healthy": "Khỏe mạnh",
-    "youtube_ip_unhealthy": "Không khỏe mạnh"
+    "youtube_ip_unhealthy": "Không khỏe mạnh",
+    "enabled": "Đã bật",
+    "type": "Loại"
 }

@@ -9,6 +9,8 @@ import Loading from '../ui/Loading';
 import { getYoutubeConfig, setYoutubeConfig, getYoutubeStatus } from '../../actions/youtube';
 import { RootState, YoutubeIPStatus } from '../../initialState';
 
+import './BlockYoutube.css';
+
 const BlockYoutube = () => {
     const { t } = useTranslation();
     const dispatch = useDispatch();
@@ -89,198 +91,119 @@ const BlockYoutube = () => {
         <>
             <PageTitle title={t('block_youtube')} subtitle={t('block_youtube_desc')} />
 
-            {/* Dashboard Card */}
+            {/* Dashboard */}
             <Card
                 title={t('youtube_dashboard')}
                 bodyType="card-body box-body--settings">
-                <div className="row">
-                    {/* Overall Status */}
-                    <div className="col-sm-6 col-lg-3 mb-3">
-                        <div className="card" style={{
-                            border: `2px solid ${status?.active ? '#28a745' : '#6c757d'}`,
-                            borderRadius: '8px',
-                        }}>
-                            <div className="card-body text-center p-3">
-                                <div style={{
-                                    fontSize: '2rem',
-                                    color: status?.active ? '#28a745' : '#6c757d',
-                                    marginBottom: '4px',
-                                }}>
-                                    {status?.active ? '●' : '○'}
+                <div className="yt-dashboard">
+                    <div className="yt-stats-grid">
+                        <div className={`yt-stat-card ${status?.active ? 'yt-stat-card--success' : 'yt-stat-card--muted'}`}>
+                            <div className="yt-stat-card__icon">
+                                {status?.active ? '●' : '○'}
+                            </div>
+                            <div className="yt-stat-card__value">
+                                {status?.active ? t('youtube_status_active') : t('youtube_status_inactive')}
+                            </div>
+                            {status?.uptime && (
+                                <div className="yt-stat-card__label">
+                                    {t('youtube_uptime')}: {status.uptime}
                                 </div>
-                                <div style={{ fontSize: '1.1rem', fontWeight: 600 }}>
-                                    {status?.active ? t('youtube_status_active') : t('youtube_status_inactive')}
-                                </div>
-                                {status?.uptime && (
-                                    <div className="text-muted" style={{ fontSize: '0.85rem' }}>
-                                        {t('youtube_uptime')}: {status.uptime}
-                                    </div>
-                                )}
+                            )}
+                        </div>
+
+                        <div className="yt-stat-card yt-stat-card--info">
+                            <div className="yt-stat-card__number">
+                                {status?.healthy_ips ?? 0}/{status?.total_ips ?? 0}
+                            </div>
+                            <div className="yt-stat-card__value">
+                                {t('youtube_healthy_ips')}
+                            </div>
+                            <div className="yt-stat-card__label">
+                                {status?.route_server || '-'}
+                            </div>
+                        </div>
+
+                        <div className="yt-stat-card yt-stat-card--danger">
+                            <div className="yt-stat-card__number">
+                                {status?.blocked_rules ?? 0}
+                            </div>
+                            <div className="yt-stat-card__value">
+                                {t('youtube_blocked_rules')}
+                            </div>
+                            <div className="yt-stat-card__label">
+                                {t('youtube_ad_tracking_domains')}
+                            </div>
+                        </div>
+
+                        <div className="yt-stat-card yt-stat-card--primary">
+                            <div className="yt-stat-card__number">
+                                {status?.active_rewrites ?? 0}
+                            </div>
+                            <div className="yt-stat-card__value">
+                                {t('youtube_active_rewrites')}
+                            </div>
+                            <div className="yt-stat-card__label">
+                                {t('youtube_dns_entries')}
                             </div>
                         </div>
                     </div>
 
-                    {/* Route Server Health */}
-                    <div className="col-sm-6 col-lg-3 mb-3">
-                        <div className="card" style={{
-                            border: '2px solid #17a2b8',
-                            borderRadius: '8px',
-                        }}>
-                            <div className="card-body text-center p-3">
-                                <div style={{ fontSize: '2rem', color: '#17a2b8', marginBottom: '4px' }}>
-                                    {status?.healthy_ips ?? 0}/{status?.total_ips ?? 0}
-                                </div>
-                                <div style={{ fontSize: '1.1rem', fontWeight: 600 }}>
-                                    {t('youtube_healthy_ips')}
-                                </div>
-                                <div className="text-muted" style={{ fontSize: '0.85rem' }}>
-                                    {status?.route_server || '-'}
-                                </div>
-                            </div>
+                    {/* Sync Info Bar */}
+                    <div className="yt-sync-bar">
+                        <div className="yt-sync-bar__info">
+                            <span>{t('youtube_last_sync')}: <strong>{formatTime(status?.last_sync_time || '')}</strong></span>
+                            <span>{t('youtube_total_syncs')}: <strong>{status?.total_syncs ?? 0}</strong></span>
+                            <span>{t('youtube_sync_status')}: <strong>{status?.last_sync_status || '-'}</strong></span>
                         </div>
+                        <button
+                            type="button"
+                            className="btn btn-sm btn-outline-secondary"
+                            onClick={handleRefreshStatus}
+                            disabled={youtube?.processingStatus}>
+                            {t('youtube_refresh')}
+                        </button>
                     </div>
 
-                    {/* Blocked Rules */}
-                    <div className="col-sm-6 col-lg-3 mb-3">
-                        <div className="card" style={{
-                            border: '2px solid #dc3545',
-                            borderRadius: '8px',
-                        }}>
-                            <div className="card-body text-center p-3">
-                                <div style={{ fontSize: '2rem', color: '#dc3545', marginBottom: '4px' }}>
-                                    {status?.blocked_rules ?? 0}
-                                </div>
-                                <div style={{ fontSize: '1.1rem', fontWeight: 600 }}>
-                                    {t('youtube_blocked_rules')}
-                                </div>
-                                <div className="text-muted" style={{ fontSize: '0.85rem' }}>
-                                    {t('youtube_ad_tracking_domains')}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Active Rewrites */}
-                    <div className="col-sm-6 col-lg-3 mb-3">
-                        <div className="card" style={{
-                            border: '2px solid #007bff',
-                            borderRadius: '8px',
-                        }}>
-                            <div className="card-body text-center p-3">
-                                <div style={{ fontSize: '2rem', color: '#007bff', marginBottom: '4px' }}>
-                                    {status?.active_rewrites ?? 0}
-                                </div>
-                                <div style={{ fontSize: '1.1rem', fontWeight: 600 }}>
-                                    {t('youtube_active_rewrites')}
-                                </div>
-                                <div className="text-muted" style={{ fontSize: '0.85rem' }}>
-                                    {t('youtube_dns_entries')}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Sync Info */}
-                <div className="row mt-2">
-                    <div className="col-12">
-                        <div className="d-flex align-items-center justify-content-between"
-                            style={{
-                                backgroundColor: '#f8f9fa',
-                                borderRadius: '6px',
-                                padding: '10px 16px',
-                            }}>
-                            <div>
-                                <span className="text-muted" style={{ fontSize: '0.85rem' }}>
-                                    {t('youtube_last_sync')}: {formatTime(status?.last_sync_time || '')}
-                                    {' | '}
-                                    {t('youtube_total_syncs')}: {status?.total_syncs ?? 0}
-                                    {' | '}
-                                    {t('youtube_sync_status')}: {status?.last_sync_status || '-'}
-                                </span>
-                            </div>
-                            <button
-                                type="button"
-                                className="btn btn-sm btn-outline-secondary"
-                                onClick={handleRefreshStatus}
-                                disabled={youtube?.processingStatus}>
-                                {t('youtube_refresh')}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                {/* IP Health Table */}
-                {status?.ip_statuses && status.ip_statuses.length > 0 && (
-                    <div className="mt-3">
-                        <h6 className="mb-2">{t('youtube_ip_health')}</h6>
-                        <div className="table-responsive">
-                            <table className="table table-sm">
-                                <thead>
-                                    <tr>
-                                        <th>{t('youtube_ip_address')}</th>
-                                        <th>{t('youtube_health_status')}</th>
-                                        <th>{t('youtube_fail_count')}</th>
-                                        <th>{t('youtube_last_check')}</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {status.ip_statuses.map((ipStatus: YoutubeIPStatus) => (
-                                        <tr key={ipStatus.ip}>
-                                            <td><code>{ipStatus.ip}</code></td>
-                                            <td>
-                                                <span className={`badge ${ipStatus.healthy ? 'badge-success' : 'badge-danger'}`}>
-                                                    {ipStatus.healthy
-                                                        ? t('youtube_ip_healthy')
-                                                        : t('youtube_ip_unhealthy')}
-                                                </span>
-                                            </td>
-                                            <td>
-                                                <span className={ipStatus.fail_count > 0 ? 'text-warning' : ''}>
-                                                    {ipStatus.fail_count}
-                                                </span>
-                                            </td>
-                                            <td style={{ fontSize: '0.85rem' }}>
-                                                {formatTime(ipStatus.last_check)}
-                                            </td>
+                    {/* IP Health Table */}
+                    {status?.ip_statuses && status.ip_statuses.length > 0 && (
+                        <div className="yt-ip-health">
+                            <h6 className="yt-ip-health__title">{t('youtube_ip_health')}</h6>
+                            <div className="table-responsive">
+                                <table className="table table-sm">
+                                    <thead>
+                                        <tr>
+                                            <th>{t('youtube_ip_address')}</th>
+                                            <th>{t('youtube_health_status')}</th>
+                                            <th>{t('youtube_fail_count')}</th>
+                                            <th>{t('youtube_last_check')}</th>
                                         </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                )}
-            </Card>
-
-            {/* Status Card */}
-            <Card
-                title={t('youtube_status')}
-                bodyType="card-body box-body--settings">
-                <div className="form">
-                    <div className="form__group form__group--settings">
-                        <label className="form__label form__label--with-desc" htmlFor="youtube_enabled">
-                            <span className="form__label-text">
-                                {t('youtube_enable')}
-                            </span>
-                            <span className="form__desc form__desc--top">
-                                {t('youtube_enable_desc')}
-                            </span>
-                        </label>
-                        <div className="form__control">
-                            <div className="custom-switch">
-                                <input
-                                    type="checkbox"
-                                    id="youtube_enabled"
-                                    className="custom-switch__input"
-                                    checked={enabled}
-                                    onChange={(e) => setEnabled(e.target.checked)}
-                                />
-                                <label className="custom-switch__label" htmlFor="youtube_enabled">
-                                    {enabled ? t('enabled') : t('disabled')}
-                                </label>
+                                    </thead>
+                                    <tbody>
+                                        {status.ip_statuses.map((ipStatus: YoutubeIPStatus) => (
+                                            <tr key={ipStatus.ip}>
+                                                <td><code>{ipStatus.ip}</code></td>
+                                                <td>
+                                                    <span className={`badge ${ipStatus.healthy ? 'badge-success' : 'badge-danger'}`}>
+                                                        {ipStatus.healthy
+                                                            ? t('youtube_ip_healthy')
+                                                            : t('youtube_ip_unhealthy')}
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <span className={ipStatus.fail_count > 0 ? 'text-warning' : ''}>
+                                                        {ipStatus.fail_count}
+                                                    </span>
+                                                </td>
+                                                <td className="yt-ip-health__time">
+                                                    {formatTime(ipStatus.last_check)}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
-                    </div>
+                    )}
                 </div>
             </Card>
 
@@ -289,17 +212,44 @@ const BlockYoutube = () => {
                 title={t('youtube_config')}
                 bodyType="card-body box-body--settings">
                 <form onSubmit={handleSubmit}>
+                    {/* Enable Toggle */}
+                    <div className="yt-setting">
+                        <div className="yt-setting__header">
+                            <label className="yt-setting__label" htmlFor="youtube_enabled">
+                                {t('youtube_enable')}
+                            </label>
+                            <p className="yt-setting__desc">
+                                {t('youtube_enable_desc')}
+                            </p>
+                        </div>
+                        <div className="yt-setting__control">
+                            <label className="yt-toggle" htmlFor="youtube_enabled">
+                                <input
+                                    type="checkbox"
+                                    id="youtube_enabled"
+                                    className="yt-toggle__input"
+                                    checked={enabled}
+                                    onChange={(e) => setEnabled(e.target.checked)}
+                                />
+                                <span className="yt-toggle__slider" />
+                                <span className="yt-toggle__text">
+                                    {enabled ? t('enabled') : t('disabled')}
+                                </span>
+                            </label>
+                        </div>
+                    </div>
+
                     {/* Route Server */}
-                    <div className="form__group form__group--settings mb-3">
-                        <label className="form__label form__label--with-desc" htmlFor="route_server">
-                            <span className="form__label-text">
+                    <div className="yt-setting">
+                        <div className="yt-setting__header">
+                            <label className="yt-setting__label" htmlFor="route_server">
                                 {t('youtube_route_server')}
-                            </span>
-                            <span className="form__desc form__desc--top">
+                            </label>
+                            <p className="yt-setting__desc">
                                 {t('youtube_route_server_desc')}
-                            </span>
-                        </label>
-                        <div className="form__control">
+                            </p>
+                        </div>
+                        <div className="yt-setting__control">
                             <input
                                 type="text"
                                 id="route_server"
@@ -312,68 +262,70 @@ const BlockYoutube = () => {
                     </div>
 
                     {/* Block Ads */}
-                    <div className="form__group form__group--settings mb-3">
-                        <label className="form__label form__label--with-desc" htmlFor="block_ads">
-                            <span className="form__label-text">
+                    <div className="yt-setting">
+                        <div className="yt-setting__header">
+                            <label className="yt-setting__label" htmlFor="block_ads">
                                 {t('youtube_block_ads')}
-                            </span>
-                            <span className="form__desc form__desc--top">
+                            </label>
+                            <p className="yt-setting__desc">
                                 {t('youtube_block_ads_desc')}
-                            </span>
-                        </label>
-                        <div className="form__control">
-                            <div className="custom-switch">
+                            </p>
+                        </div>
+                        <div className="yt-setting__control">
+                            <label className="yt-toggle" htmlFor="block_ads">
                                 <input
                                     type="checkbox"
                                     id="block_ads"
-                                    className="custom-switch__input"
+                                    className="yt-toggle__input"
                                     checked={blockAds}
                                     onChange={(e) => setBlockAds(e.target.checked)}
                                 />
-                                <label className="custom-switch__label" htmlFor="block_ads">
+                                <span className="yt-toggle__slider" />
+                                <span className="yt-toggle__text">
                                     {blockAds ? t('enabled') : t('disabled')}
-                                </label>
-                            </div>
+                                </span>
+                            </label>
                         </div>
                     </div>
 
                     {/* Block Tracking */}
-                    <div className="form__group form__group--settings mb-3">
-                        <label className="form__label form__label--with-desc" htmlFor="block_tracking">
-                            <span className="form__label-text">
+                    <div className="yt-setting">
+                        <div className="yt-setting__header">
+                            <label className="yt-setting__label" htmlFor="block_tracking">
                                 {t('youtube_block_tracking')}
-                            </span>
-                            <span className="form__desc form__desc--top">
+                            </label>
+                            <p className="yt-setting__desc">
                                 {t('youtube_block_tracking_desc')}
-                            </span>
-                        </label>
-                        <div className="form__control">
-                            <div className="custom-switch">
+                            </p>
+                        </div>
+                        <div className="yt-setting__control">
+                            <label className="yt-toggle" htmlFor="block_tracking">
                                 <input
                                     type="checkbox"
                                     id="block_tracking"
-                                    className="custom-switch__input"
+                                    className="yt-toggle__input"
                                     checked={blockTracking}
                                     onChange={(e) => setBlockTracking(e.target.checked)}
                                 />
-                                <label className="custom-switch__label" htmlFor="block_tracking">
+                                <span className="yt-toggle__slider" />
+                                <span className="yt-toggle__text">
                                     {blockTracking ? t('enabled') : t('disabled')}
-                                </label>
-                            </div>
+                                </span>
+                            </label>
                         </div>
                     </div>
 
                     {/* Custom Domains */}
-                    <div className="form__group form__group--settings mb-3">
-                        <label className="form__label form__label--with-desc" htmlFor="custom_domains">
-                            <span className="form__label-text">
+                    <div className="yt-setting">
+                        <div className="yt-setting__header">
+                            <label className="yt-setting__label" htmlFor="custom_domains">
                                 {t('youtube_custom_domains')}
-                            </span>
-                            <span className="form__desc form__desc--top">
+                            </label>
+                            <p className="yt-setting__desc">
                                 {t('youtube_custom_domains_desc')}
-                            </span>
-                        </label>
-                        <div className="form__control">
+                            </p>
+                        </div>
+                        <div className="yt-setting__control">
                             <textarea
                                 id="custom_domains"
                                 className="form-control"
@@ -402,9 +354,9 @@ const BlockYoutube = () => {
             <Card
                 title={t('youtube_rewrite_domains')}
                 bodyType="card-body box-body--settings">
-                <div className="form__desc mb-3">
+                <p className="yt-setting__desc mb-3">
                     {t('youtube_rewrite_domains_desc')}
-                </div>
+                </p>
                 <div className="table-responsive">
                     <table className="table">
                         <thead>
@@ -433,9 +385,9 @@ const BlockYoutube = () => {
             <Card
                 title={t('youtube_ad_domains')}
                 bodyType="card-body box-body--settings">
-                <div className="form__desc mb-3">
+                <p className="yt-setting__desc mb-3">
                     {t('youtube_ad_domains_desc')}
-                </div>
+                </p>
                 <div className="table-responsive">
                     <table className="table">
                         <thead>
