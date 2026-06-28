@@ -300,6 +300,8 @@ type DNSFilter struct {
 	hostCheckers []hostChecker
 
 	safeFSPatterns []string
+
+	started atomic.Bool
 }
 
 // Filter represents a filter list
@@ -1080,6 +1082,13 @@ func (d *DNSFilter) Start() {
 	d.RegisterFilteringHandlers()
 
 	go d.updatesLoop(context.TODO())
+
+	d.started.Store(true)
+}
+
+// IsStarted returns true if the filter system has been started.
+func (d *DNSFilter) IsStarted() bool {
+	return d.started.Load()
 }
 
 // updatesLoop initializes new filters and checks for filters updates in a loop.

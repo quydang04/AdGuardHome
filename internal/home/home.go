@@ -921,7 +921,7 @@ func runDNSServer(
 		}
 	}
 
-	startYoutubeManager(ctx, slogLogger)
+	go startYoutubeManager(ctx, slogLogger)
 }
 
 // initTLS initializes TLS manager.  baseLogger, sigHdlr, confModifier, and

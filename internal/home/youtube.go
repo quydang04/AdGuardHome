@@ -652,8 +652,18 @@ func (web *webAPI) handleGetYoutubeStatus(w http.ResponseWriter, r *http.Request
 }
 
 // startYoutubeManager initializes and starts the YouTube ad blocking manager.
+// It waits for the DNS filter system to be ready before applying rules.
 func startYoutubeManager(ctx context.Context, logger *slog.Logger) {
 	initYoutubeManager(logger)
+
+	for i := 0; i < 30; i++ {
+		if globalContext.filters != nil && globalContext.filters.IsStarted() {
+			break
+		}
+
+		time.Sleep(500 * time.Millisecond)
+	}
+
 	ytManager.start(ctx)
 }
 
