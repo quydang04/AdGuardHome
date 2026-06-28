@@ -747,6 +747,8 @@ class Api {
 
     YOUTUBE_SET_CONFIG = { path: 'youtube/config/update', method: 'PUT' };
 
+    YOUTUBE_GET_STATUS = { path: 'youtube/status', method: 'GET' };
+
     getYoutubeConfig() {
         const { path, method } = this.YOUTUBE_GET_CONFIG;
 
@@ -757,6 +759,12 @@ class Api {
         const { path, method } = this.YOUTUBE_SET_CONFIG;
 
         return this.makeRequest(path, method, { data });
+    }
+
+    getYoutubeStatus() {
+        const { path, method } = this.YOUTUBE_GET_STATUS;
+
+        return this.makeRequest(path, method);
     }
 
     // DNS config

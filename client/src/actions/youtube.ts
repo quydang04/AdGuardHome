@@ -17,6 +17,20 @@ export const getYoutubeConfig = () => async (dispatch: any) => {
     }
 };
 
+export const getYoutubeStatusRequest = createAction('GET_YOUTUBE_STATUS_REQUEST');
+export const getYoutubeStatusFailure = createAction('GET_YOUTUBE_STATUS_FAILURE');
+export const getYoutubeStatusSuccess = createAction('GET_YOUTUBE_STATUS_SUCCESS');
+
+export const getYoutubeStatus = () => async (dispatch: any) => {
+    dispatch(getYoutubeStatusRequest());
+    try {
+        const data = await apiClient.getYoutubeStatus();
+        dispatch(getYoutubeStatusSuccess(data));
+    } catch (error) {
+        dispatch(getYoutubeStatusFailure());
+    }
+};
+
 export const setYoutubeConfigRequest = createAction('SET_YOUTUBE_CONFIG_REQUEST');
 export const setYoutubeConfigFailure = createAction('SET_YOUTUBE_CONFIG_FAILURE');
 export const setYoutubeConfigSuccess = createAction('SET_YOUTUBE_CONFIG_SUCCESS');

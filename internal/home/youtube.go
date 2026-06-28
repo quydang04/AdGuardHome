@@ -105,6 +105,14 @@ func youtubeRewriteDomains() []string {
 	}
 }
 
+// youtubeIPStatus tracks the health status of a single route server IP.
+type youtubeIPStatus struct {
+	IP        string `json:"ip"`
+	Healthy   bool   `json:"healthy"`
+	FailCount int    `json:"fail_count"`
+	LastCheck string `json:"last_check"`
+}
+
 // youtubeManager handles the YouTube ad blocking integration: health checking
 // the route server, managing DNS rewrites, and managing ad blocking rules.
 type youtubeManager struct {
@@ -115,6 +123,12 @@ type youtubeManager struct {
 	// healthyIPs are the currently healthy route server IPs.
 	healthyIPs []string
 
+	// allIPs are all resolved IPs from the last sync.
+	allIPs []string
+
+	// ipStatuses tracks health status per IP.
+	ipStatuses map[string]*youtubeIPStatus
+
 	// failCounts tracks consecutive health check failures per IP.
 	failCounts map[string]int
 
@@ -123,6 +137,14 @@ type youtubeManager struct {
 
 	// cancel stops the sync goroutine.
 	cancel context.CancelFunc
+
+	// stats
+	startedAt      time.Time
+	lastSyncTime   time.Time
+	totalSyncs     int
+	lastSyncStatus string
+	blockedRules   int
+	activeRewrites int
 }
 
 var ytManager *youtubeManager
@@ -132,6 +154,7 @@ func initYoutubeManager(logger *slog.Logger) {
 		logger:     logger.With(slogutil.KeyPrefix, "youtube"),
 		healthyIPs: nil,
 		failCounts: make(map[string]int),
+		ipStatuses: make(map[string]*youtubeIPStatus),
 	}
 }
 
@@ -153,6 +176,9 @@ func (m *youtubeManager) start(ctx context.Context) {
 
 	m.applyBlockingRules(ctx, cfg)
 	m.active = true
+	m.startedAt = time.Now()
+	m.totalSyncs = 0
+	m.lastSyncStatus = "starting"
 
 	syncCtx, cancel := context.WithCancel(context.Background())
 	m.cancel = cancel
@@ -179,8 +205,13 @@ func (m *youtubeManager) stop(ctx context.Context) {
 	m.removeAllRewrites(ctx)
 	m.removeBlockingRules(ctx)
 	m.healthyIPs = nil
+	m.allIPs = nil
 	m.failCounts = make(map[string]int)
+	m.ipStatuses = make(map[string]*youtubeIPStatus)
 	m.active = false
+	m.lastSyncStatus = "stopped"
+	m.blockedRules = 0
+	m.activeRewrites = 0
 }
 
 // restart stops and starts the manager with the current config.
@@ -226,6 +257,10 @@ func (m *youtubeManager) syncLoop(ctx context.Context, cfg youtubeConfig) {
 // doSync resolves the route server, health-checks IPs, and updates rewrites.
 func (m *youtubeManager) doSync(ctx context.Context, cfg youtubeConfig) {
 	if cfg.RouteServer == "" {
+		m.mu.Lock()
+		m.lastSyncStatus = "no route server configured"
+		m.lastSyncTime = time.Now()
+		m.mu.Unlock()
 		m.logger.DebugContext(ctx, "no route server configured, skipping sync")
 
 		return
@@ -233,6 +268,11 @@ func (m *youtubeManager) doSync(ctx context.Context, cfg youtubeConfig) {
 
 	ips := m.resolveRouteServer(ctx, cfg.RouteServer)
 	if len(ips) == 0 {
+		m.mu.Lock()
+		m.lastSyncStatus = "failed to resolve route server"
+		m.lastSyncTime = time.Now()
+		m.totalSyncs++
+		m.mu.Unlock()
 		m.logger.WarnContext(ctx, "failed to resolve route server", "server", cfg.RouteServer)
 
 		return
@@ -243,6 +283,26 @@ func (m *youtubeManager) doSync(ctx context.Context, cfg youtubeConfig) {
 	m.mu.Lock()
 	oldIPs := m.healthyIPs
 	m.healthyIPs = healthy
+	m.allIPs = ips
+	m.lastSyncTime = time.Now()
+	m.totalSyncs++
+
+	now := m.lastSyncTime.Format(time.RFC3339)
+	for _, ip := range ips {
+		isHealthy := containsStr(healthy, ip)
+		m.ipStatuses[ip] = &youtubeIPStatus{
+			IP:        ip,
+			Healthy:   isHealthy,
+			FailCount: m.failCounts[ip],
+			LastCheck: now,
+		}
+	}
+
+	if len(healthy) > 0 {
+		m.lastSyncStatus = fmt.Sprintf("ok: %d/%d IPs healthy", len(healthy), len(ips))
+	} else {
+		m.lastSyncStatus = fmt.Sprintf("warning: 0/%d IPs healthy", len(ips))
+	}
 	m.mu.Unlock()
 
 	if len(healthy) > 0 {
@@ -350,6 +410,9 @@ func (m *youtubeManager) updateRewrites(ctx context.Context, ips []string, custo
 		}
 	}
 
+	m.mu.Lock()
+	m.activeRewrites = len(domains) * len(ips)
+	m.mu.Unlock()
 	m.logger.InfoContext(ctx, "dns rewrites updated", "domains", len(domains), "ips", len(ips))
 }
 
@@ -396,6 +459,7 @@ func (m *youtubeManager) applyBlockingRules(ctx context.Context, cfg youtubeConf
 	}
 
 	flt.AddYouTubeRules(ctx, rules)
+	m.blockedRules = len(rules)
 	m.logger.InfoContext(ctx, "blocking rules applied", "count", len(rules))
 }
 
@@ -447,9 +511,26 @@ type youtubeConfigJSON struct {
 	RewriteDomains []string `json:"rewrite_domains"`
 }
 
+// youtubeStatusJSON is the response for the YouTube status API.
+type youtubeStatusJSON struct {
+	Active         bool                `json:"active"`
+	LastSyncTime   string              `json:"last_sync_time"`
+	LastSyncStatus string              `json:"last_sync_status"`
+	TotalSyncs     int                 `json:"total_syncs"`
+	Uptime         string              `json:"uptime"`
+	HealthyIPs     int                 `json:"healthy_ips"`
+	TotalIPs       int                 `json:"total_ips"`
+	IPStatuses     []*youtubeIPStatus  `json:"ip_statuses"`
+	BlockedRules   int                 `json:"blocked_rules"`
+	ActiveRewrites int                 `json:"active_rewrites"`
+	RouteServer    string              `json:"route_server"`
+	SyncInterval   int                 `json:"sync_interval"`
+}
+
 func (web *webAPI) registerYouTubeHandlers() {
 	web.httpReg.Register(http.MethodGet, "/control/youtube/config", web.handleGetYoutubeConfig)
 	web.httpReg.Register(http.MethodPut, "/control/youtube/config/update", web.handlePutYoutubeConfig)
+	web.httpReg.Register(http.MethodGet, "/control/youtube/status", web.handleGetYoutubeStatus)
 }
 
 func (web *webAPI) handleGetYoutubeConfig(w http.ResponseWriter, r *http.Request) {
@@ -525,6 +606,49 @@ func (web *webAPI) handlePutYoutubeConfig(w http.ResponseWriter, r *http.Request
 	}
 
 	aghhttp.OK(ctx, web.logger, w)
+}
+
+func (web *webAPI) handleGetYoutubeStatus(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	resp := youtubeStatusJSON{
+		SyncInterval: int(youtubeSyncInterval.Seconds()),
+	}
+
+	if ytManager != nil {
+		ytManager.mu.Lock()
+		resp.Active = ytManager.active
+		resp.TotalSyncs = ytManager.totalSyncs
+		resp.LastSyncStatus = ytManager.lastSyncStatus
+		resp.HealthyIPs = len(ytManager.healthyIPs)
+		resp.TotalIPs = len(ytManager.allIPs)
+		resp.BlockedRules = ytManager.blockedRules
+		resp.ActiveRewrites = ytManager.activeRewrites
+
+		if !ytManager.lastSyncTime.IsZero() {
+			resp.LastSyncTime = ytManager.lastSyncTime.Format(time.RFC3339)
+		}
+
+		if ytManager.active && !ytManager.startedAt.IsZero() {
+			resp.Uptime = time.Since(ytManager.startedAt).Truncate(time.Second).String()
+		}
+
+		statuses := make([]*youtubeIPStatus, 0, len(ytManager.ipStatuses))
+		for _, s := range ytManager.ipStatuses {
+			statuses = append(statuses, s)
+		}
+		resp.IPStatuses = statuses
+		ytManager.mu.Unlock()
+	}
+
+	cfg := getYoutubeConf()
+	resp.RouteServer = cfg.RouteServer
+
+	if resp.IPStatuses == nil {
+		resp.IPStatuses = []*youtubeIPStatus{}
+	}
+
+	aghhttp.WriteJSONResponseOK(ctx, web.logger, w, r, resp)
 }
 
 // startYoutubeManager initializes and starts the YouTube ad blocking manager.

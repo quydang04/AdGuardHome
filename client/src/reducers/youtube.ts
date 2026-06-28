@@ -18,6 +18,20 @@ const youtube = handleActions(
             processingGet: false,
         }),
 
+        [actions.getYoutubeStatusRequest.toString()]: (state: any) => ({
+            ...state,
+            processingStatus: true,
+        }),
+        [actions.getYoutubeStatusFailure.toString()]: (state: any) => ({
+            ...state,
+            processingStatus: false,
+        }),
+        [actions.getYoutubeStatusSuccess.toString()]: (state, { payload }: any) => ({
+            ...state,
+            status: payload,
+            processingStatus: false,
+        }),
+
         [actions.setYoutubeConfigRequest.toString()]: (state: any) => ({
             ...state,
             processingSet: true,
@@ -34,6 +48,7 @@ const youtube = handleActions(
     {
         processingGet: true,
         processingSet: false,
+        processingStatus: false,
         enabled: false,
         route_server: '',
         block_ads: true,
@@ -42,6 +57,7 @@ const youtube = handleActions(
         ad_domains: [],
         tracking_domains: [],
         rewrite_domains: [],
+        status: null,
     },
 );
 

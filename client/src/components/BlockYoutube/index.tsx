@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useDispatch, useSelector } from 'react-redux';
 
@@ -6,8 +6,8 @@ import PageTitle from '../ui/PageTitle';
 import Card from '../ui/Card';
 import Loading from '../ui/Loading';
 
-import { getYoutubeConfig, setYoutubeConfig } from '../../actions/youtube';
-import { RootState } from '../../initialState';
+import { getYoutubeConfig, setYoutubeConfig, getYoutubeStatus } from '../../actions/youtube';
+import { RootState, YoutubeIPStatus } from '../../initialState';
 
 const BlockYoutube = () => {
     const { t } = useTranslation();
@@ -23,6 +23,7 @@ const BlockYoutube = () => {
 
     useEffect(() => {
         dispatch(getYoutubeConfig());
+        dispatch(getYoutubeStatus());
     }, [dispatch]);
 
     useEffect(() => {
@@ -34,6 +35,18 @@ const BlockYoutube = () => {
             setCustomDomainsText((youtube.custom_domains || []).join('\n'));
         }
     }, [youtube?.processingGet]);
+
+    useEffect(() => {
+        const interval = setInterval(() => {
+            dispatch(getYoutubeStatus());
+        }, 15000);
+
+        return () => clearInterval(interval);
+    }, [dispatch]);
+
+    const handleRefreshStatus = useCallback(() => {
+        dispatch(getYoutubeStatus());
+    }, [dispatch]);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -51,15 +64,193 @@ const BlockYoutube = () => {
                 custom_domains: customDomains,
             }),
         );
+
+        setTimeout(() => {
+            dispatch(getYoutubeStatus());
+        }, 2000);
     };
 
     if (youtube?.processingGet) {
         return <Loading />;
     }
 
+    const status = youtube?.status;
+    const formatTime = (timeStr: string) => {
+        if (!timeStr) return '-';
+        try {
+            const date = new Date(timeStr);
+            return date.toLocaleString();
+        } catch {
+            return timeStr;
+        }
+    };
+
     return (
         <>
             <PageTitle title={t('block_youtube')} subtitle={t('block_youtube_desc')} />
+
+            {/* Dashboard Card */}
+            <Card
+                title={t('youtube_dashboard')}
+                bodyType="card-body box-body--settings">
+                <div className="row">
+                    {/* Overall Status */}
+                    <div className="col-sm-6 col-lg-3 mb-3">
+                        <div className="card" style={{
+                            border: `2px solid ${status?.active ? '#28a745' : '#6c757d'}`,
+                            borderRadius: '8px',
+                        }}>
+                            <div className="card-body text-center p-3">
+                                <div style={{
+                                    fontSize: '2rem',
+                                    color: status?.active ? '#28a745' : '#6c757d',
+                                    marginBottom: '4px',
+                                }}>
+                                    {status?.active ? '●' : '○'}
+                                </div>
+                                <div style={{ fontSize: '1.1rem', fontWeight: 600 }}>
+                                    {status?.active ? t('youtube_status_active') : t('youtube_status_inactive')}
+                                </div>
+                                {status?.uptime && (
+                                    <div className="text-muted" style={{ fontSize: '0.85rem' }}>
+                                        {t('youtube_uptime')}: {status.uptime}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Route Server Health */}
+                    <div className="col-sm-6 col-lg-3 mb-3">
+                        <div className="card" style={{
+                            border: '2px solid #17a2b8',
+                            borderRadius: '8px',
+                        }}>
+                            <div className="card-body text-center p-3">
+                                <div style={{ fontSize: '2rem', color: '#17a2b8', marginBottom: '4px' }}>
+                                    {status?.healthy_ips ?? 0}/{status?.total_ips ?? 0}
+                                </div>
+                                <div style={{ fontSize: '1.1rem', fontWeight: 600 }}>
+                                    {t('youtube_healthy_ips')}
+                                </div>
+                                <div className="text-muted" style={{ fontSize: '0.85rem' }}>
+                                    {status?.route_server || '-'}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Blocked Rules */}
+                    <div className="col-sm-6 col-lg-3 mb-3">
+                        <div className="card" style={{
+                            border: '2px solid #dc3545',
+                            borderRadius: '8px',
+                        }}>
+                            <div className="card-body text-center p-3">
+                                <div style={{ fontSize: '2rem', color: '#dc3545', marginBottom: '4px' }}>
+                                    {status?.blocked_rules ?? 0}
+                                </div>
+                                <div style={{ fontSize: '1.1rem', fontWeight: 600 }}>
+                                    {t('youtube_blocked_rules')}
+                                </div>
+                                <div className="text-muted" style={{ fontSize: '0.85rem' }}>
+                                    {t('youtube_ad_tracking_domains')}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Active Rewrites */}
+                    <div className="col-sm-6 col-lg-3 mb-3">
+                        <div className="card" style={{
+                            border: '2px solid #007bff',
+                            borderRadius: '8px',
+                        }}>
+                            <div className="card-body text-center p-3">
+                                <div style={{ fontSize: '2rem', color: '#007bff', marginBottom: '4px' }}>
+                                    {status?.active_rewrites ?? 0}
+                                </div>
+                                <div style={{ fontSize: '1.1rem', fontWeight: 600 }}>
+                                    {t('youtube_active_rewrites')}
+                                </div>
+                                <div className="text-muted" style={{ fontSize: '0.85rem' }}>
+                                    {t('youtube_dns_entries')}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Sync Info */}
+                <div className="row mt-2">
+                    <div className="col-12">
+                        <div className="d-flex align-items-center justify-content-between"
+                            style={{
+                                backgroundColor: '#f8f9fa',
+                                borderRadius: '6px',
+                                padding: '10px 16px',
+                            }}>
+                            <div>
+                                <span className="text-muted" style={{ fontSize: '0.85rem' }}>
+                                    {t('youtube_last_sync')}: {formatTime(status?.last_sync_time || '')}
+                                    {' | '}
+                                    {t('youtube_total_syncs')}: {status?.total_syncs ?? 0}
+                                    {' | '}
+                                    {t('youtube_sync_status')}: {status?.last_sync_status || '-'}
+                                </span>
+                            </div>
+                            <button
+                                type="button"
+                                className="btn btn-sm btn-outline-secondary"
+                                onClick={handleRefreshStatus}
+                                disabled={youtube?.processingStatus}>
+                                {t('youtube_refresh')}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                {/* IP Health Table */}
+                {status?.ip_statuses && status.ip_statuses.length > 0 && (
+                    <div className="mt-3">
+                        <h6 className="mb-2">{t('youtube_ip_health')}</h6>
+                        <div className="table-responsive">
+                            <table className="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>{t('youtube_ip_address')}</th>
+                                        <th>{t('youtube_health_status')}</th>
+                                        <th>{t('youtube_fail_count')}</th>
+                                        <th>{t('youtube_last_check')}</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {status.ip_statuses.map((ipStatus: YoutubeIPStatus) => (
+                                        <tr key={ipStatus.ip}>
+                                            <td><code>{ipStatus.ip}</code></td>
+                                            <td>
+                                                <span className={`badge ${ipStatus.healthy ? 'badge-success' : 'badge-danger'}`}>
+                                                    {ipStatus.healthy
+                                                        ? t('youtube_ip_healthy')
+                                                        : t('youtube_ip_unhealthy')}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <span className={ipStatus.fail_count > 0 ? 'text-warning' : ''}>
+                                                    {ipStatus.fail_count}
+                                                </span>
+                                            </td>
+                                            <td style={{ fontSize: '0.85rem' }}>
+                                                {formatTime(ipStatus.last_check)}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                )}
+            </Card>
 
             {/* Status Card */}
             <Card
