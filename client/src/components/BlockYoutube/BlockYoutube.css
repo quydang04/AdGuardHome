@@ -135,7 +135,8 @@
     .yt-setting {
         flex-direction: row;
         align-items: flex-start;
-        gap: 24px;
+        gap: 32px;
+        padding: 20px 0;
     }
 
     .yt-setting__header {
@@ -144,25 +145,24 @@
     }
 
     .yt-setting__control {
-        flex: 0 0 auto;
-        min-width: 200px;
+        flex: 0 0 320px;
         padding-top: 2px;
     }
 }
 
 .yt-setting__label {
     display: block;
-    font-size: 1rem;
+    font-size: 1.05rem;
     font-weight: 600;
-    margin-bottom: 4px;
+    margin-bottom: 6px;
     cursor: pointer;
 }
 
 .yt-setting__desc {
-    font-size: 0.85rem;
+    font-size: 0.88rem;
     opacity: 0.6;
     margin: 0;
-    line-height: 1.4;
+    line-height: 1.5;
 }
 
 /* Custom Toggle Switch */
@@ -181,9 +181,9 @@
 
 .yt-toggle__slider {
     position: relative;
-    width: 44px;
-    height: 24px;
-    border-radius: 12px;
+    width: 48px;
+    height: 26px;
+    border-radius: 13px;
     background-color: #6c757d;
     transition: background-color 0.2s;
     flex-shrink: 0;
@@ -194,8 +194,8 @@
     position: absolute;
     top: 3px;
     left: 3px;
-    width: 18px;
-    height: 18px;
+    width: 20px;
+    height: 20px;
     border-radius: 50%;
     background-color: #fff;
     transition: transform 0.2s;
@@ -206,10 +206,10 @@
 }
 
 .yt-toggle__input:checked + .yt-toggle__slider::after {
-    transform: translateX(20px);
+    transform: translateX(22px);
 }
 
 .yt-toggle__text {
-    font-size: 0.88rem;
+    font-size: 0.92rem;
     font-weight: 500;
 }

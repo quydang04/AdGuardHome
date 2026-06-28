@@ -422,33 +422,6 @@ const BlockYoutube = () => {
                 </div>
             </Card>
 
-            {/* Setup Guide Card */}
-            <Card
-                title={t('youtube_setup_guide')}
-                bodyType="card-body box-body--settings">
-                <div className="markdown-text">
-                    <h6>{t('youtube_guide_router_title')}</h6>
-                    <ol>
-                        <li>{t('youtube_guide_step1')}</li>
-                        <li>{t('youtube_guide_step2')}</li>
-                        <li>{t('youtube_guide_step3')}</li>
-                        <li>{t('youtube_guide_step4')}</li>
-                    </ol>
-
-                    <h6>{t('youtube_guide_device_title')}</h6>
-                    <ul>
-                        <li><strong>Android:</strong> {t('youtube_guide_android')}</li>
-                        <li><strong>iPhone/iPad:</strong> {t('youtube_guide_ios')}</li>
-                        <li><strong>Windows:</strong> {t('youtube_guide_windows')}</li>
-                    </ul>
-
-                    <div className="alert alert-warning mt-3">
-                        <strong>{t('youtube_guide_warning_title')}</strong>
-                        <br />
-                        {t('youtube_guide_warning_text')}
-                    </div>
-                </div>
-            </Card>
         </>
     );
 };
