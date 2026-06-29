@@ -936,6 +936,15 @@
     "youtube_block_rate": "Tỷ lệ chặn",
     "youtube_queries_per_min": "truy vấn/phút",
     "youtube_no_stats": "Chưa có dữ liệu",
+    "youtube_remote_domains_url": "URL danh sách domain từ xa",
+    "youtube_remote_domains_url_desc": "URL tới file JSON chứa danh sách domain quảng cáo/tracking/rewrite YouTube được cập nhật. Hệ thống sẽ tự động tải về mỗi 30 phút và gộp với danh sách mặc định. Để trống nếu chỉ dùng danh sách mặc định.",
+    "youtube_remote_domains_url_placeholder": "https://example.com/youtube-domains.json",
+    "youtube_remote_domain_sync": "Đồng bộ domain từ xa",
+    "youtube_remote_domains_count": "Domain từ xa",
+    "youtube_last_domain_sync": "Đồng bộ domain lần cuối",
+    "youtube_domain_sync_status": "Trạng thái đồng bộ domain",
+    "youtube_domain_source_builtin": "Mặc định",
+    "youtube_domain_source_remote": "Từ xa",
     "enabled": "Đã bật",
     "type": "Loại"
 }

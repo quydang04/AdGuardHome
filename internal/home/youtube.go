@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log/slog"
 	"net"
 	"net/http"
@@ -19,31 +20,36 @@ import (
 
 // youtubeConfig is the YouTube ad blocking configuration stored in YAML.
 type youtubeConfig struct {
-	Enabled       bool     `yaml:"enabled" json:"enabled"`
-	RouteServer   string   `yaml:"route_server" json:"route_server"`
-	BlockAds      bool     `yaml:"block_ads" json:"block_ads"`
-	BlockTracking bool     `yaml:"block_tracking" json:"block_tracking"`
-	CustomDomains []string `yaml:"custom_domains" json:"custom_domains"`
+	Enabled          bool     `yaml:"enabled" json:"enabled"`
+	RouteServer      string   `yaml:"route_server" json:"route_server"`
+	BlockAds         bool     `yaml:"block_ads" json:"block_ads"`
+	BlockTracking    bool     `yaml:"block_tracking" json:"block_tracking"`
+	CustomDomains    []string `yaml:"custom_domains" json:"custom_domains"`
+	RemoteDomainsURL string   `yaml:"remote_domains_url" json:"remote_domains_url"`
 }
 
 func defaultYoutubeConfig() *youtubeConfig {
 	return &youtubeConfig{
-		Enabled:       false,
-		RouteServer:   "",
-		BlockAds:      true,
-		BlockTracking: true,
-		CustomDomains: []string{},
+		Enabled:          false,
+		RouteServer:      "",
+		BlockAds:         true,
+		BlockTracking:    true,
+		CustomDomains:    []string{},
+		RemoteDomainsURL: "",
 	}
 }
 
 const (
-	youtubeSyncInterval   = 60 * time.Second
-	youtubeHealthTimeout  = 5 * time.Second
-	youtubeResolveTimeout = 10 * time.Second
-	youtubeFailThreshold  = 2
-	youtubeRulePrefix     = "||"
-	youtubeRuleSuffix     = "^"
-	youtubeRuleComment    = "! YouTube ad blocking (managed by AdGuard Home)"
+	youtubeSyncInterval       = 60 * time.Second
+	youtubeDomainSyncInterval = 30 * time.Minute
+	youtubeFetchTimeout       = 15 * time.Second
+	youtubeHealthTimeout      = 5 * time.Second
+	youtubeResolveTimeout     = 10 * time.Second
+	youtubeFailThreshold      = 2
+	youtubeRulePrefix         = "||"
+	youtubeRuleSuffix         = "^"
+	youtubeRuleComment        = "! YouTube ad blocking (managed by AdGuard Home)"
+	youtubeMaxResponseSize    = 1 << 20 // 1 MB
 )
 
 var youtubeSNITestNames = []string{
@@ -105,6 +111,13 @@ func youtubeRewriteDomains() []string {
 	}
 }
 
+// youtubeRemoteDomains is the JSON format for a remote domain list source.
+type youtubeRemoteDomains struct {
+	AdDomains      []string `json:"ad_domains"`
+	TrackDomains   []string `json:"tracking_domains"`
+	RewriteDomains []string `json:"rewrite_domains"`
+}
+
 // youtubeIPStatus tracks the health status of a single route server IP.
 type youtubeIPStatus struct {
 	IP        string `json:"ip"`
@@ -145,6 +158,12 @@ type youtubeManager struct {
 	lastSyncStatus string
 	blockedRules   int
 	activeRewrites int
+
+	// remoteDomains stores domains fetched from the remote URL.
+	remoteDomains     *youtubeRemoteDomains
+	lastDomainSync    time.Time
+	lastDomainStatus  string
+	remoteDomainCount int
 
 	// queryStats tracks per-query YouTube statistics.
 	queryStats *youtubeQueryStats
@@ -251,10 +270,14 @@ func getYoutubeConf() youtubeConfig {
 func (m *youtubeManager) syncLoop(ctx context.Context, cfg youtubeConfig) {
 	m.logger.InfoContext(ctx, "sync loop started", "route_server", cfg.RouteServer)
 
+	m.fetchRemoteDomains(ctx, cfg)
 	m.doSync(ctx, cfg)
 
-	ticker := time.NewTicker(youtubeSyncInterval)
-	defer ticker.Stop()
+	ipTicker := time.NewTicker(youtubeSyncInterval)
+	defer ipTicker.Stop()
+
+	domainTicker := time.NewTicker(youtubeDomainSyncInterval)
+	defer domainTicker.Stop()
 
 	for {
 		select {
@@ -262,10 +285,27 @@ func (m *youtubeManager) syncLoop(ctx context.Context, cfg youtubeConfig) {
 			m.logger.InfoContext(ctx, "sync loop stopped")
 
 			return
-		case <-ticker.C:
+		case <-domainTicker.C:
+			cfg = getYoutubeConf()
+			if m.fetchRemoteDomains(ctx, cfg) {
+				m.applyBlockingRules(ctx, cfg)
+				m.forceRewriteUpdate(ctx, cfg)
+			}
+		case <-ipTicker.C:
 			cfg = getYoutubeConf()
 			m.doSync(ctx, cfg)
 		}
+	}
+}
+
+// forceRewriteUpdate re-applies DNS rewrites with current healthy IPs.
+func (m *youtubeManager) forceRewriteUpdate(ctx context.Context, cfg youtubeConfig) {
+	m.mu.Lock()
+	healthy := m.healthyIPs
+	m.mu.Unlock()
+
+	if len(healthy) > 0 {
+		m.updateRewrites(ctx, healthy, cfg.CustomDomains)
 	}
 }
 
@@ -352,6 +392,185 @@ func (m *youtubeManager) resolveRouteServer(ctx context.Context, server string) 
 	return addrs
 }
 
+// fetchRemoteDomains fetches domain lists from the configured remote URL and
+// returns true if the lists changed.
+func (m *youtubeManager) fetchRemoteDomains(ctx context.Context, cfg youtubeConfig) bool {
+	if cfg.RemoteDomainsURL == "" {
+		m.mu.Lock()
+		changed := m.remoteDomains != nil
+		m.remoteDomains = nil
+		m.lastDomainStatus = "no remote URL configured"
+		m.remoteDomainCount = 0
+		m.mu.Unlock()
+
+		return changed
+	}
+
+	m.logger.DebugContext(ctx, "fetching remote domain list", "url", cfg.RemoteDomainsURL)
+
+	client := &http.Client{Timeout: youtubeFetchTimeout}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, cfg.RemoteDomainsURL, nil)
+	if err != nil {
+		m.mu.Lock()
+		m.lastDomainStatus = fmt.Sprintf("bad URL: %s", err)
+		m.mu.Unlock()
+		m.logger.WarnContext(ctx, "creating remote domain request", slogutil.KeyError, err)
+
+		return false
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		m.mu.Lock()
+		m.lastDomainStatus = fmt.Sprintf("fetch failed: %s", err)
+		m.mu.Unlock()
+		m.logger.WarnContext(ctx, "fetching remote domains", slogutil.KeyError, err)
+
+		return false
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		m.mu.Lock()
+		m.lastDomainStatus = fmt.Sprintf("HTTP %d", resp.StatusCode)
+		m.mu.Unlock()
+		m.logger.WarnContext(ctx, "remote domain list returned non-200", "status", resp.StatusCode)
+
+		return false
+	}
+
+	body, err := io.ReadAll(io.LimitReader(resp.Body, youtubeMaxResponseSize))
+	if err != nil {
+		m.mu.Lock()
+		m.lastDomainStatus = fmt.Sprintf("read failed: %s", err)
+		m.mu.Unlock()
+		m.logger.WarnContext(ctx, "reading remote domain response", slogutil.KeyError, err)
+
+		return false
+	}
+
+	var remote youtubeRemoteDomains
+	if err = json.Unmarshal(body, &remote); err != nil {
+		m.mu.Lock()
+		m.lastDomainStatus = fmt.Sprintf("invalid JSON: %s", err)
+		m.mu.Unlock()
+		m.logger.WarnContext(ctx, "parsing remote domain list", slogutil.KeyError, err)
+
+		return false
+	}
+
+	totalCount := len(remote.AdDomains) + len(remote.TrackDomains) + len(remote.RewriteDomains)
+
+	m.mu.Lock()
+	old := m.remoteDomains
+	m.remoteDomains = &remote
+	m.lastDomainSync = time.Now()
+	m.lastDomainStatus = fmt.Sprintf("ok: %d domains fetched", totalCount)
+	m.remoteDomainCount = totalCount
+	m.mu.Unlock()
+
+	changed := !remoteDomainsEqual(old, &remote)
+	if changed {
+		m.logger.InfoContext(ctx, "remote domain list updated",
+			"ad", len(remote.AdDomains),
+			"tracking", len(remote.TrackDomains),
+			"rewrite", len(remote.RewriteDomains),
+		)
+	}
+
+	return changed
+}
+
+func remoteDomainsEqual(a, b *youtubeRemoteDomains) bool {
+	if a == nil || b == nil {
+		return a == b
+	}
+
+	return slicesEqual(a.AdDomains, b.AdDomains) &&
+		slicesEqual(a.TrackDomains, b.TrackDomains) &&
+		slicesEqual(a.RewriteDomains, b.RewriteDomains)
+}
+
+func slicesEqual(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+
+	return true
+}
+
+// mergedAdDomains returns hardcoded ad domains merged with remote ones.
+func (m *youtubeManager) mergedAdDomains() []string {
+	base := youtubeAdDomains()
+
+	m.mu.Lock()
+	remote := m.remoteDomains
+	m.mu.Unlock()
+
+	if remote == nil {
+		return base
+	}
+
+	return mergeUnique(base, remote.AdDomains)
+}
+
+// mergedTrackingDomains returns hardcoded tracking domains merged with remote ones.
+func (m *youtubeManager) mergedTrackingDomains() []string {
+	base := youtubeTrackingDomains()
+
+	m.mu.Lock()
+	remote := m.remoteDomains
+	m.mu.Unlock()
+
+	if remote == nil {
+		return base
+	}
+
+	return mergeUnique(base, remote.TrackDomains)
+}
+
+// mergedRewriteDomains returns hardcoded rewrite domains merged with remote ones.
+func (m *youtubeManager) mergedRewriteDomains() []string {
+	base := youtubeRewriteDomains()
+
+	m.mu.Lock()
+	remote := m.remoteDomains
+	m.mu.Unlock()
+
+	if remote == nil {
+		return base
+	}
+
+	return mergeUnique(base, remote.RewriteDomains)
+}
+
+func mergeUnique(base, extra []string) []string {
+	seen := make(map[string]bool, len(base))
+	for _, s := range base {
+		seen[strings.ToLower(s)] = true
+	}
+
+	merged := make([]string, len(base))
+	copy(merged, base)
+
+	for _, s := range extra {
+		lower := strings.ToLower(strings.TrimSpace(s))
+		if lower != "" && !seen[lower] {
+			seen[lower] = true
+			merged = append(merged, s)
+		}
+	}
+
+	return merged
+}
+
 // healthCheckIPs probes each IP with TCP+TLS SNI and returns healthy ones.
 func (m *youtubeManager) healthCheckIPs(ctx context.Context, ips []string) []string {
 	var healthy []string
@@ -404,7 +623,7 @@ func (m *youtubeManager) updateRewrites(ctx context.Context, ips []string, custo
 
 	m.removeAllRewrites(ctx)
 
-	domains := youtubeRewriteDomains()
+	domains := m.mergedRewriteDomains()
 	domains = append(domains, customDomains...)
 
 	for _, domain := range domains {
@@ -438,7 +657,7 @@ func (m *youtubeManager) removeAllRewrites(ctx context.Context) {
 		return
 	}
 
-	domains := youtubeRewriteDomains()
+	domains := m.mergedRewriteDomains()
 	cfg := getYoutubeConf()
 	domains = append(domains, cfg.CustomDomains...)
 
@@ -455,13 +674,13 @@ func (m *youtubeManager) applyBlockingRules(ctx context.Context, cfg youtubeConf
 	var rules []string
 
 	if cfg.BlockAds {
-		for _, d := range youtubeAdDomains() {
+		for _, d := range m.mergedAdDomains() {
 			rules = append(rules, youtubeRulePrefix+d+youtubeRuleSuffix)
 		}
 	}
 
 	if cfg.BlockTracking {
-		for _, d := range youtubeTrackingDomains() {
+		for _, d := range m.mergedTrackingDomains() {
 			rule := youtubeRulePrefix + d + youtubeRuleSuffix
 			if !containsStr(rules, rule) {
 				rules = append(rules, rule)
@@ -516,30 +735,35 @@ func containsStr(ss []string, s string) bool {
 // --- HTTP API handlers ---
 
 type youtubeConfigJSON struct {
-	Enabled        bool     `json:"enabled"`
-	RouteServer    string   `json:"route_server"`
-	BlockAds       bool     `json:"block_ads"`
-	BlockTracking  bool     `json:"block_tracking"`
-	CustomDomains  []string `json:"custom_domains"`
-	AdDomains      []string `json:"ad_domains"`
-	TrackDomains   []string `json:"tracking_domains"`
-	RewriteDomains []string `json:"rewrite_domains"`
+	Enabled          bool     `json:"enabled"`
+	RouteServer      string   `json:"route_server"`
+	BlockAds         bool     `json:"block_ads"`
+	BlockTracking    bool     `json:"block_tracking"`
+	CustomDomains    []string `json:"custom_domains"`
+	RemoteDomainsURL string   `json:"remote_domains_url"`
+	AdDomains        []string `json:"ad_domains"`
+	TrackDomains     []string `json:"tracking_domains"`
+	RewriteDomains   []string `json:"rewrite_domains"`
 }
 
 // youtubeStatusJSON is the response for the YouTube status API.
 type youtubeStatusJSON struct {
-	Active         bool                `json:"active"`
-	LastSyncTime   string              `json:"last_sync_time"`
-	LastSyncStatus string              `json:"last_sync_status"`
-	TotalSyncs     int                 `json:"total_syncs"`
-	Uptime         string              `json:"uptime"`
-	HealthyIPs     int                 `json:"healthy_ips"`
-	TotalIPs       int                 `json:"total_ips"`
-	IPStatuses     []*youtubeIPStatus  `json:"ip_statuses"`
-	BlockedRules   int                 `json:"blocked_rules"`
-	ActiveRewrites int                 `json:"active_rewrites"`
-	RouteServer    string              `json:"route_server"`
-	SyncInterval   int                 `json:"sync_interval"`
+	Active            bool               `json:"active"`
+	LastSyncTime      string             `json:"last_sync_time"`
+	LastSyncStatus    string             `json:"last_sync_status"`
+	TotalSyncs        int                `json:"total_syncs"`
+	Uptime            string             `json:"uptime"`
+	HealthyIPs        int                `json:"healthy_ips"`
+	TotalIPs          int                `json:"total_ips"`
+	IPStatuses        []*youtubeIPStatus `json:"ip_statuses"`
+	BlockedRules      int                `json:"blocked_rules"`
+	ActiveRewrites    int                `json:"active_rewrites"`
+	RouteServer       string             `json:"route_server"`
+	SyncInterval      int                `json:"sync_interval"`
+	LastDomainSync    string             `json:"last_domain_sync"`
+	LastDomainStatus  string             `json:"last_domain_status"`
+	RemoteDomainCount int                `json:"remote_domain_count"`
+	DomainSyncInterval int              `json:"domain_sync_interval"`
 }
 
 func (web *webAPI) registerYouTubeHandlers() {
@@ -563,16 +787,24 @@ func (web *webAPI) handleGetYoutubeConfig(w http.ResponseWriter, r *http.Request
 		}
 
 		resp = youtubeConfigJSON{
-			Enabled:        cfg.Enabled,
-			RouteServer:    cfg.RouteServer,
-			BlockAds:       cfg.BlockAds,
-			BlockTracking:  cfg.BlockTracking,
-			CustomDomains:  cfg.CustomDomains,
-			AdDomains:      youtubeAdDomains(),
-			TrackDomains:   youtubeTrackingDomains(),
-			RewriteDomains: youtubeRewriteDomains(),
+			Enabled:          cfg.Enabled,
+			RouteServer:      cfg.RouteServer,
+			BlockAds:         cfg.BlockAds,
+			BlockTracking:    cfg.BlockTracking,
+			CustomDomains:    cfg.CustomDomains,
+			RemoteDomainsURL: cfg.RemoteDomainsURL,
 		}
 	}()
+
+	if ytManager != nil {
+		resp.AdDomains = ytManager.mergedAdDomains()
+		resp.TrackDomains = ytManager.mergedTrackingDomains()
+		resp.RewriteDomains = ytManager.mergedRewriteDomains()
+	} else {
+		resp.AdDomains = youtubeAdDomains()
+		resp.TrackDomains = youtubeTrackingDomains()
+		resp.RewriteDomains = youtubeRewriteDomains()
+	}
 
 	if resp.CustomDomains == nil {
 		resp.CustomDomains = []string{}
@@ -612,6 +844,7 @@ func (web *webAPI) handlePutYoutubeConfig(w http.ResponseWriter, r *http.Request
 		config.YouTube.BlockAds = req.BlockAds
 		config.YouTube.BlockTracking = req.BlockTracking
 		config.YouTube.CustomDomains = cleanDomains
+		config.YouTube.RemoteDomainsURL = strings.TrimSpace(req.RemoteDomainsURL)
 	}()
 
 	web.logger.InfoContext(ctx, "youtube config updated", "enabled", req.Enabled)
@@ -641,7 +874,8 @@ func (web *webAPI) handleGetYoutubeStatus(w http.ResponseWriter, r *http.Request
 	ctx := r.Context()
 
 	resp := youtubeStatusJSON{
-		SyncInterval: int(youtubeSyncInterval.Seconds()),
+		SyncInterval:       int(youtubeSyncInterval.Seconds()),
+		DomainSyncInterval: int(youtubeDomainSyncInterval.Seconds()),
 	}
 
 	if ytManager != nil {
@@ -653,9 +887,15 @@ func (web *webAPI) handleGetYoutubeStatus(w http.ResponseWriter, r *http.Request
 		resp.TotalIPs = len(ytManager.allIPs)
 		resp.BlockedRules = ytManager.blockedRules
 		resp.ActiveRewrites = ytManager.activeRewrites
+		resp.LastDomainStatus = ytManager.lastDomainStatus
+		resp.RemoteDomainCount = ytManager.remoteDomainCount
 
 		if !ytManager.lastSyncTime.IsZero() {
 			resp.LastSyncTime = ytManager.lastSyncTime.Format(time.RFC3339)
+		}
+
+		if !ytManager.lastDomainSync.IsZero() {
+			resp.LastDomainSync = ytManager.lastDomainSync.Format(time.RFC3339)
 		}
 
 		if ytManager.active && !ytManager.startedAt.IsZero() {

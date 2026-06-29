@@ -936,6 +936,15 @@
     "youtube_block_rate": "Block Rate",
     "youtube_queries_per_min": "queries/min",
     "youtube_no_stats": "No data yet",
+    "youtube_remote_domains_url": "Remote Domain List URL",
+    "youtube_remote_domains_url_desc": "URL to a JSON file containing updated YouTube ad/tracking/rewrite domain lists. The system will fetch this every 30 minutes and merge with built-in defaults. Leave empty to use only built-in domains.",
+    "youtube_remote_domains_url_placeholder": "https://example.com/youtube-domains.json",
+    "youtube_remote_domain_sync": "Remote Domain Sync",
+    "youtube_remote_domains_count": "Remote Domains",
+    "youtube_last_domain_sync": "Last domain sync",
+    "youtube_domain_sync_status": "Domain sync status",
+    "youtube_domain_source_builtin": "Built-in",
+    "youtube_domain_source_remote": "Remote",
     "enabled": "Enabled",
     "type": "Type"
 }

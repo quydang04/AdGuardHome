@@ -470,6 +470,10 @@ export type YoutubeStatus = {
     active_rewrites: number;
     route_server: string;
     sync_interval: number;
+    last_domain_sync: string;
+    last_domain_status: string;
+    remote_domain_count: number;
+    domain_sync_interval: number;
 };
 
 export type YoutubeData = {
@@ -482,6 +486,7 @@ export type YoutubeData = {
     block_ads: boolean;
     block_tracking: boolean;
     custom_domains: string[];
+    remote_domains_url: string;
     ad_domains: string[];
     tracking_domains: string[];
     rewrite_domains: string[];
@@ -763,6 +768,7 @@ export const initialState: RootState = {
         block_ads: true,
         block_tracking: true,
         custom_domains: [],
+        remote_domains_url: '',
         ad_domains: [],
         tracking_domains: [],
         rewrite_domains: [],

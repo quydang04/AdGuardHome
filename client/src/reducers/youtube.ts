@@ -69,6 +69,7 @@ const youtube = handleActions(
         block_ads: true,
         block_tracking: true,
         custom_domains: [],
+        remote_domains_url: '',
         ad_domains: [],
         tracking_domains: [],
         rewrite_domains: [],

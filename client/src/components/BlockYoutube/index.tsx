@@ -24,6 +24,7 @@ const BlockYoutube = () => {
     const [blockAds, setBlockAds] = useState(true);
     const [blockTracking, setBlockTracking] = useState(true);
     const [customDomainsText, setCustomDomainsText] = useState('');
+    const [remoteDomainsUrl, setRemoteDomainsUrl] = useState('');
 
     useEffect(() => {
         dispatch(getYoutubeConfig());
@@ -38,6 +39,7 @@ const BlockYoutube = () => {
             setBlockAds(youtube.block_ads !== undefined ? youtube.block_ads : true);
             setBlockTracking(youtube.block_tracking !== undefined ? youtube.block_tracking : true);
             setCustomDomainsText((youtube.custom_domains || []).join('\n'));
+            setRemoteDomainsUrl(youtube.remote_domains_url || '');
         }
     }, [youtube?.processingGet]);
 
@@ -68,6 +70,7 @@ const BlockYoutube = () => {
                 block_ads: blockAds,
                 block_tracking: blockTracking,
                 custom_domains: customDomains,
+                remote_domains_url: remoteDomainsUrl,
             }),
         );
 
@@ -171,6 +174,21 @@ const BlockYoutube = () => {
                         </button>
                     </div>
 
+                    {/* Remote Domain Sync Info */}
+                    {status?.last_domain_status && (
+                        <div className="yt-sync-bar">
+                            <div className="yt-sync-bar__info">
+                                <span>{t('youtube_remote_domain_sync')}: <strong>{status.last_domain_status}</strong></span>
+                                {status.last_domain_sync && (
+                                    <span>{t('youtube_last_domain_sync')}: <strong>{formatTime(status.last_domain_sync)}</strong></span>
+                                )}
+                                {status.remote_domain_count > 0 && (
+                                    <span>{t('youtube_remote_domains_count')}: <strong>{status.remote_domain_count}</strong></span>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
                     {/* IP Health Table */}
                     {status?.ip_statuses && status.ip_statuses.length > 0 && (
                         <div className="yt-ip-health">
@@ -264,6 +282,28 @@ const BlockYoutube = () => {
                                 placeholder="ytb.fzpn.net"
                                 value={routeServer}
                                 onChange={(e) => setRouteServer(e.target.value)}
+                            />
+                        </div>
+                    </div>
+
+                    {/* Remote Domains URL */}
+                    <div className="yt-setting">
+                        <div className="yt-setting__header">
+                            <label className="yt-setting__label" htmlFor="remote_domains_url">
+                                {t('youtube_remote_domains_url')}
+                            </label>
+                            <p className="yt-setting__desc">
+                                {t('youtube_remote_domains_url_desc')}
+                            </p>
+                        </div>
+                        <div className="yt-setting__control">
+                            <input
+                                type="text"
+                                id="remote_domains_url"
+                                className="form-control"
+                                placeholder={t('youtube_remote_domains_url_placeholder')}
+                                value={remoteDomainsUrl}
+                                onChange={(e) => setRemoteDomainsUrl(e.target.value)}
                             />
                         </div>
                     </div>
