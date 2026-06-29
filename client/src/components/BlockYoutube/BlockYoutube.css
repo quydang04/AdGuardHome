@@ -223,3 +223,195 @@
     font-size: 0.92rem;
     font-weight: 500;
 }
+
+/* YouTube Query Statistics Section */
+.yt-stats-section {
+    padding: 0;
+}
+
+.yt-stats-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.yt-stats-header__title {
+    font-weight: 600;
+    font-size: 14px;
+    color: #333;
+}
+
+.yt-query-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+@media (min-width: 768px) {
+    .yt-query-stats-grid {
+        grid-template-columns: repeat(4, 1fr);
+    }
+}
+
+.yt-query-stat {
+    background: #fff;
+    border-radius: 8px;
+    padding: 14px;
+    text-align: center;
+    border: 1px solid #e9ecef;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.yt-query-stat:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.yt-query-stat__value {
+    font-size: 24px;
+    font-weight: 700;
+    line-height: 1.2;
+    margin-bottom: 4px;
+}
+
+.yt-query-stat__label {
+    font-size: 11px;
+    color: #6c757d;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Query History Chart */
+.yt-query-chart {
+    margin-bottom: 20px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 16px;
+}
+
+.yt-query-chart__title {
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: #495057;
+}
+
+.yt-query-chart__legend {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 8px;
+    font-size: 11px;
+}
+
+.yt-legend-blocked::before {
+    content: '';
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    background: #e74c3c;
+    border-radius: 2px;
+    margin-right: 4px;
+    vertical-align: middle;
+}
+
+.yt-legend-rewritten::before {
+    content: '';
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    background: #27ae60;
+    border-radius: 2px;
+    margin-right: 4px;
+    vertical-align: middle;
+}
+
+.yt-query-chart__bars {
+    display: flex;
+    align-items: flex-end;
+    gap: 2px;
+    height: 64px;
+    overflow: hidden;
+}
+
+.yt-bar-group {
+    display: flex;
+    align-items: flex-end;
+    gap: 1px;
+    flex: 1;
+    min-width: 0;
+}
+
+.yt-bar {
+    flex: 1;
+    border-radius: 2px 2px 0 0;
+    min-height: 2px;
+    transition: height 0.3s ease;
+}
+
+.yt-bar--blocked {
+    background: #e74c3c;
+}
+
+.yt-bar--rewritten {
+    background: #27ae60;
+}
+
+/* Top Domains */
+.yt-top-domains {
+    margin-bottom: 20px;
+}
+
+.yt-top-domains__title {
+    font-size: 13px;
+    font-weight: 600;
+    color: #495057;
+    margin-bottom: 8px;
+}
+
+.yt-top-domains__table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+}
+
+.yt-top-domains__table tr {
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.yt-top-domains__domain {
+    padding: 6px 8px 6px 0;
+    color: #333;
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.yt-top-domains__count {
+    padding: 6px 8px;
+    color: #6c757d;
+    text-align: right;
+    white-space: nowrap;
+}
+
+.yt-top-domains__bar-cell {
+    width: 40%;
+    padding: 6px 0;
+}
+
+.yt-top-domains__bar {
+    height: 6px;
+    background: #4361ee;
+    border-radius: 3px;
+    min-width: 4px;
+    transition: width 0.3s ease;
+}
+
+.yt-no-data {
+    color: #adb5bd;
+    font-size: 12px;
+    font-style: italic;
+    margin: 0;
+}

@@ -924,6 +924,18 @@
     "youtube_last_check": "Last Check",
     "youtube_ip_healthy": "Healthy",
     "youtube_ip_unhealthy": "Unhealthy",
+    "youtube_query_stats": "YouTube Query Statistics",
+    "youtube_total_queries": "Total Queries",
+    "youtube_blocked_ad_queries": "Blocked Ad Queries",
+    "youtube_blocked_tracking_queries": "Blocked Tracking",
+    "youtube_rewritten_queries": "Rewritten Queries",
+    "youtube_top_blocked": "Top Blocked Domains",
+    "youtube_top_rewritten": "Top Rewritten Domains",
+    "youtube_query_history": "Query History (24h)",
+    "youtube_query_rate": "Query Rate",
+    "youtube_block_rate": "Block Rate",
+    "youtube_queries_per_min": "queries/min",
+    "youtube_no_stats": "No data yet",
     "enabled": "Enabled",
     "type": "Type"
 }

@@ -6,8 +6,10 @@ import PageTitle from '../ui/PageTitle';
 import Card from '../ui/Card';
 import Loading from '../ui/Loading';
 
-import { getYoutubeConfig, setYoutubeConfig, getYoutubeStatus } from '../../actions/youtube';
+import { getYoutubeConfig, setYoutubeConfig, getYoutubeStatus, getYoutubeStats } from '../../actions/youtube';
 import { RootState, YoutubeIPStatus } from '../../initialState';
+
+import YouTubeStats from './YouTubeStats';
 
 import './BlockYoutube.css';
 
@@ -26,6 +28,7 @@ const BlockYoutube = () => {
     useEffect(() => {
         dispatch(getYoutubeConfig());
         dispatch(getYoutubeStatus());
+        dispatch(getYoutubeStats());
     }, [dispatch]);
 
     useEffect(() => {
@@ -41,7 +44,8 @@ const BlockYoutube = () => {
     useEffect(() => {
         const interval = setInterval(() => {
             dispatch(getYoutubeStatus());
-        }, 15000);
+            dispatch(getYoutubeStats());
+        }, 5000);
 
         return () => clearInterval(interval);
     }, [dispatch]);
@@ -420,6 +424,13 @@ const BlockYoutube = () => {
                         </tbody>
                     </table>
                 </div>
+            </Card>
+
+            {/* YouTube Query Statistics */}
+            <Card
+                title={t('youtube_query_stats')}
+                bodyType="card-body box-body--settings">
+                <YouTubeStats />
             </Card>
 
         </>

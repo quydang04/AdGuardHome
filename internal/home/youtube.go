@@ -145,6 +145,9 @@ type youtubeManager struct {
 	lastSyncStatus string
 	blockedRules   int
 	activeRewrites int
+
+	// queryStats tracks per-query YouTube statistics.
+	queryStats *youtubeQueryStats
 }
 
 var ytManager *youtubeManager
@@ -155,7 +158,19 @@ func initYoutubeManager(logger *slog.Logger) {
 		healthyIPs: nil,
 		failCounts: make(map[string]int),
 		ipStatuses: make(map[string]*youtubeIPStatus),
+		queryStats: newYoutubeQueryStats(),
 	}
+}
+
+// RecordYoutubeQuery records a DNS query result in the YouTube statistics.
+// queryType must be one of "ad", "tracking", or "rewrite".  It is safe to
+// call when ytManager is nil.
+func RecordYoutubeQuery(domain, queryType string) {
+	if ytManager == nil || ytManager.queryStats == nil {
+		return
+	}
+
+	ytManager.queryStats.RecordQuery(domain, queryType)
 }
 
 // start begins the YouTube ad blocking manager if the config is enabled.
@@ -531,6 +546,7 @@ func (web *webAPI) registerYouTubeHandlers() {
 	web.httpReg.Register(http.MethodGet, "/control/youtube/config", web.handleGetYoutubeConfig)
 	web.httpReg.Register(http.MethodPut, "/control/youtube/config/update", web.handlePutYoutubeConfig)
 	web.httpReg.Register(http.MethodGet, "/control/youtube/status", web.handleGetYoutubeStatus)
+	web.httpReg.Register(http.MethodGet, "/control/youtube/stats", web.handleGetYoutubeStats)
 }
 
 func (web *webAPI) handleGetYoutubeConfig(w http.ResponseWriter, r *http.Request) {
@@ -606,6 +622,19 @@ func (web *webAPI) handlePutYoutubeConfig(w http.ResponseWriter, r *http.Request
 	}
 
 	aghhttp.OK(ctx, web.logger, w)
+}
+
+func (web *webAPI) handleGetYoutubeStats(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	if ytManager == nil || ytManager.queryStats == nil {
+		aghhttp.ErrorAndLog(ctx, web.logger, r, w, http.StatusServiceUnavailable, "youtube manager not initialized")
+
+		return
+	}
+
+	stats := ytManager.queryStats.getStats()
+	aghhttp.WriteJSONResponseOK(ctx, web.logger, w, r, &stats)
 }
 
 func (web *webAPI) handleGetYoutubeStatus(w http.ResponseWriter, r *http.Request) {
