@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { getYoutubeStats } from '../../actions/youtube';
 import { RootState } from '../../initialState';
 
+import Card from '../ui/Card';
 import YouTubeStatsCard from './YouTubeStatsCard';
 import YouTubeTopDomains from './YouTubeTopDomains';
 import YouTubeQueryChart from './YouTubeQueryChart';
@@ -66,45 +67,46 @@ const YouTubeStats = () => {
     const stats = queryStats ?? EMPTY_STATS;
 
     return (
-        <div className="yt-stats-section">
-            <div className="yt-stats-header">
-                <span className="yt-stats-header__title">{t('youtube_query_stats')}</span>
-                {refreshButton}
+        <Card
+            title={t('youtube_query_stats')}
+            bodyType="card-body box-body--settings"
+            refresh={refreshButton}>
+            <div className="yt-stats-section">
+                <div className="yt-query-stats-grid">
+                    <YouTubeStatsCard
+                        value={stats.total_youtube_queries}
+                        label={t('youtube_total_queries')}
+                        variant="total"
+                    />
+                    <YouTubeStatsCard
+                        value={stats.blocked_ad_queries}
+                        label={t('youtube_blocked_ad_queries')}
+                        variant="ad"
+                    />
+                    <YouTubeStatsCard
+                        value={stats.blocked_tracking_queries}
+                        label={t('youtube_blocked_tracking_queries')}
+                        variant="tracking"
+                    />
+                    <YouTubeStatsCard
+                        value={stats.rewritten_queries}
+                        label={t('youtube_rewritten_queries')}
+                        variant="rewrite"
+                    />
+                </div>
+
+                <YouTubeQueryChart
+                    hourlyBlocked={stats.hourly_blocked}
+                    hourlyRewritten={stats.hourly_rewritten}
+                />
+
+                <YouTubeTopDomains domains={stats.top_blocked_domains} title={t('youtube_top_blocked')} />
+
+                <YouTubeTopDomains domains={stats.top_rewrite_domains} title={t('youtube_top_rewritten')} />
             </div>
-
-            <div className="yt-query-stats-grid">
-                <YouTubeStatsCard
-                    value={stats.total_youtube_queries}
-                    label={t('youtube_total_queries')}
-                    variant="total"
-                />
-                <YouTubeStatsCard
-                    value={stats.blocked_ad_queries}
-                    label={t('youtube_blocked_ad_queries')}
-                    variant="ad"
-                />
-                <YouTubeStatsCard
-                    value={stats.blocked_tracking_queries}
-                    label={t('youtube_blocked_tracking_queries')}
-                    variant="tracking"
-                />
-                <YouTubeStatsCard
-                    value={stats.rewritten_queries}
-                    label={t('youtube_rewritten_queries')}
-                    variant="rewrite"
-                />
-            </div>
-
-            <YouTubeQueryChart
-                hourlyBlocked={stats.hourly_blocked}
-                hourlyRewritten={stats.hourly_rewritten}
-            />
-
-            <YouTubeTopDomains domains={stats.top_blocked_domains} title={t('youtube_top_blocked')} />
-
-            <YouTubeTopDomains domains={stats.top_rewrite_domains} title={t('youtube_top_rewritten')} />
-        </div>
+        </Card>
     );
 };
+
 
 export default YouTubeStats;

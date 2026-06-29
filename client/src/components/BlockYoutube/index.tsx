@@ -95,6 +95,9 @@ const BlockYoutube = () => {
         <>
             <PageTitle title={t('block_youtube')} subtitle={t('block_youtube_desc')} />
 
+            {/* YouTube Query Statistics */}
+            <YouTubeStats />
+
             {/* Dashboard */}
             <Card
                 title={t('youtube_dashboard')}
@@ -426,12 +429,6 @@ const BlockYoutube = () => {
                 </div>
             </Card>
 
-            {/* YouTube Query Statistics */}
-            <Card
-                title={t('youtube_query_stats')}
-                bodyType="card-body box-body--settings">
-                <YouTubeStats />
-            </Card>
 
         </>
     );

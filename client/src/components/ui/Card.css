@@ -133,7 +133,7 @@
 }
 
 @media (min-width: 992px) {
-    .dashboard .card:not(.card--full) {
+    .dashboard .card:not(.card--full):not(.card--stats) {
         height: 360px;
     }
 }
