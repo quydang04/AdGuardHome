@@ -12,8 +12,12 @@ export const getYoutubeConfig = () => async (dispatch: any) => {
         const data = await apiClient.getYoutubeConfig();
         dispatch(getYoutubeConfigSuccess(data));
     } catch (error) {
-        dispatch(addErrorToast({ error }));
         dispatch(getYoutubeConfigFailure());
+        try {
+            dispatch(addErrorToast({ error }));
+        } catch (e) {
+            console.error('youtube config error toast failed', e);
+        }
     }
 };
 

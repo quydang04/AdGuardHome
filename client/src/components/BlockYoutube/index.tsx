@@ -4,8 +4,6 @@ import { useDispatch, useSelector } from 'react-redux';
 
 import PageTitle from '../ui/PageTitle';
 import Card from '../ui/Card';
-import Loading from '../ui/Loading';
-
 import { getYoutubeConfig, setYoutubeConfig, getYoutubeStatus, getYoutubeStats } from '../../actions/youtube';
 import { RootState, YoutubeIPStatus } from '../../initialState';
 
@@ -78,10 +76,6 @@ const BlockYoutube = () => {
             dispatch(getYoutubeStatus());
         }, 2000);
     };
-
-    if (youtube?.processingGet) {
-        return <Loading />;
-    }
 
     const status = youtube?.status;
     const formatTime = (timeStr: string) => {
