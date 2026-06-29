@@ -420,6 +420,10 @@ func (web *webAPI) handleImportSettings(w http.ResponseWriter, r *http.Request) 
 
 	web.confModifier.Apply(ctx)
 
+	if imp.YouTube != nil && ytManager != nil {
+		ytManager.restart(ctx)
+	}
+
 	l.InfoContext(ctx, "settings imported successfully")
 
 	aghhttp.WriteJSONResponseOK(ctx, l, w, r, struct {
