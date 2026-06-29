@@ -924,6 +924,18 @@
     "youtube_last_check": "Kiểm tra lần cuối",
     "youtube_ip_healthy": "Khỏe mạnh",
     "youtube_ip_unhealthy": "Không khỏe mạnh",
+    "youtube_query_stats": "Thống kê truy vấn YouTube",
+    "youtube_total_queries": "Tổng truy vấn",
+    "youtube_blocked_ad_queries": "Quảng cáo bị chặn",
+    "youtube_blocked_tracking_queries": "Tracking bị chặn",
+    "youtube_rewritten_queries": "Đã chuyển hướng",
+    "youtube_top_blocked": "Domain bị chặn nhiều nhất",
+    "youtube_top_rewritten": "Domain chuyển hướng nhiều nhất",
+    "youtube_query_history": "Lịch sử truy vấn (24h)",
+    "youtube_query_rate": "Tốc độ truy vấn",
+    "youtube_block_rate": "Tỷ lệ chặn",
+    "youtube_queries_per_min": "truy vấn/phút",
+    "youtube_no_stats": "Chưa có dữ liệu",
     "enabled": "Đã bật",
     "type": "Loại"
 }

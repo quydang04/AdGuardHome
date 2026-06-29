@@ -438,6 +438,25 @@ export type YoutubeIPStatus = {
     last_check: string;
 };
 
+export type YoutubeTopDomain = {
+    domain: string;
+    count: number;
+    type: string;
+};
+
+export type YoutubeStatsData = {
+    total_youtube_queries: number;
+    blocked_ad_queries: number;
+    blocked_tracking_queries: number;
+    rewritten_queries: number;
+    top_blocked_domains: YoutubeTopDomain[];
+    top_rewrite_domains: YoutubeTopDomain[];
+    hourly_blocked: number[];
+    hourly_rewritten: number[];
+    query_rate_per_min: number;
+    block_rate_percent: number;
+};
+
 export type YoutubeStatus = {
     active: boolean;
     last_sync_time: string;
@@ -457,6 +476,7 @@ export type YoutubeData = {
     processingGet: boolean;
     processingSet: boolean;
     processingStatus: boolean;
+    processingStats: boolean;
     enabled: boolean;
     route_server: string;
     block_ads: boolean;
@@ -466,6 +486,7 @@ export type YoutubeData = {
     tracking_domains: string[];
     rewrite_domains: string[];
     status: YoutubeStatus | null;
+    queryStats: YoutubeStatsData | null;
 };
 
 export type RootState = {
@@ -736,6 +757,7 @@ export const initialState: RootState = {
         processingGet: true,
         processingSet: false,
         processingStatus: false,
+        processingStats: false,
         enabled: false,
         route_server: '',
         block_ads: true,
@@ -745,6 +767,7 @@ export const initialState: RootState = {
         tracking_domains: [],
         rewrite_domains: [],
         status: null,
+        queryStats: null,
     },
     toasts: { notices: [] },
     loadingBar: {},
