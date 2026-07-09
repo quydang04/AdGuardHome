@@ -130,3 +130,78 @@ func TestMetricDisplayName(t *testing.T) {
 		})
 	}
 }
+
+func TestComposeCertStatusMessage(t *testing.T) {
+	t.Run("enabled_with_expiry", func(t *testing.T) {
+		status := CertStatus{
+			Enabled:      true,
+			AutoRenew:    true,
+			Domains:      []string{"example.com"},
+			Challenge:    "http-01",
+			NotAfter:     time.Now().Add(60 * 24 * time.Hour),
+			LastIssuedAt: time.Now(),
+		}
+
+		msg := composeCertStatusMessage(status)
+		if !strings.Contains(msg, "example.com") {
+			t.Errorf("expected message to contain domain, got: %s", msg)
+		}
+		if !strings.Contains(msg, "ENABLED") {
+			t.Errorf("expected message to show ENABLED, got: %s", msg)
+		}
+		if !strings.Contains(msg, "ON") {
+			t.Errorf("expected message to show auto-renew ON, got: %s", msg)
+		}
+	})
+
+	t.Run("disabled_with_error", func(t *testing.T) {
+		status := CertStatus{
+			Enabled:   false,
+			AutoRenew: false,
+			LastError: "cloudflare api token is required",
+		}
+
+		msg := composeCertStatusMessage(status)
+		if !strings.Contains(msg, "DISABLED") {
+			t.Errorf("expected message to show DISABLED, got: %s", msg)
+		}
+		if !strings.Contains(msg, "cloudflare api token is required") {
+			t.Errorf("expected message to contain last error, got: %s", msg)
+		}
+	})
+}
+
+func TestCertKeyboard(t *testing.T) {
+	t.Run("auto_renew_on", func(t *testing.T) {
+		kb := certKeyboard(true)
+		if !keyboardHasCallback(kb, "cmd:ssl_autorenew_off") {
+			t.Errorf("expected keyboard to offer disabling auto-renew: %+v", kb)
+		}
+	})
+
+	t.Run("auto_renew_off", func(t *testing.T) {
+		kb := certKeyboard(false)
+		if !keyboardHasCallback(kb, "cmd:ssl_autorenew_on") {
+			t.Errorf("expected keyboard to offer enabling auto-renew: %+v", kb)
+		}
+	})
+
+	kb := certKeyboard(true)
+	if !keyboardHasCallback(kb, "cmd:ssl_issue_now") {
+		t.Errorf("expected keyboard to offer issuing now: %+v", kb)
+	}
+}
+
+// keyboardHasCallback reports whether kb has a button with the given
+// callback data.
+func keyboardHasCallback(kb *tgInlineKeyboardMarkup, callback string) bool {
+	for _, row := range kb.InlineKeyboard {
+		for _, btn := range row {
+			if btn.CallbackData == callback {
+				return true
+			}
+		}
+	}
+
+	return false
+}

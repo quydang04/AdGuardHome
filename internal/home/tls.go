@@ -82,6 +82,14 @@ type tlsManager struct {
 	// acme issues and renews certificates via ACME.  It may be nil, in which
 	// case the "SSL/TLS issue" feature is unavailable.
 	acme *acme.Manager
+
+	// acmeJobMu protects acmeJob.
+	acmeJobMu sync.Mutex
+
+	// acmeJob tracks the currently running (or most recently finished) ACME
+	// issuance started via the web UI or Telegram bot, if any, so that its
+	// progress can be streamed to clients in real time.
+	acmeJob *acmeJob
 }
 
 // tlsManagerConfig contains the settings for initializing the TLS manager.

@@ -6,6 +6,7 @@ import (
 	"github.com/AdguardTeam/AdGuardHome/internal/dnsforward"
 	"github.com/AdguardTeam/AdGuardHome/internal/filtering"
 	"github.com/AdguardTeam/AdGuardHome/internal/notifications"
+	"github.com/AdguardTeam/golibs/errors"
 )
 
 type protectionAdapter struct {
@@ -84,6 +85,56 @@ func (youtubeAdapter) GetYouTubeStatus() (status notifications.YouTubeStatus) {
 	return status
 }
 
+// certAdapter implements [notifications.CertProvider] on top of the
+// package-level ACME config and the TLS manager.
+type certAdapter struct{}
+
+func (certAdapter) GetCertStatus() (status notifications.CertStatus) {
+	snap := acmeConfigSnapshot()
+	status.Enabled = snap.Enabled
+	status.Domains = snap.Domains
+	status.Challenge = snap.Challenge
+	status.AutoRenew = snap.AutoRenew
+	status.LastIssuedAt = snap.LastIssuedAt
+	status.LastError = snap.LastError
+
+	if tlsMgr := globalContext.web.tlsManager; tlsMgr != nil {
+		tlsMgr.mu.Lock()
+		status.NotAfter = tlsMgr.status.NotAfter
+		tlsMgr.mu.Unlock()
+	}
+
+	return status
+}
+
+func (certAdapter) SetCertAutoRenew(enabled bool) error {
+	func() {
+		config.Lock()
+		defer config.Unlock()
+
+		if config.ACME == nil {
+			config.ACME = defaultACMEConfig()
+		}
+
+		config.ACME.AutoRenew = enabled
+	}()
+
+	globalContext.web.confModifier.Apply(context.Background())
+
+	return nil
+}
+
+func (certAdapter) IssueCertificateNow() error {
+	tlsMgr := globalContext.web.tlsManager
+	if tlsMgr == nil {
+		return errors.Error("tls manager not available")
+	}
+
+	_, err := tlsMgr.startACMEIssueJob(context.Background())
+
+	return err
+}
+
 func injectNotificationProviders() {
 	n := globalContext.notifier
 	if n == nil {
@@ -118,4 +169,5 @@ func injectNotificationProviders() {
 	}
 
 	n.SetYouTubeProvider(youtubeAdapter{})
+	n.SetCertProvider(certAdapter{})
 }

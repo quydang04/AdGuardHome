@@ -100,6 +100,56 @@ func (m *Manager) SetYouTubeProvider(yp YouTubeProvider) {
 	m.youtube = yp
 }
 
+// CertStatus summarizes the current state of the "SSL/TLS issue" (ACME)
+// feature for display in bot messages.
+type CertStatus struct {
+	// Domains are the domains the certificate covers/would cover.
+	Domains []string
+
+	// Challenge is the configured ACME challenge type, e.g. "http-01" or
+	// "dns-01-cloudflare".
+	Challenge string
+
+	// LastError is the error from the most recent issuance attempt, if any.
+	LastError string
+
+	// NotAfter is the active certificate's expiration time.  The zero value
+	// means no certificate is currently active.
+	NotAfter time.Time
+
+	// LastIssuedAt is when a certificate was last issued via ACME.  The zero
+	// value means one has never been issued.
+	LastIssuedAt time.Time
+
+	// Enabled indicates whether the "SSL/TLS issue" feature is configured
+	// and enabled.
+	Enabled bool
+
+	// AutoRenew indicates whether the certificate is automatically renewed
+	// as it nears expiration.
+	AutoRenew bool
+}
+
+// CertProvider exposes the "SSL/TLS issue" (ACME) feature's status for the
+// bot menu, and allows toggling auto-renew and triggering an issuance.
+type CertProvider interface {
+	GetCertStatus() CertStatus
+	SetCertAutoRenew(enabled bool) error
+	// IssueCertificateNow starts a certificate issuance in the background.
+	// It returns an error only if one couldn't be started (for example, one
+	// is already in progress); the outcome of the issuance itself is
+	// delivered asynchronously via [Manager.NotifyCertRenewal].
+	IssueCertificateNow() error
+}
+
+// SetCertProvider injects the "SSL/TLS issue" (ACME) provider.
+func (m *Manager) SetCertProvider(cp CertProvider) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	m.cert = cp
+}
+
 // SetProviders injects data providers that are initialized after the Manager.
 // Any provider may be nil if the corresponding module is not available.
 func (m *Manager) SetProviders(sp StatsProvider, fp FilterProvider, pp ProtectionProvider) {

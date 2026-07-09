@@ -1,5 +1,5 @@
 import { merge } from 'webpack-merge';
-import yaml from 'js-yaml';
+import { load as loadYaml } from 'js-yaml';
 import fs from 'fs';
 import { BASE_URL } from './constants.js';
 import common from './webpack.common.js';
@@ -14,7 +14,7 @@ const DEFAULT_PORT = 80;
  */
 const importConfig = () => {
     try {
-        const doc = yaml.safeLoad(fs.readFileSync('../AdguardHome.yaml', 'utf8'));
+        const doc = loadYaml(fs.readFileSync('../AdguardHome.yaml', 'utf8'));
         const { bind_host, bind_port } = doc;
         return {
             bind_host,
@@ -41,9 +41,12 @@ const getDevServerConfig = (proxyUrl = BASE_URL) => {
         open: true,
         host: devServerHost,
         port: devServerPort,
-        proxy: {
-            [proxyUrl]: `http://${devServerHost}:${port}`,
-        },
+        proxy: [
+            {
+                context: [proxyUrl],
+                target: `http://${devServerHost}:${port}`,
+            },
+        ],
     };
 };
 

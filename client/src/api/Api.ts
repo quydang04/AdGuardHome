@@ -419,6 +419,8 @@ class Api {
 
     ACME_ISSUE = { path: 'tls/acme/issue', method: 'POST' };
 
+    ACME_ISSUE_STREAM_PATH = 'tls/acme/issue/stream';
+
     getAcmeStatus() {
         const { path, method } = this.ACME_STATUS;
 
@@ -433,10 +435,24 @@ class Api {
         return this.makeRequest(path, method, parameters);
     }
 
-    issueAcmeCertificate() {
+    /**
+     * Starts a certificate issuance job in the background. The request
+     * resolves as soon as the job is accepted (HTTP 202); progress and the
+     * final result arrive separately over {@link getAcmeIssueStreamUrl}.
+     */
+    startAcmeIssue() {
         const { path, method } = this.ACME_ISSUE;
 
         return this.makeRequest(path, method);
+    }
+
+    /**
+     * Returns the Server-Sent Events URL that streams the progress of the
+     * currently running (or most recently finished) certificate issuance
+     * job started via {@link startAcmeIssue}.
+     */
+    getAcmeIssueStreamUrl() {
+        return `${this.baseUrl}/${this.ACME_ISSUE_STREAM_PATH}`;
     }
 
     // Per-client settings

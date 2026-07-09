@@ -156,6 +156,52 @@ func composeYouTubeStatusMessage(status YouTubeStatus) string {
 	return strings.Join(lines, "\n")
 }
 
+// composeCertStatusMessage formats the current "SSL/TLS issue" (ACME) status
+// for the bot menu.
+func composeCertStatusMessage(status CertStatus) string {
+	statusIcon, statusText := "🔴", "DISABLED"
+	if status.Enabled {
+		statusIcon, statusText = "🟢", "ENABLED"
+	}
+
+	autoRenewIcon, autoRenewText := "🔴", "OFF"
+	if status.AutoRenew {
+		autoRenewIcon, autoRenewText = "🟢", "ON"
+	}
+
+	lines := []string{
+		"🔒 <b>SSL/TLS Issue</b>",
+		divider(),
+		"",
+		fmt.Sprintf("  %s <b>Status:</b>      %s", statusIcon, statusText),
+		fmt.Sprintf("  ▸ <b>Domains:</b>     %s", fallbackString(strings.Join(status.Domains, ", "))),
+		fmt.Sprintf("  ▸ <b>Challenge:</b>   %s", fallbackString(status.Challenge)),
+		fmt.Sprintf("  %s <b>Auto-renew:</b>  %s", autoRenewIcon, autoRenewText),
+	}
+
+	if !status.NotAfter.IsZero() {
+		lines = append(lines, fmt.Sprintf("  ▸ <b>Expires:</b>     <code>%s</code>", status.NotAfter.Format(time.RFC1123)))
+	}
+
+	if !status.LastIssuedAt.IsZero() {
+		lines = append(lines, fmt.Sprintf(
+			"  ▸ <b>Last issued:</b> <code>%s</code>",
+			toLocal(status.LastIssuedAt).Format("15:04:05 02/01/2006"),
+		))
+	}
+
+	if status.LastError != "" {
+		lines = append(lines, "")
+		lines = append(lines, fmt.Sprintf("  ⚠️ <b>Last error:</b> <code>%s</code>", status.LastError))
+	}
+
+	lines = append(lines, "")
+	lines = append(lines, divider())
+	lines = append(lines, timestampLine())
+
+	return strings.Join(lines, "\n")
+}
+
 func composeFilterUpdateMessage(cfg TelegramConfig, update FilterUpdate, info systeminfo.Info) string {
 	lines := make([]string, 0, 24)
 	if prefix := strings.TrimSpace(cfg.CustomMessage); prefix != "" {

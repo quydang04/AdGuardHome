@@ -1,10 +1,11 @@
-import React, { useCallback, useEffect, useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { debounce } from 'lodash';
 import { DEBOUNCE_TIMEOUT, ENCRYPTION_SOURCE } from '../../../helpers/constants';
 
 import { EncryptionFormValues, Form } from './Form';
 import { AcmeForm, AcmeFormValues, CHALLENGE_HTTP01 } from './AcmeForm';
+import { AcmeIssueLogModal } from './AcmeIssueLogModal';
 import Card from '../../ui/Card';
 import PageTitle from '../../ui/PageTitle';
 import Loading from '../../ui/Loading';
@@ -16,7 +17,6 @@ type Props = {
     validateTlsConfig: (values: Partial<EncryptionData>) => void;
     getAcmeConfig: () => void;
     setAcmeConfig: (values: any) => Promise<void>;
-    issueAcmeCertificate: () => void;
 };
 
 export const Encryption = ({
@@ -25,9 +25,9 @@ export const Encryption = ({
     validateTlsConfig,
     getAcmeConfig,
     setAcmeConfig,
-    issueAcmeCertificate,
 }: Props) => {
     const { t } = useTranslation();
+    const [isIssueLogOpen, setIsIssueLogOpen] = useState(false);
 
     useEffect(() => {
         getAcmeConfig();
@@ -153,9 +153,9 @@ export const Encryption = ({
     const handleAcmeIssue = useCallback(
         async (values: AcmeFormValues) => {
             await setAcmeConfig(getAcmeSubmitValues(values));
-            issueAcmeCertificate();
+            setIsIssueLogOpen(true);
         },
-        [getAcmeSubmitValues, setAcmeConfig, issueAcmeCertificate],
+        [getAcmeSubmitValues, setAcmeConfig],
     );
 
     return (
@@ -194,6 +194,8 @@ export const Encryption = ({
                             onIssue={handleAcmeIssue}
                         />
                     </Card>
+
+                    <AcmeIssueLogModal isOpen={isIssueLogOpen} onClose={() => setIsIssueLogOpen(false)} />
                 </>
             )}
         </div>

@@ -123,16 +123,20 @@ export const issueAcmeCertificateRequest = createAction('ISSUE_ACME_CERTIFICATE_
 export const issueAcmeCertificateFailure = createAction('ISSUE_ACME_CERTIFICATE_FAILURE');
 export const issueAcmeCertificateSuccess = createAction('ISSUE_ACME_CERTIFICATE_SUCCESS');
 
-export const issueAcmeCertificate = () => async (dispatch: any) => {
+/**
+ * Starts a certificate issuance job in the background. Real-time progress
+ * and the final result (which dispatches issueAcmeCertificateSuccess /
+ * issueAcmeCertificateFailure) are handled by the caller via a
+ * Server-Sent Events subscription — see AcmeIssueLogModal.
+ */
+export const startAcmeIssue = () => async (dispatch: any) => {
     dispatch(issueAcmeCertificateRequest());
     try {
-        const response = await apiClient.issueAcmeCertificate();
-        response.certificate_chain = atob(response.certificate_chain);
-        response.private_key = atob(response.private_key);
-        dispatch(issueAcmeCertificateSuccess(response));
-        dispatch(addSuccessToast('acme_issue_success'));
+        await apiClient.startAcmeIssue();
+        return true;
     } catch (error) {
         dispatch(addErrorToast({ error }));
         dispatch(issueAcmeCertificateFailure());
+        return false;
     }
 };
