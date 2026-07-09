@@ -29,9 +29,29 @@ type acmeConfigJSON struct {
 	AutoRenew          bool      `json:"auto_renew"`
 }
 
-// toACMEConfigJSON converts c into its JSON representation.  c must not be
-// nil.
+// acmeConfigSnapshot returns a copy of the current ACME configuration,
+// substituting defaults if it hasn't been initialized yet (for example, on a
+// config file predating this feature).  Safe for concurrent use.
+func acmeConfigSnapshot() (snap *acmeConfig) {
+	config.RLock()
+	defer config.RUnlock()
+
+	if config.ACME == nil {
+		return defaultACMEConfig()
+	}
+
+	cp := *config.ACME
+
+	return &cp
+}
+
+// toACMEConfigJSON converts c into its JSON representation.  If c is nil,
+// the defaults are used instead.
 func toACMEConfigJSON(c *acmeConfig) (j acmeConfigJSON) {
+	if c == nil {
+		c = defaultACMEConfig()
+	}
+
 	return acmeConfigJSON{
 		Enabled:            c.Enabled,
 		Email:              c.Email,
@@ -75,9 +95,7 @@ func (j *acmeConfigJSON) validate() (err error) {
 func (m *tlsManager) handleACMEStatus(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	config.RLock()
-	resp := toACMEConfigJSON(config.ACME)
-	config.RUnlock()
+	resp := toACMEConfigJSON(acmeConfigSnapshot())
 
 	aghhttp.WriteJSONResponseOK(ctx, m.logger, w, r, resp)
 }
@@ -105,6 +123,9 @@ func (m *tlsManager) handleACMEConfigure(w http.ResponseWriter, r *http.Request)
 	}
 
 	config.Lock()
+	if config.ACME == nil {
+		config.ACME = defaultACMEConfig()
+	}
 	config.ACME.Enabled = req.Enabled
 	config.ACME.Email = req.Email
 	config.ACME.Domains = req.Domains
@@ -142,11 +163,10 @@ type acmeIssueResponse struct {
 func (m *tlsManager) handleACMEIssue(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	config.RLock()
-	cfgJSON := toACMEConfigJSON(config.ACME)
-	accountKeyPEM := config.ACME.AccountKeyPEM
-	accountURI := config.ACME.AccountURI
-	config.RUnlock()
+	snap := acmeConfigSnapshot()
+	cfgJSON := toACMEConfigJSON(snap)
+	accountKeyPEM := snap.AccountKeyPEM
+	accountURI := snap.AccountURI
 
 	if err := cfgJSON.validate(); err != nil {
 		aghhttp.ErrorAndLog(ctx, m.logger, r, w, http.StatusBadRequest, "%s", err)
@@ -172,6 +192,9 @@ func (m *tlsManager) handleACMEIssue(w http.ResponseWriter, r *http.Request) {
 	status, err := m.applyIssuedCertificate(ctx, res)
 
 	config.Lock()
+	if config.ACME == nil {
+		config.ACME = defaultACMEConfig()
+	}
 	config.ACME.AccountKeyPEM = res.AccountKeyPEM
 	config.ACME.AccountURI = res.AccountURI
 	config.ACME.Enabled = true
@@ -212,6 +235,9 @@ func (m *tlsManager) recordACMEError(ctx context.Context, err error) {
 	m.logger.ErrorContext(ctx, "issuing acme certificate", slogutil.KeyError, err)
 
 	config.Lock()
+	if config.ACME == nil {
+		config.ACME = defaultACMEConfig()
+	}
 	config.ACME.LastError = err.Error()
 	config.Unlock()
 

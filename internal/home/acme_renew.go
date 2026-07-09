@@ -50,11 +50,10 @@ func (m *tlsManager) checkCertExpiry(ctx context.Context) {
 		return
 	}
 
-	config.RLock()
-	acmeCfg := toACMEConfigJSON(config.ACME)
-	accountKeyPEM := config.ACME.AccountKeyPEM
-	accountURI := config.ACME.AccountURI
-	config.RUnlock()
+	snap := acmeConfigSnapshot()
+	acmeCfg := toACMEConfigJSON(snap)
+	accountKeyPEM := snap.AccountKeyPEM
+	accountURI := snap.AccountURI
 
 	renewBeforeDays := acmeCfg.RenewBeforeDays
 	if renewBeforeDays <= 0 {
@@ -92,6 +91,9 @@ func (m *tlsManager) checkCertExpiry(ctx context.Context) {
 	status, err := m.applyIssuedCertificate(ctx, res)
 
 	config.Lock()
+	if config.ACME == nil {
+		config.ACME = defaultACMEConfig()
+	}
 	config.ACME.AccountKeyPEM = res.AccountKeyPEM
 	config.ACME.AccountURI = res.AccountURI
 	if err == nil {
