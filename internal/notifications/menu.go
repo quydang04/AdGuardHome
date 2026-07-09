@@ -29,6 +29,9 @@ func mainMenuKeyboard() *tgInlineKeyboardMarkup {
 				{Text: "🗂️ Filter Manage", CallbackData: "cmd:filtermgr"},
 				{Text: "📺 YouTube Blocking", CallbackData: "cmd:youtube"},
 			},
+			{
+				{Text: "🔒 SSL/TLS", CallbackData: "cmd:ssl"},
+			},
 		},
 	}
 }
@@ -74,6 +77,25 @@ func youtubeKeyboard(enabled bool) *tgInlineKeyboardMarkup {
 	return &tgInlineKeyboardMarkup{
 		InlineKeyboard: [][]tgInlineKeyboardButton{
 			{toggleBtn},
+			{{Text: "🔙 Back to Menu", CallbackData: "cmd:menu"}},
+		},
+	}
+}
+
+// certKeyboard returns a keyboard for the SSL/TLS issue status message, with
+// buttons to toggle auto-renew and trigger an immediate issuance.
+func certKeyboard(autoRenew bool) *tgInlineKeyboardMarkup {
+	var toggleBtn tgInlineKeyboardButton
+	if autoRenew {
+		toggleBtn = tgInlineKeyboardButton{Text: "🔴 Disable Auto-Renew", CallbackData: "cmd:ssl_autorenew_off"}
+	} else {
+		toggleBtn = tgInlineKeyboardButton{Text: "🟢 Enable Auto-Renew", CallbackData: "cmd:ssl_autorenew_on"}
+	}
+
+	return &tgInlineKeyboardMarkup{
+		InlineKeyboard: [][]tgInlineKeyboardButton{
+			{toggleBtn},
+			{{Text: "📜 Issue/Renew Now", CallbackData: "cmd:ssl_issue_now"}},
 			{{Text: "🔙 Back to Menu", CallbackData: "cmd:menu"}},
 		},
 	}

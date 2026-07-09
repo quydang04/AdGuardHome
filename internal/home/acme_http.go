@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/AdguardTeam/AdGuardHome/internal/acme"
@@ -155,35 +156,74 @@ func (m *tlsManager) handleACMEConfigure(w http.ResponseWriter, r *http.Request)
 	aghhttp.WriteJSONResponseOK(ctx, m.logger, w, r, resp)
 }
 
-// acmeIssueResponse is the response for the POST /control/tls/acme/issue
-// HTTP API.  Unlike the regular TLS status endpoint, it deliberately
-// includes the freshly issued private key, base64-encoded like the regular
-// TLS configuration API, so that the frontend can paste it straight into the
-// encryption settings form.
-type acmeIssueResponse struct {
-	Status           *tlsConfigStatus `json:"status"`
-	CertificateChain string           `json:"certificate_chain"`
-	PrivateKey       string           `json:"private_key"`
-}
+// errACMEIssueInProgress is returned by [tlsManager.startACMEIssueJob] if an
+// issuance is already running.
+const errACMEIssueInProgress errors.Error = "a certificate issuance is already in progress"
 
 // handleACMEIssue is the handler for the POST /control/tls/acme/issue HTTP
-// API.  It obtains (or renews) a certificate via ACME using the persisted
-// configuration, applies it as the active TLS certificate, persists the
-// result, and returns the PEM data so that the frontend can populate the
-// certificate/private key fields.
+// API.  It starts a certificate issuance in the background and returns
+// immediately; progress and the final result (including the issued
+// certificate and key, base64-encoded like the regular TLS configuration
+// API) are delivered over GET /control/tls/acme/issue/stream as Server-Sent
+// Events.
 func (m *tlsManager) handleACMEIssue(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	snap := acmeConfigSnapshot()
-	cfgJSON := toACMEConfigJSON(snap)
-	accountKeyPEM := snap.AccountKeyPEM
-	accountURI := snap.AccountURI
+	_, err := m.startACMEIssueJob(ctx)
+	if err != nil {
+		status := http.StatusBadRequest
+		if err == errACMEIssueInProgress {
+			status = http.StatusConflict
+		}
 
-	if err := cfgJSON.validate(); err != nil {
-		aghhttp.ErrorAndLog(ctx, m.logger, r, w, http.StatusBadRequest, "%s", err)
+		aghhttp.ErrorAndLog(ctx, m.logger, r, w, status, "%s", err)
 
 		return
 	}
+
+	w.WriteHeader(http.StatusAccepted)
+}
+
+// startACMEIssueJob validates the persisted ACME configuration and starts a
+// new issuance job in the background, unless one is already running.  The
+// returned job is also stored on m so that [tlsManager.handleACMEIssueStream]
+// can find it.
+func (m *tlsManager) startACMEIssueJob(ctx context.Context) (job *acmeJob, err error) {
+	snap := acmeConfigSnapshot()
+	cfgJSON := toACMEConfigJSON(snap)
+
+	if err = cfgJSON.validate(); err != nil {
+		return nil, err
+	}
+
+	m.acmeJobMu.Lock()
+	defer m.acmeJobMu.Unlock()
+
+	if m.acmeJob != nil && !m.acmeJob.isDone() {
+		return nil, errACMEIssueInProgress
+	}
+
+	job = newAcmeJob()
+	m.acmeJob = job
+
+	go m.runACMEIssueJob(context.Background(), job, cfgJSON, snap.AccountKeyPEM, snap.AccountURI)
+
+	return job, nil
+}
+
+// runACMEIssueJob performs the actual issuance, reporting progress to job,
+// applying and persisting the result, and notifying Telegram of the outcome,
+// the same as an automatic renewal.  It's intended to be run as a goroutine.
+func (m *tlsManager) runACMEIssueJob(
+	ctx context.Context,
+	job *acmeJob,
+	cfgJSON acmeConfigJSON,
+	accountKeyPEM string,
+	accountURI string,
+) {
+	defer slogutil.RecoverAndLog(ctx, m.logger)
+
+	job.log("info", fmt.Sprintf("Starting certificate issuance for: %s", strings.Join(cfgJSON.Domains, ", ")))
 
 	res, err := m.issueCertificate(ctx, &acme.Request{
 		Email:              cfgJSON.Email,
@@ -193,15 +233,19 @@ func (m *tlsManager) handleACMEIssue(w http.ResponseWriter, r *http.Request) {
 		DNSResolvers:       cfgJSON.DNSResolvers,
 		AccountKeyPEM:      accountKeyPEM,
 		AccountURI:         accountURI,
+		Progress:           func(msg string) { job.log("info", msg) },
 	})
 	if err != nil {
 		m.recordACMEError(ctx, err)
-		aghhttp.ErrorAndLog(ctx, m.logger, r, w, http.StatusBadGateway, "issuing certificate: %s", err)
+		job.log("error", err.Error())
+		job.finish(&acmeJobResult{Error: err.Error()})
+		m.notifyRenewalResult(ctx, cfgJSON.Domains, time.Time{}, err)
 
 		return
 	}
 
-	status, err := m.applyIssuedCertificate(ctx, res)
+	job.log("info", "Applying certificate to AdGuard Home...")
+	status, applyErr := m.applyIssuedCertificate(ctx, res)
 
 	config.Lock()
 	if config.ACME == nil {
@@ -210,27 +254,104 @@ func (m *tlsManager) handleACMEIssue(w http.ResponseWriter, r *http.Request) {
 	config.ACME.AccountKeyPEM = res.AccountKeyPEM
 	config.ACME.AccountURI = res.AccountURI
 	config.ACME.Enabled = true
-	if err == nil {
+	if applyErr == nil {
 		config.ACME.LastIssuedAt = time.Now()
 		config.ACME.LastError = ""
 	} else {
-		config.ACME.LastError = err.Error()
+		config.ACME.LastError = applyErr.Error()
 	}
 	config.Unlock()
 
 	m.confModifier.Apply(ctx)
 
-	if err != nil {
-		aghhttp.ErrorAndLog(ctx, m.logger, r, w, http.StatusInternalServerError, "applying certificate: %s", err)
+	if applyErr != nil {
+		job.log("error", applyErr.Error())
+		job.finish(&acmeJobResult{Error: applyErr.Error()})
+		m.notifyRenewalResult(ctx, cfgJSON.Domains, time.Time{}, applyErr)
 
 		return
 	}
 
-	aghhttp.WriteJSONResponseOK(ctx, m.logger, w, r, &acmeIssueResponse{
+	job.log("success", fmt.Sprintf("Certificate issued successfully, valid until %s", status.NotAfter.Format(time.RFC3339)))
+	job.finish(&acmeJobResult{
+		Success:          true,
+		Status:           status,
 		CertificateChain: base64.StdEncoding.EncodeToString(res.CertificatePEM),
 		PrivateKey:       base64.StdEncoding.EncodeToString(res.PrivateKeyPEM),
-		Status:           status,
 	})
+	m.notifyRenewalResult(ctx, cfgJSON.Domains, status.NotAfter, nil)
+}
+
+// handleACMEIssueStream is the handler for the GET
+// /control/tls/acme/issue/stream HTTP API.  It streams the progress of the
+// current (or most recently finished) ACME issuance job as Server-Sent
+// Events, replaying any lines recorded before the client connected.
+func (m *tlsManager) handleACMEIssueStream(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	m.acmeJobMu.Lock()
+	job := m.acmeJob
+	m.acmeJobMu.Unlock()
+
+	if job == nil {
+		http.Error(w, "no certificate issuance found", http.StatusNotFound)
+
+		return
+	}
+
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		http.Error(w, "streaming not supported", http.StatusInternalServerError)
+
+		return
+	}
+
+	h := w.Header()
+	h.Set("Content-Type", "text/event-stream")
+	h.Set("Cache-Control", "no-cache")
+	h.Set("Connection", "keep-alive")
+	h.Set("X-Accel-Buffering", "no")
+	w.WriteHeader(http.StatusOK)
+	flusher.Flush()
+
+	sent := 0
+	for {
+		lines, notify, done, result := job.snapshot()
+		for ; sent < len(lines); sent++ {
+			writeSSEEvent(w, "line", lines[sent])
+		}
+		flusher.Flush()
+
+		if done {
+			writeSSEEvent(w, "done", result)
+			flusher.Flush()
+
+			return
+		}
+
+		select {
+		case <-notify:
+			continue
+		case <-ctx.Done():
+			return
+		case <-time.After(25 * time.Second):
+			// Comment ping to keep the connection alive through proxies that
+			// buffer or time out idle connections.
+			_, _ = fmt.Fprint(w, ": ping\n\n")
+			flusher.Flush()
+		}
+	}
+}
+
+// writeSSEEvent writes v as a single Server-Sent Events message of the given
+// event type.  Errors are ignored, since the client may have disconnected.
+func writeSSEEvent(w http.ResponseWriter, event string, v any) {
+	data, err := json.Marshal(v)
+	if err != nil {
+		return
+	}
+
+	_, _ = fmt.Fprintf(w, "event: %s\ndata: %s\n\n", event, data)
 }
 
 // issueCertificate calls into m.acme, if configured.
@@ -302,4 +423,5 @@ func (m *tlsManager) registerACMEWebHandlers() {
 	m.httpReg.Register(http.MethodGet, "/control/tls/acme/status", m.handleACMEStatus)
 	m.httpReg.Register(http.MethodPost, "/control/tls/acme/configure", m.handleACMEConfigure)
 	m.httpReg.Register(http.MethodPost, "/control/tls/acme/issue", m.handleACMEIssue)
+	m.httpReg.Register(http.MethodGet, "/control/tls/acme/issue/stream", m.handleACMEIssueStream)
 }

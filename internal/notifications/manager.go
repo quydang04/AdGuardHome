@@ -100,6 +100,7 @@ type Manager struct {
 	filterMgr   FilterManager
 	protection  ProtectionProvider
 	youtube     YouTubeProvider
+	cert        CertProvider
 
 	logs LogsProvider
 
@@ -872,6 +873,14 @@ func (m *Manager) handleUpdate(ctx context.Context, cfg TelegramConfig, u tgUpda
 		m.toggleYouTube(ctx, cfg, chatID, messageID, true)
 	case "cmd:youtube_off":
 		m.toggleYouTube(ctx, cfg, chatID, messageID, false)
+	case "/ssl", "cmd:ssl":
+		m.sendCertStatus(ctx, cfg, chatID, messageID)
+	case "cmd:ssl_autorenew_on":
+		m.toggleCertAutoRenew(ctx, cfg, chatID, messageID, true)
+	case "cmd:ssl_autorenew_off":
+		m.toggleCertAutoRenew(ctx, cfg, chatID, messageID, false)
+	case "cmd:ssl_issue_now":
+		m.issueCertNow(ctx, cfg, chatID, messageID)
 	case "/processes", "cmd:processes":
 		m.sendProcessInfo(ctx, cfg, chatID, messageID)
 	case "/logs", "cmd:logs":
@@ -1119,6 +1128,91 @@ func (m *Manager) toggleYouTube(ctx context.Context, cfg TelegramConfig, chatID 
 
 	// Refresh YouTube status display.
 	m.sendYouTubeStatus(ctx, cfg, chatID, 0)
+}
+
+func (m *Manager) sendCertStatus(ctx context.Context, cfg TelegramConfig, chatID int64, messageID int64) {
+	m.mu.RLock()
+	cp := m.cert
+	m.mu.RUnlock()
+
+	var text string
+	var kb *tgInlineKeyboardMarkup
+
+	if cp == nil {
+		text = "SSL/TLS Issue\n---\nData not available"
+		kb = backToMenuKeyboard()
+	} else {
+		status := cp.GetCertStatus()
+		text = composeCertStatusMessage(status)
+		kb = certKeyboard(status.AutoRenew)
+	}
+
+	if messageID > 0 {
+		if err := m.editMessageWithKeyboard(ctx, cfg, chatID, messageID, text, kb); err != nil {
+			_ = m.sendMessageWithKeyboard(ctx, cfg, chatID, text, kb)
+		}
+	} else {
+		if err := m.sendMessageWithKeyboard(ctx, cfg, chatID, text, kb); err != nil {
+			m.logger.Debug("send cert status failed", slog.String("error", err.Error()))
+		}
+	}
+}
+
+func (m *Manager) toggleCertAutoRenew(ctx context.Context, cfg TelegramConfig, chatID int64, messageID int64, enable bool) {
+	m.mu.RLock()
+	cp := m.cert
+	m.mu.RUnlock()
+
+	if cp == nil {
+		_ = m.sendTelegram(ctx, cfg, "⚠️ <b>SSL/TLS issue provider not available.</b>")
+
+		return
+	}
+
+	if err := cp.SetCertAutoRenew(enable); err != nil {
+		msg := fmt.Sprintf(
+			"❌ <b>Failed to Change Auto-Renew</b>\n"+divider()+"\n\n<b>Error:</b> <code>%s</code>\n\n%s",
+			err.Error(),
+			timestampLine(),
+		)
+		if messageID > 0 {
+			_ = m.editMessageText(ctx, cfg, chatID, messageID, msg)
+		} else {
+			_ = m.sendTelegram(ctx, cfg, msg)
+		}
+
+		return
+	}
+
+	// Refresh cert status display.
+	m.sendCertStatus(ctx, cfg, chatID, messageID)
+}
+
+func (m *Manager) issueCertNow(ctx context.Context, cfg TelegramConfig, chatID int64, messageID int64) {
+	m.mu.RLock()
+	cp := m.cert
+	m.mu.RUnlock()
+
+	if cp == nil {
+		_ = m.sendTelegram(ctx, cfg, "⚠️ <b>SSL/TLS issue provider not available.</b>")
+
+		return
+	}
+
+	if err := cp.IssueCertificateNow(); err != nil {
+		msg := fmt.Sprintf(
+			"❌ <b>Could Not Start Certificate Issuance</b>\n"+divider()+"\n\n<b>Error:</b> <code>%s</code>\n\n%s",
+			err.Error(),
+			timestampLine(),
+		)
+		_ = m.sendTelegram(ctx, cfg, msg)
+
+		return
+	}
+
+	msg := "⏳ <b>Certificate issuance started</b>\n" + divider() +
+		"\n\nYou'll receive a follow-up message with the result.\n\n" + timestampLine()
+	_ = m.sendTelegram(ctx, cfg, msg)
 }
 
 func (m *Manager) sendProcessInfo(ctx context.Context, cfg TelegramConfig, chatID int64, messageID int64) {

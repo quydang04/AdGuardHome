@@ -489,6 +489,27 @@ func ipsEqual(a, b []string) bool {
 	return true
 }
 
+// formatUptimeDHMS formats d as Go's default "1h2m3s" duration string for
+// durations under 24 hours, or as "1d2h3m4s" once the duration reaches a
+// full day, since [time.Duration.String] never rolls over into day units on
+// its own.
+func formatUptimeDHMS(d time.Duration) string {
+	d = d.Truncate(time.Second)
+	if d < 24*time.Hour {
+		return d.String()
+	}
+
+	days := d / (24 * time.Hour)
+	d -= days * 24 * time.Hour
+	hours := d / time.Hour
+	d -= hours * time.Hour
+	minutes := d / time.Minute
+	d -= minutes * time.Minute
+	seconds := d / time.Second
+
+	return fmt.Sprintf("%dd%dh%dm%ds", days, hours, minutes, seconds)
+}
+
 func containsStr(ss []string, s string) bool {
 	for _, v := range ss {
 		if v == s {
@@ -631,7 +652,7 @@ func (web *webAPI) handleGetYoutubeStatus(w http.ResponseWriter, r *http.Request
 		}
 
 		if ytManager.active && !ytManager.startedAt.IsZero() {
-			resp.Uptime = time.Since(ytManager.startedAt).Truncate(time.Second).String()
+			resp.Uptime = formatUptimeDHMS(time.Since(ytManager.startedAt))
 		}
 
 		statuses := make([]*youtubeIPStatus, 0, len(ytManager.ipStatuses))

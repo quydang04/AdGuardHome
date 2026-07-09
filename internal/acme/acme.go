@@ -82,6 +82,20 @@ type Request struct {
 	// [ChallengeCloudflareDNS01].  If empty, the host's own system resolver
 	// (e.g. /etc/resolv.conf) is used, same as the rest of AdGuard Home.
 	DNSResolvers []string
+
+	// Progress, if not nil, is called with human-readable status updates as
+	// the issuance proceeds, so that a caller can show real-time progress
+	// (for example, over a Server-Sent Events stream).
+	Progress func(msg string)
+}
+
+// logProgress calls req.Progress with a formatted message, if set.
+func (req *Request) logProgress(format string, args ...any) {
+	if req.Progress == nil {
+		return
+	}
+
+	req.Progress(fmt.Sprintf(format, args...))
 }
 
 // Result is the outcome of a successful certificate issuance or renewal.
@@ -139,6 +153,7 @@ func (m *Manager) Issue(ctx context.Context, req *Request) (res *Result, err err
 	}
 
 	m.logger.InfoContext(ctx, "issuing certificate", "domains", req.Domains, "challenge", req.Challenge)
+	req.logProgress("Preparing ACME client for %s", strings.Join(req.Domains, ", "))
 
 	user := &acmeUser{email: req.Email}
 	if req.AccountKeyPEM != "" {
@@ -149,8 +164,11 @@ func (m *Manager) Issue(ctx context.Context, req *Request) (res *Result, err err
 
 		if req.AccountURI != "" {
 			user.reg = &registration.Resource{URI: req.AccountURI}
+			req.logProgress("Reusing existing ACME account")
 		}
 	} else {
+		req.logProgress("Generating new ACME account key")
+
 		user.key, err = ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 		if err != nil {
 			return nil, fmt.Errorf("acme: generating account key: %w", err)
@@ -165,19 +183,30 @@ func (m *Manager) Issue(ctx context.Context, req *Request) (res *Result, err err
 		return nil, fmt.Errorf("acme: creating client: %w", err)
 	}
 
+	req.logProgress("Configuring %s challenge", req.Challenge)
+
 	err = m.setChallengeProvider(client, req)
 	if err != nil {
 		return nil, err
 	}
 
 	if user.reg == nil {
+		req.logProgress("Registering ACME account with Let's Encrypt (%s)", req.Email)
+
 		user.reg, err = client.Registration.Register(registration.RegisterOptions{
 			TermsOfServiceAgreed: true,
 		})
 		if err != nil {
 			return nil, fmt.Errorf("acme: registering account: %w", err)
 		}
+
+		req.logProgress("ACME account registered")
 	}
+
+	req.logProgress(
+		"Requesting certificate from Let's Encrypt (this can take up to a minute, " +
+			"especially for DNS-01 propagation checks)",
+	)
 
 	cert, err := client.Certificate.Obtain(certificate.ObtainRequest{
 		Domains: req.Domains,
@@ -186,6 +215,8 @@ func (m *Manager) Issue(ctx context.Context, req *Request) (res *Result, err err
 	if err != nil {
 		return nil, fmt.Errorf("acme: obtaining certificate: %w", err)
 	}
+
+	req.logProgress("Certificate obtained from Let's Encrypt")
 
 	notAfter, err := certNotAfter(cert.Certificate)
 	if err != nil {
@@ -198,6 +229,7 @@ func (m *Manager) Issue(ctx context.Context, req *Request) (res *Result, err err
 	}
 
 	m.logger.InfoContext(ctx, "issued certificate", "domains", req.Domains, "not_after", notAfter)
+	req.logProgress("Certificate valid until %s", notAfter.Format(time.RFC3339))
 
 	return &Result{
 		CertificatePEM: cert.Certificate,
