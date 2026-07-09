@@ -507,6 +507,17 @@ func applyImportedSettings(_ *slog.Logger, imp *exportConfig) (err error) {
 	}
 
 	if imp.DHCP != nil {
+		// Preserve the runtime-only dependencies wired in at startup (never
+		// present in the imported JSON, since they're excluded from
+		// marshaling) instead of wiping them out by replacing the whole
+		// struct.
+		imp.DHCP.Logger = config.DHCP.Logger
+		imp.DHCP.CommandConstructor = config.DHCP.CommandConstructor
+		imp.DHCP.ConfModifier = config.DHCP.ConfModifier
+		imp.DHCP.HTTPReg = config.DHCP.HTTPReg
+		imp.DHCP.WorkDir = config.DHCP.WorkDir
+		imp.DHCP.DataDir = config.DHCP.DataDir
+
 		config.DHCP = imp.DHCP
 	}
 
