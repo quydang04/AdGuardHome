@@ -33,6 +33,57 @@ func (a *protectionAdapter) SetProtectionEnabled(enabled bool) error {
 	return nil
 }
 
+// youtubeAdapter implements [notifications.YouTubeProvider] on top of the
+// package-level YouTube ad-blocking config and manager.
+type youtubeAdapter struct{}
+
+func (youtubeAdapter) IsYouTubeBlockEnabled() bool {
+	return getYoutubeConf().Enabled
+}
+
+func (youtubeAdapter) SetYouTubeBlockEnabled(enabled bool) error {
+	func() {
+		config.Lock()
+		defer config.Unlock()
+
+		if config.YouTube == nil {
+			config.YouTube = defaultYoutubeConfig()
+		}
+
+		config.YouTube.Enabled = enabled
+	}()
+
+	globalContext.web.confModifier.Apply(context.Background())
+
+	if ytManager != nil {
+		ytManager.restart(context.Background())
+	}
+
+	return nil
+}
+
+func (youtubeAdapter) GetYouTubeStatus() (status notifications.YouTubeStatus) {
+	cfg := getYoutubeConf()
+	status.Enabled = cfg.Enabled
+
+	if ytManager == nil {
+		return status
+	}
+
+	ytManager.mu.Lock()
+	defer ytManager.mu.Unlock()
+
+	status.Active = ytManager.active
+	status.HealthyIPs = len(ytManager.healthyIPs)
+	status.TotalIPs = len(ytManager.allIPs)
+	status.BlockedRules = ytManager.blockedRules
+	status.ActiveRewrites = ytManager.activeRewrites
+	status.LastSyncStatus = ytManager.lastSyncStatus
+	status.LastSyncTime = ytManager.lastSyncTime
+
+	return status
+}
+
 func injectNotificationProviders() {
 	n := globalContext.notifier
 	if n == nil {
@@ -65,4 +116,6 @@ func injectNotificationProviders() {
 	if globalContext.queryLog != nil {
 		n.SetLogsProvider(globalContext.queryLog)
 	}
+
+	n.SetYouTubeProvider(youtubeAdapter{})
 }

@@ -52,6 +52,54 @@ type ProtectionProvider interface {
 	SetProtectionEnabled(enabled bool) error
 }
 
+// YouTubeStatus summarizes the current state of the YouTube ad-blocking
+// integration for display in bot messages.
+type YouTubeStatus struct {
+	// LastSyncStatus is a human-readable description of the last route
+	// server sync attempt.
+	LastSyncStatus string
+
+	// LastSyncTime is when the last sync attempt happened.  The zero value
+	// means no sync has run yet.
+	LastSyncTime time.Time
+
+	// HealthyIPs is the number of currently healthy route server IPs.
+	HealthyIPs int
+
+	// TotalIPs is the number of resolved route server IPs.
+	TotalIPs int
+
+	// BlockedRules is the number of active ad/tracking blocking rules.
+	BlockedRules int
+
+	// ActiveRewrites is the number of active DNS rewrites routing YouTube
+	// traffic through the configured route server.
+	ActiveRewrites int
+
+	// Enabled indicates whether YouTube ad blocking is enabled in the
+	// configuration.
+	Enabled bool
+
+	// Active indicates whether the manager is currently running.
+	Active bool
+}
+
+// YouTubeProvider exposes the YouTube ad-blocking integration's status for
+// the bot menu and allows toggling it on or off.
+type YouTubeProvider interface {
+	IsYouTubeBlockEnabled() bool
+	SetYouTubeBlockEnabled(enabled bool) error
+	GetYouTubeStatus() YouTubeStatus
+}
+
+// SetYouTubeProvider injects the YouTube ad-blocking provider.
+func (m *Manager) SetYouTubeProvider(yp YouTubeProvider) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	m.youtube = yp
+}
+
 // SetProviders injects data providers that are initialized after the Manager.
 // Any provider may be nil if the corresponding module is not available.
 func (m *Manager) SetProviders(sp StatsProvider, fp FilterProvider, pp ProtectionProvider) {

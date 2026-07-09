@@ -99,6 +99,7 @@ type Manager struct {
 	filters     FilterProvider
 	filterMgr   FilterManager
 	protection  ProtectionProvider
+	youtube     YouTubeProvider
 
 	logs LogsProvider
 
@@ -403,6 +404,9 @@ func (m *Manager) runCheck(ctx context.Context) {
 
 	// Check protection status.
 	m.checkProtectionAlert(ctx, cfg, info)
+
+	// Check YouTube ad-blocking route server health.
+	m.checkYouTubeAlert(ctx, cfg, info)
 }
 
 // checkProtectionAlert sends an alert if DNS protection is disabled.
@@ -439,6 +443,65 @@ func (m *Manager) checkProtectionAlert(ctx context.Context, cfg TelegramConfig, 
 		if wasActive {
 			m.clearAlertWithRecovery(ctx, cfg, "protection", 0, 0, info)
 		}
+	}
+}
+
+// youtubeAlertMetric is the alertActive/alertStartTime key used for the
+// YouTube route server health alert.
+const youtubeAlertMetric = "youtube_health"
+
+// checkYouTubeAlert sends an alert if the YouTube ad-blocking route server
+// has no healthy IPs left while blocking is enabled and active.  It sends a
+// recovery message once a healthy IP is available again.
+func (m *Manager) checkYouTubeAlert(ctx context.Context, cfg TelegramConfig, info systeminfo.Info) {
+	m.mu.RLock()
+	yp := m.youtube
+	m.mu.RUnlock()
+
+	if yp == nil {
+		return
+	}
+
+	status := yp.GetYouTubeStatus()
+	if !status.Enabled || !status.Active || status.TotalIPs == 0 {
+		m.clearAlert(youtubeAlertMetric)
+
+		return
+	}
+
+	if status.HealthyIPs == 0 {
+		m.mu.RLock()
+		alreadyAlerted := m.alertActive[youtubeAlertMetric]
+		m.mu.RUnlock()
+
+		if !alreadyAlerted {
+			msg := composeYouTubeAlertMessage(cfg, status, info)
+			if err := m.sendTelegramWithRetry(ctx, cfg, msg); err != nil {
+				m.logger.Error("telegram youtube alert failed", slog.String("error", err.Error()))
+			} else {
+				m.mu.Lock()
+				m.alertActive[youtubeAlertMetric] = true
+				m.alertStartTime[youtubeAlertMetric] = time.Now()
+				m.mu.Unlock()
+			}
+		}
+
+		return
+	}
+
+	m.mu.RLock()
+	wasActive := m.alertActive[youtubeAlertMetric]
+	m.mu.RUnlock()
+
+	if wasActive {
+		m.clearAlertWithRecovery(
+			ctx,
+			cfg,
+			youtubeAlertMetric,
+			float64(status.HealthyIPs),
+			float64(status.TotalIPs),
+			info,
+		)
 	}
 }
 
@@ -803,6 +866,12 @@ func (m *Manager) handleUpdate(ctx context.Context, cfg TelegramConfig, u tgUpda
 		m.sendFilterInfo(ctx, cfg, chatID, messageID)
 	case "/protection", "cmd:protection":
 		m.sendProtectionStatus(ctx, cfg, chatID, messageID)
+	case "/youtube", "cmd:youtube":
+		m.sendYouTubeStatus(ctx, cfg, chatID, messageID)
+	case "cmd:youtube_on":
+		m.toggleYouTube(ctx, cfg, chatID, messageID, true)
+	case "cmd:youtube_off":
+		m.toggleYouTube(ctx, cfg, chatID, messageID, false)
 	case "/processes", "cmd:processes":
 		m.sendProcessInfo(ctx, cfg, chatID, messageID)
 	case "/logs", "cmd:logs":
@@ -980,6 +1049,76 @@ func (m *Manager) sendProtectionStatus(ctx context.Context, cfg TelegramConfig, 
 			m.logger.Debug("send protection status failed", slog.String("error", err.Error()))
 		}
 	}
+}
+
+func (m *Manager) sendYouTubeStatus(ctx context.Context, cfg TelegramConfig, chatID int64, messageID int64) {
+	m.mu.RLock()
+	yp := m.youtube
+	m.mu.RUnlock()
+
+	var text string
+	var kb *tgInlineKeyboardMarkup
+
+	if yp == nil {
+		text = "YouTube Blocking\n---\nData not available"
+		kb = backToMenuKeyboard()
+	} else {
+		status := yp.GetYouTubeStatus()
+		text = composeYouTubeStatusMessage(status)
+		kb = youtubeKeyboard(status.Enabled)
+	}
+
+	if messageID > 0 {
+		if err := m.editMessageWithKeyboard(ctx, cfg, chatID, messageID, text, kb); err != nil {
+			_ = m.sendMessageWithKeyboard(ctx, cfg, chatID, text, kb)
+		}
+	} else {
+		if err := m.sendMessageWithKeyboard(ctx, cfg, chatID, text, kb); err != nil {
+			m.logger.Debug("send youtube status failed", slog.String("error", err.Error()))
+		}
+	}
+}
+
+func (m *Manager) toggleYouTube(ctx context.Context, cfg TelegramConfig, chatID int64, messageID int64, enable bool) {
+	m.mu.RLock()
+	yp := m.youtube
+	m.mu.RUnlock()
+
+	if yp == nil {
+		_ = m.sendTelegram(ctx, cfg, "⚠️ <b>YouTube blocking provider not available.</b>")
+		return
+	}
+
+	if err := yp.SetYouTubeBlockEnabled(enable); err != nil {
+		msg := fmt.Sprintf(
+			"❌ <b>Failed to Change YouTube Blocking</b>\n"+divider()+"\n\n<b>Error:</b> <code>%s</code>\n\n%s",
+			err.Error(),
+			timestampLine(),
+		)
+		if messageID > 0 {
+			_ = m.editMessageText(ctx, cfg, chatID, messageID, msg)
+		} else {
+			_ = m.sendTelegram(ctx, cfg, msg)
+		}
+
+		return
+	}
+
+	var msg string
+	if enable {
+		msg = "🟢 <b>YouTube Blocking has been ENABLED</b>\n" + divider() + "\n\n" + timestampLine()
+	} else {
+		msg = "🔴 <b>YouTube Blocking has been DISABLED</b>\n" + divider() + "\n\n" + timestampLine()
+	}
+
+	if messageID > 0 {
+		_ = m.editMessageText(ctx, cfg, chatID, messageID, msg)
+	} else {
+		_ = m.sendTelegram(ctx, cfg, msg)
+	}
+
+	// Refresh YouTube status display.
+	m.sendYouTubeStatus(ctx, cfg, chatID, 0)
 }
 
 func (m *Manager) sendProcessInfo(ctx context.Context, cfg TelegramConfig, chatID int64, messageID int64) {

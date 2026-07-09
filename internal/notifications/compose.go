@@ -95,7 +95,66 @@ func composeProtectionAlertMessage(cfg TelegramConfig, info systeminfo.Info) str
 	return strings.Join(lines, "\n")
 }
 
+// composeYouTubeAlertMessage formats an alert that the YouTube ad-blocking
+// route server has no healthy IPs left.
+func composeYouTubeAlertMessage(cfg TelegramConfig, status YouTubeStatus, info systeminfo.Info) string {
+	lines := make([]string, 0, 16)
+	if prefix := strings.TrimSpace(cfg.CustomMessage); prefix != "" {
+		lines = append(lines, prefix)
+		lines = append(lines, "")
+	}
 
+	lines = append(lines, "🚨 <b>ALERT: YouTube Blocking route server unreachable!</b>")
+	lines = append(lines, divider())
+	lines = append(lines, "")
+	lines = append(lines, fmt.Sprintf("  ▸ <b>Healthy IPs:</b> <code>%d</code> / <code>%d</code>", status.HealthyIPs, status.TotalIPs))
+	lines = append(lines, fmt.Sprintf("  ▸ <b>Last sync:</b>   %s", fallbackString(status.LastSyncStatus)))
+	lines = append(lines, "")
+	lines = append(lines, "<i>DNS rewrites routing YouTube traffic may stop working until the route server recovers.</i>")
+	lines = append(lines, "")
+
+	if info.Hostname != "" {
+		lines = append(lines, systemOverviewLines(info)...)
+		lines = append(lines, "")
+	}
+
+	lines = append(lines, divider())
+	lines = append(lines, timestampLine())
+
+	return strings.Join(lines, "\n")
+}
+
+func composeYouTubeStatusMessage(status YouTubeStatus) string {
+	statusIcon, statusText := "🔴", "DISABLED"
+	if status.Enabled {
+		if status.Active {
+			statusIcon, statusText = "🟢", "ACTIVE"
+		} else {
+			statusIcon, statusText = "🟡", "ENABLED (not started)"
+		}
+	}
+
+	lines := []string{
+		"📺 <b>YouTube Blocking</b>",
+		divider(),
+		"",
+		fmt.Sprintf("  %s <b>Status:</b>          %s", statusIcon, statusText),
+		fmt.Sprintf("  ▸ <b>Healthy IPs:</b>    <code>%d</code> / <code>%d</code>", status.HealthyIPs, status.TotalIPs),
+		fmt.Sprintf("  ▸ <b>Blocked rules:</b>  <code>%d</code>", status.BlockedRules),
+		fmt.Sprintf("  ▸ <b>Active rewrites:</b> <code>%d</code>", status.ActiveRewrites),
+		fmt.Sprintf("  ▸ <b>Last sync:</b>      %s", fallbackString(status.LastSyncStatus)),
+	}
+
+	if !status.LastSyncTime.IsZero() {
+		lines = append(lines, fmt.Sprintf("  ▸ <b>Last sync at:</b>   <code>%s</code>", toLocal(status.LastSyncTime).Format("15:04:05 02/01/2006")))
+	}
+
+	lines = append(lines, "")
+	lines = append(lines, divider())
+	lines = append(lines, timestampLine())
+
+	return strings.Join(lines, "\n")
+}
 
 func composeFilterUpdateMessage(cfg TelegramConfig, update FilterUpdate, info systeminfo.Info) string {
 	lines := make([]string, 0, 24)
@@ -225,6 +284,8 @@ func metricDisplayName(metric string) string {
 		return "Disk Usage"
 	case "protection":
 		return "DNS Protection"
+	case "youtube_health":
+		return "YouTube Blocking"
 	default:
 		if metric == "" {
 			return "Metric"

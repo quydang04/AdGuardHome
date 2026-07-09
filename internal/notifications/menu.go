@@ -27,6 +27,7 @@ func mainMenuKeyboard() *tgInlineKeyboardMarkup {
 			},
 			{
 				{Text: "🗂️ Filter Manage", CallbackData: "cmd:filtermgr"},
+				{Text: "📺 YouTube Blocking", CallbackData: "cmd:youtube"},
 			},
 		},
 	}
@@ -50,6 +51,24 @@ func protectionKeyboard(enabled bool) *tgInlineKeyboardMarkup {
 		toggleBtn = tgInlineKeyboardButton{Text: "🔴 Disable Protection", CallbackData: "cmd:protection_off"}
 	} else {
 		toggleBtn = tgInlineKeyboardButton{Text: "🟢 Enable Protection", CallbackData: "cmd:protection_on"}
+	}
+
+	return &tgInlineKeyboardMarkup{
+		InlineKeyboard: [][]tgInlineKeyboardButton{
+			{toggleBtn},
+			{{Text: "🔙 Back to Menu", CallbackData: "cmd:menu"}},
+		},
+	}
+}
+
+// youtubeKeyboard returns a keyboard with a toggle button based on current
+// YouTube blocking state.
+func youtubeKeyboard(enabled bool) *tgInlineKeyboardMarkup {
+	var toggleBtn tgInlineKeyboardButton
+	if enabled {
+		toggleBtn = tgInlineKeyboardButton{Text: "🔴 Disable YouTube Blocking", CallbackData: "cmd:youtube_off"}
+	} else {
+		toggleBtn = tgInlineKeyboardButton{Text: "🟢 Enable YouTube Blocking", CallbackData: "cmd:youtube_on"}
 	}
 
 	return &tgInlineKeyboardMarkup{
