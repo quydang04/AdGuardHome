@@ -262,6 +262,60 @@ func (m *Manager) NotifyFilterUpdate(ctx context.Context, update FilterUpdate) {
 	}
 }
 
+// CertExpiryReminder describes a certificate nearing expiration for which no
+// automatic renewal is configured (or configured renewal failed).
+type CertExpiryReminder struct {
+	Domains  []string
+	NotAfter time.Time
+	DaysLeft int
+}
+
+// NotifyCertExpiry sends a Telegram reminder that a TLS certificate is
+// nearing expiration and should be renewed.
+func (m *Manager) NotifyCertExpiry(ctx context.Context, ev CertExpiryReminder) {
+	cfg := m.getTelegramConfig()
+	if !cfg.Enabled || cfg.BotToken == "" || cfg.ChatID == "" {
+		return
+	}
+
+	info := systeminfo.Collect()
+	msg := composeCertExpiryMessage(cfg, ev, info)
+	if msg == "" {
+		return
+	}
+
+	if err := m.sendTelegramWithRetry(ctx, cfg, msg); err != nil {
+		m.logger.Error("telegram cert expiry reminder failed", slog.String("error", err.Error()))
+	}
+}
+
+// CertRenewalResult describes the outcome of an automatic ACME certificate
+// renewal attempt.
+type CertRenewalResult struct {
+	Domains  []string
+	NotAfter time.Time
+	Err      error
+}
+
+// NotifyCertRenewal sends a Telegram notification about the outcome of an
+// automatic ACME certificate renewal.
+func (m *Manager) NotifyCertRenewal(ctx context.Context, ev CertRenewalResult) {
+	cfg := m.getTelegramConfig()
+	if !cfg.Enabled || cfg.BotToken == "" || cfg.ChatID == "" {
+		return
+	}
+
+	info := systeminfo.Collect()
+	msg := composeCertRenewalMessage(cfg, ev, info)
+	if msg == "" {
+		return
+	}
+
+	if err := m.sendTelegramWithRetry(ctx, cfg, msg); err != nil {
+		m.logger.Error("telegram cert renewal notification failed", slog.String("error", err.Error()))
+	}
+}
+
 // ValidateBotToken checks whether the given token is valid by calling getMe.
 func (m *Manager) ValidateBotToken(ctx context.Context, token string) (string, error) {
 	endpoint := fmt.Sprintf("https://api.telegram.org/bot%s/getMe", token)

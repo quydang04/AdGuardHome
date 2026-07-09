@@ -1,6 +1,9 @@
 package stats
 
-import "strings"
+import (
+	"slices"
+	"strings"
+)
 
 // GafamCompany represents one of the major tech companies tracked for GAFAM
 // dominance statistics.
@@ -654,6 +657,19 @@ var gafamDomains = [gafamCount][]string{
 	},
 }
 
+// gafamLabelKeywords lists hostname labels that unambiguously identify a
+// company even on infrastructure or app-specific subdomains (for example,
+// data-saver "Lite" builds of Facebook, Messenger, and Instagram) that are
+// not covered by the exhaustive domain lists above.  Matching is done on
+// whole dot-separated labels, not substrings, to avoid false positives.
+var gafamLabelKeywords = [gafamCount][]string{
+	GafamGoogle:    {"google", "youtube", "gstatic", "ytimg", "googlevideo"},
+	GafamAmazon:    {"amazon", "amazonaws", "cloudfront", "twitch"},
+	GafamMeta:      {"facebook", "fb", "fbcdn", "fbsbx", "instagram", "whatsapp", "messenger", "threads"},
+	GafamApple:     {"apple", "icloud", "mzstatic"},
+	GafamMicrosoft: {"microsoft", "msftncsi", "outlook", "office365", "xbox", "azure"},
+}
+
 // matchGafamCompany returns the GafamCompany that the domain belongs to, or -1
 // if the domain does not belong to any tracked company.
 func matchGafamCompany(domain string) GafamCompany {
@@ -661,6 +677,15 @@ func matchGafamCompany(domain string) GafamCompany {
 	for company := GafamCompany(0); company < gafamCount; company++ {
 		for _, d := range gafamDomains[company] {
 			if lower == d || strings.HasSuffix(lower, "."+d) {
+				return company
+			}
+		}
+	}
+
+	labels := strings.Split(lower, ".")
+	for company := GafamCompany(0); company < gafamCount; company++ {
+		for _, kw := range gafamLabelKeywords[company] {
+			if slices.Contains(labels, kw) {
 				return company
 			}
 		}

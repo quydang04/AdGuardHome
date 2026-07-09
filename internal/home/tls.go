@@ -20,6 +20,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/AdguardTeam/AdGuardHome/internal/acme"
 	"github.com/AdguardTeam/AdGuardHome/internal/agh"
 	"github.com/AdguardTeam/AdGuardHome/internal/aghalg"
 	"github.com/AdguardTeam/AdGuardHome/internal/aghhttp"
@@ -77,6 +78,10 @@ type tlsManager struct {
 
 	// servePlainDNS defines if plain DNS is allowed for incoming requests.
 	servePlainDNS bool
+
+	// acme issues and renews certificates via ACME.  It may be nil, in which
+	// case the "SSL/TLS issue" feature is unavailable.
+	acme *acme.Manager
 }
 
 // tlsManagerConfig contains the settings for initializing the TLS manager.
@@ -100,6 +105,10 @@ type tlsManagerConfig struct {
 
 	// servePlainDNS defines if plain DNS is allowed for incoming requests.
 	servePlainDNS bool
+
+	// acme issues and renews certificates via ACME.  It may be nil, in which
+	// case the "SSL/TLS issue" feature is unavailable.
+	acme *acme.Manager
 }
 
 // newTLSManager initializes the manager of TLS configuration.  m is always
@@ -117,6 +126,7 @@ func newTLSManager(ctx context.Context, conf *tlsManagerConfig) (m *tlsManager, 
 		status:        &tlsConfigStatus{},
 		extTLSConf:    &conf.tlsSettings,
 		servePlainDNS: conf.servePlainDNS,
+		acme:          conf.acme,
 	}
 
 	m.rootCerts = aghtls.SystemRootCAs(ctx, conf.logger)
@@ -200,6 +210,7 @@ func (m *tlsManager) setCertFileTime(ctx context.Context) {
 // TODO(s.chzhen):  Use context.
 func (m *tlsManager) start(ctx context.Context) {
 	m.registerWebHandlers()
+	m.registerACMEWebHandlers()
 
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -210,6 +221,10 @@ func (m *tlsManager) start(ctx context.Context) {
 	m.web.tlsConfigChanged(context.Background(), m.extTLSConf)
 
 	go m.handleCertFileChange(ctx)
+
+	if m.acme != nil {
+		go m.certExpiryLoop(ctx)
+	}
 }
 
 // handleCertFileChange handles changes in the certificate file.  It's intended

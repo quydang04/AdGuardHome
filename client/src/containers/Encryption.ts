@@ -1,5 +1,12 @@
 import { connect } from 'react-redux';
-import { getTlsStatus, setTlsConfig, validateTlsConfig } from '../actions/encryption';
+import {
+    getTlsStatus,
+    setTlsConfig,
+    validateTlsConfig,
+    getAcmeConfig,
+    setAcmeConfig,
+    issueAcmeCertificate,
+} from '../actions/encryption';
 
 import { Encryption } from '../components/Settings/Encryption';
 
@@ -15,6 +22,9 @@ const mapDispatchToProps = {
     getTlsStatus,
     setTlsConfig,
     validateTlsConfig,
+    getAcmeConfig,
+    setAcmeConfig,
+    issueAcmeCertificate,
 };
 
 export default connect(mapStateToProps, mapDispatchToProps)(Encryption);

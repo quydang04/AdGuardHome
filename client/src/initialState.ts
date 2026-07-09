@@ -43,10 +43,26 @@ export type InstallData = {
     dnsVersion: string;
 };
 
+export type AcmeConfig = {
+    enabled: boolean;
+    email: string;
+    domains: string[];
+    challenge: string;
+    cloudflare_api_token: string;
+    auto_renew: boolean;
+    renew_before_days: number;
+    last_issued_at: string | null;
+    last_error: string;
+};
+
 export type EncryptionData = {
     processing: boolean;
     processingConfig: boolean;
     processingValidate: boolean;
+    processingAcme: boolean;
+    processingAcmeConfig: boolean;
+    processingAcmeIssue: boolean;
+    acme: AcmeConfig;
     enabled: boolean;
     serve_plain_dns: boolean;
     dns_names: any;
@@ -604,6 +620,20 @@ export const initialState: RootState = {
         processing: true,
         processingConfig: false,
         processingValidate: false,
+        processingAcme: false,
+        processingAcmeConfig: false,
+        processingAcmeIssue: false,
+        acme: {
+            enabled: false,
+            email: '',
+            domains: [],
+            challenge: 'http-01',
+            cloudflare_api_token: '',
+            auto_renew: true,
+            renew_before_days: 14,
+            last_issued_at: null,
+            last_error: '',
+        },
         enabled: false,
         serve_plain_dns: false,
         dns_names: null,

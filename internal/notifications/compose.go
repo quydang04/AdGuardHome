@@ -143,6 +143,74 @@ func composeFilterUpdateMessage(cfg TelegramConfig, update FilterUpdate, info sy
 	return strings.Join(lines, "\n")
 }
 
+// composeCertExpiryMessage formats a reminder that a certificate is nearing
+// expiration and should be renewed manually.
+func composeCertExpiryMessage(cfg TelegramConfig, ev CertExpiryReminder, info systeminfo.Info) string {
+	lines := make([]string, 0, 16)
+	if prefix := strings.TrimSpace(cfg.CustomMessage); prefix != "" {
+		lines = append(lines, prefix)
+		lines = append(lines, "")
+	}
+
+	icon := "⏰"
+	if ev.DaysLeft <= 0 {
+		icon = "🚨"
+	}
+
+	lines = append(lines, fmt.Sprintf("%s <b>TLS CERTIFICATE EXPIRING</b>", icon))
+	lines = append(lines, divider())
+	lines = append(lines, "")
+	lines = append(lines, sectionHeader("🔐", "Certificate"))
+	lines = append(lines, fmt.Sprintf("  ▸ <b>Domains:</b>    %s", fallbackString(strings.Join(ev.Domains, ", "))))
+	lines = append(lines, fmt.Sprintf("  ▸ <b>Expires:</b>    <code>%s</code>", ev.NotAfter.Format(time.RFC1123)))
+	lines = append(lines, fmt.Sprintf("  ▸ <b>Days left:</b>  <code>%d</code>", ev.DaysLeft))
+	lines = append(lines, "")
+	lines = append(lines, "Renew it manually in AdGuard Home's encryption settings.")
+	lines = append(lines, "")
+	lines = append(lines, systemOverviewLines(info)...)
+	lines = append(lines, "")
+	lines = append(lines, divider())
+	lines = append(lines, timestampLine())
+
+	return strings.Join(lines, "\n")
+}
+
+// composeCertRenewalMessage formats a notification about the outcome of an
+// automatic ACME certificate renewal.
+func composeCertRenewalMessage(cfg TelegramConfig, ev CertRenewalResult, info systeminfo.Info) string {
+	lines := make([]string, 0, 16)
+	if prefix := strings.TrimSpace(cfg.CustomMessage); prefix != "" {
+		lines = append(lines, prefix)
+		lines = append(lines, "")
+	}
+
+	if ev.Err != nil {
+		lines = append(lines, "🚨 <b>TLS CERTIFICATE AUTO-RENEWAL FAILED</b>")
+		lines = append(lines, divider())
+		lines = append(lines, "")
+		lines = append(lines, sectionHeader("🔐", "Certificate"))
+		lines = append(lines, fmt.Sprintf("  ▸ <b>Domains:</b> %s", fallbackString(strings.Join(ev.Domains, ", "))))
+		lines = append(lines, fmt.Sprintf("  ▸ <b>Error:</b>   <code>%s</code>", ev.Err.Error()))
+		lines = append(lines, "")
+		lines = append(lines, "Renew it manually in AdGuard Home's encryption settings.")
+	} else {
+		lines = append(lines, "✅ <b>TLS CERTIFICATE AUTO-RENEWED</b>")
+		lines = append(lines, divider())
+		lines = append(lines, "")
+		lines = append(lines, sectionHeader("🔐", "Certificate"))
+		lines = append(lines, fmt.Sprintf("  ▸ <b>Domains:</b>     %s", fallbackString(strings.Join(ev.Domains, ", "))))
+		lines = append(lines, fmt.Sprintf("  ▸ <b>New expiry:</b>  <code>%s</code>", ev.NotAfter.Format(time.RFC1123)))
+	}
+
+	lines = append(lines, "")
+	lines = append(lines, systemOverviewLines(info)...)
+	lines = append(lines, "")
+	lines = append(lines, divider())
+	lines = append(lines, timestampLine())
+
+	return strings.Join(lines, "\n")
+}
+
 func alertHeadline(metric string) string {
 	return fmt.Sprintf("%s exceeded threshold", metricDisplayName(metric))
 }

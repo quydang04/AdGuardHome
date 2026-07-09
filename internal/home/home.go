@@ -19,6 +19,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/AdguardTeam/AdGuardHome/internal/acme"
 	"github.com/AdguardTeam/AdGuardHome/internal/agh"
 	"github.com/AdguardTeam/AdGuardHome/internal/aghalg"
 	"github.com/AdguardTeam/AdGuardHome/internal/aghhttp"
@@ -47,6 +48,7 @@ import (
 	"github.com/AdguardTeam/golibs/netutil/urlutil"
 	"github.com/AdguardTeam/golibs/osutil"
 	"github.com/AdguardTeam/golibs/osutil/executil"
+	"github.com/go-acme/lego/v4/challenge/http01"
 )
 
 // Global context
@@ -796,6 +798,13 @@ func run(
 	mux := http.NewServeMux()
 	httpReg := aghhttp.NewDefaultRegistrar(mux, mw.wrap)
 
+	// acmeMgr answers ACME http-01 challenges directly on AdGuard Home's own
+	// web server (registered on the raw mux, unauthenticated) instead of
+	// opening a dedicated listener, since AdGuard Home already owns port
+	// 80/443 by default.
+	acmeMgr := acme.NewManager(baseLogger.With(slogutil.KeyPrefix, "acme"))
+	mux.Handle(http01.PathPrefix, acmeMgr.ChallengeHandler())
+
 	err := setupContext(ctx, baseLogger, opts, workDir, confPath, isFirstRun)
 	fatalOnError(err)
 
@@ -817,7 +826,7 @@ func run(
 	err = initContextClients(ctx, baseLogger, sigHdlr, confModifier, httpReg, workDir)
 	fatalOnError(err)
 
-	tlsMgr, err := initTLS(ctx, baseLogger, sigHdlr, confModifier, httpReg)
+	tlsMgr, err := initTLS(ctx, baseLogger, sigHdlr, confModifier, httpReg, acmeMgr)
 	fatalOnError(err)
 
 	err = setupDNSFilteringConf(
@@ -924,14 +933,15 @@ func runDNSServer(
 	go startYoutubeManager(ctx, slogLogger)
 }
 
-// initTLS initializes TLS manager.  baseLogger, sigHdlr, confModifier, and
-// httpReg must not be nil.
+// initTLS initializes TLS manager.  baseLogger, sigHdlr, confModifier,
+// httpReg, and acmeMgr must not be nil.
 func initTLS(
 	ctx context.Context,
 	baseLogger *slog.Logger,
 	sigHdlr *signalHandler,
 	confModifier *defaultConfigModifier,
 	httpReg *aghhttp.DefaultRegistrar,
+	acmeMgr *acme.Manager,
 ) (tlsMgr *tlsManager, err error) {
 	tlsMgrLogger := baseLogger.With(slogutil.KeyPrefix, "tls_manager")
 
@@ -962,6 +972,7 @@ func initTLS(
 		httpReg:       httpReg,
 		tlsSettings:   config.TLS,
 		servePlainDNS: config.DNS.ServePlainDNS,
+		acme:          acmeMgr,
 	})
 	if err != nil {
 		tlsMgrLogger.ErrorContext(ctx, "initializing", slogutil.KeyError, err)
