@@ -22,6 +22,7 @@ type acmeConfigJSON struct {
 	Challenge          string    `json:"challenge"`
 	CloudflareAPIToken string    `json:"cloudflare_api_token"`
 	Domains            []string  `json:"domains"`
+	DNSResolvers       []string  `json:"dns_resolvers"`
 	LastIssuedAt       time.Time `json:"last_issued_at"`
 	LastError          string    `json:"last_error"`
 	RenewBeforeDays    int       `json:"renew_before_days"`
@@ -58,6 +59,7 @@ func toACMEConfigJSON(c *acmeConfig) (j acmeConfigJSON) {
 		Domains:            c.Domains,
 		Challenge:          c.Challenge,
 		CloudflareAPIToken: c.CloudflareAPIToken,
+		DNSResolvers:       c.DNSResolvers,
 		AutoRenew:          c.AutoRenew,
 		RenewBeforeDays:    c.RenewBeforeDays,
 		LastIssuedAt:       c.LastIssuedAt,
@@ -133,6 +135,7 @@ func (m *tlsManager) handleACMEConfigure(w http.ResponseWriter, r *http.Request)
 	if req.CloudflareAPIToken != "" {
 		config.ACME.CloudflareAPIToken = req.CloudflareAPIToken
 	}
+	config.ACME.DNSResolvers = req.DNSResolvers
 	config.ACME.AutoRenew = req.AutoRenew
 	config.ACME.RenewBeforeDays = req.RenewBeforeDays
 	config.ACME.applyDefaults()
@@ -179,6 +182,7 @@ func (m *tlsManager) handleACMEIssue(w http.ResponseWriter, r *http.Request) {
 		Domains:            cfgJSON.Domains,
 		Challenge:          acme.ChallengeType(cfgJSON.Challenge),
 		CloudflareAPIToken: cfgJSON.CloudflareAPIToken,
+		DNSResolvers:       cfgJSON.DNSResolvers,
 		AccountKeyPEM:      accountKeyPEM,
 		AccountURI:         accountURI,
 	})

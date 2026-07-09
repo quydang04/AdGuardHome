@@ -177,6 +177,7 @@ type exportACMEConfig struct {
 	Domains            []string `json:"domains,omitempty"`
 	Challenge          string   `json:"challenge,omitempty"`
 	CloudflareAPIToken string   `json:"cloudflare_api_token,omitempty"`
+	DNSResolvers       []string `json:"dns_resolvers,omitempty"`
 	RenewBeforeDays    int      `json:"renew_before_days,omitempty"`
 	Enabled            bool     `json:"enabled"`
 	AutoRenew          bool     `json:"auto_renew"`
@@ -375,6 +376,7 @@ func (web *webAPI) handleExportSettings(w http.ResponseWriter, r *http.Request) 
 			Domains:            a.Domains,
 			Challenge:          a.Challenge,
 			CloudflareAPIToken: a.CloudflareAPIToken,
+			DNSResolvers:       a.DNSResolvers,
 			AutoRenew:          a.AutoRenew,
 			RenewBeforeDays:    a.RenewBeforeDays,
 		}
@@ -812,6 +814,9 @@ func applyACMEImport(a *exportACMEConfig) {
 	}
 	if a.CloudflareAPIToken != "" {
 		config.ACME.CloudflareAPIToken = a.CloudflareAPIToken
+	}
+	if len(a.DNSResolvers) > 0 {
+		config.ACME.DNSResolvers = a.DNSResolvers
 	}
 	if a.RenewBeforeDays > 0 {
 		config.ACME.RenewBeforeDays = a.RenewBeforeDays

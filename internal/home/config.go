@@ -543,6 +543,13 @@ type acmeConfig struct {
 	// for the requested domains' zones.
 	CloudflareAPIToken string `yaml:"cloudflare_api_token" json:"cloudflare_api_token"`
 
+	// DNSResolvers are the nameservers used to check that a DNS-01 TXT
+	// record has propagated before asking the CA to validate it, one per
+	// entry ("host" or "host:port").  Only used for the
+	// "dns-01-cloudflare" challenge.  If empty, the host's own system
+	// resolver is used instead.
+	DNSResolvers []string `yaml:"dns_resolvers" json:"dns_resolvers"`
+
 	// AutoRenew enables automatic renewal (and hot-swapping of the active
 	// certificate) once the current certificate is within RenewBeforeDays of
 	// expiring.  When disabled, AdGuard Home only sends a Telegram reminder

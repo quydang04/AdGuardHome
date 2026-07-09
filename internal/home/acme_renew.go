@@ -78,6 +78,7 @@ func (m *tlsManager) checkCertExpiry(ctx context.Context) {
 		Domains:            acmeCfg.Domains,
 		Challenge:          acme.ChallengeType(acmeCfg.Challenge),
 		CloudflareAPIToken: acmeCfg.CloudflareAPIToken,
+		DNSResolvers:       acmeCfg.DNSResolvers,
 		AccountKeyPEM:      accountKeyPEM,
 		AccountURI:         accountURI,
 	})
