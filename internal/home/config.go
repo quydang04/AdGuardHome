@@ -874,6 +874,8 @@ func parseConfig(ctx context.Context, l *slog.Logger, workDir, confPath string) 
 		return err
 	}
 
+	config.normalize()
+
 	err = validateConfig(ctx, l, config.fileData)
 	if err != nil {
 		return err
