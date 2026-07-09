@@ -412,6 +412,33 @@ class Api {
         return this.makeRequest(path, method, parameters);
     }
 
+    // ACME ("SSL/TLS issue")
+    ACME_STATUS = { path: 'tls/acme/status', method: 'GET' };
+
+    ACME_CONFIGURE = { path: 'tls/acme/configure', method: 'POST' };
+
+    ACME_ISSUE = { path: 'tls/acme/issue', method: 'POST' };
+
+    getAcmeStatus() {
+        const { path, method } = this.ACME_STATUS;
+
+        return this.makeRequest(path, method);
+    }
+
+    setAcmeConfig(config: any) {
+        const { path, method } = this.ACME_CONFIGURE;
+        const parameters = {
+            data: config,
+        };
+        return this.makeRequest(path, method, parameters);
+    }
+
+    issueAcmeCertificate() {
+        const { path, method } = this.ACME_ISSUE;
+
+        return this.makeRequest(path, method);
+    }
+
     // Per-client settings
     GET_CLIENTS = { path: 'clients', method: 'GET' };
 

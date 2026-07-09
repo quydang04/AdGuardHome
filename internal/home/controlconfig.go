@@ -34,6 +34,7 @@ type exportConfig struct {
 	Notifications *exportNotificationsConfig  `json:"notifications,omitempty"`
 	General       *exportGeneralConfig        `json:"general,omitempty"`
 	YouTube       *youtubeConfig              `json:"youtube,omitempty"`
+	ACME          *exportACMEConfig           `json:"acme,omitempty"`
 }
 
 // exportGeneralConfig is the general settings portion of the export.
@@ -166,6 +167,19 @@ type exportTelegramConfig struct {
 	CheckInterval   timeutil.Duration `json:"check_interval,omitempty"`
 	Cooldown        timeutil.Duration `json:"cooldown,omitempty"`
 	CustomMessage   string            `json:"custom_message,omitempty"`
+}
+
+// exportACMEConfig is the ACME ("SSL/TLS issue") portion of the export.  The
+// ACME account private key and status fields are intentionally excluded,
+// mirroring how the main TLS private key is cleared before export.
+type exportACMEConfig struct {
+	Email              string   `json:"email,omitempty"`
+	Domains            []string `json:"domains,omitempty"`
+	Challenge          string   `json:"challenge,omitempty"`
+	CloudflareAPIToken string   `json:"cloudflare_api_token,omitempty"`
+	RenewBeforeDays    int      `json:"renew_before_days,omitempty"`
+	Enabled            bool     `json:"enabled"`
+	AutoRenew          bool     `json:"auto_renew"`
 }
 
 // handleExportSettings handles GET /control/settings/export.
@@ -353,6 +367,19 @@ func (web *webAPI) handleExportSettings(w http.ResponseWriter, r *http.Request) 
 	tlsConf.PrivateKey = ""
 	export.TLS = &tlsConf
 
+	// ACME ("SSL/TLS issue") config.
+	if a := config.ACME; a != nil {
+		export.ACME = &exportACMEConfig{
+			Enabled:            a.Enabled,
+			Email:              a.Email,
+			Domains:            a.Domains,
+			Challenge:          a.Challenge,
+			CloudflareAPIToken: a.CloudflareAPIToken,
+			AutoRenew:          a.AutoRenew,
+			RenewBeforeDays:    a.RenewBeforeDays,
+		}
+	}
+
 	// Notifications config.
 	if tg := config.Notifications.Telegram; tg != nil {
 		export.Notifications = &exportNotificationsConfig{
@@ -424,6 +451,15 @@ func (web *webAPI) handleImportSettings(w http.ResponseWriter, r *http.Request) 
 		ytManager.restart(ctx)
 	}
 
+	if imp.Notifications != nil && globalContext.notifier != nil {
+		func() {
+			config.RLock()
+			defer config.RUnlock()
+
+			globalContext.notifier.UpdateTelegramConfig(buildRuntimeTelegramConfig(config.Notifications.Telegram))
+		}()
+	}
+
 	l.InfoContext(ctx, "settings imported successfully")
 
 	aghhttp.WriteJSONResponseOK(ctx, l, w, r, struct {
@@ -486,6 +522,10 @@ func applyImportedSettings(_ *slog.Logger, imp *exportConfig) (err error) {
 
 	if imp.YouTube != nil {
 		config.YouTube = imp.YouTube
+	}
+
+	if imp.ACME != nil {
+		applyACMEImport(imp.ACME)
 	}
 
 	return nil
@@ -750,4 +790,30 @@ func applyNotificationsImport(notif *exportNotificationsConfig) {
 		config.Notifications.Telegram.Cooldown = tg.Cooldown
 	}
 	config.Notifications.Telegram.CustomMessage = tg.CustomMessage
+}
+
+// applyACMEImport applies the imported ACME ("SSL/TLS issue") settings.
+func applyACMEImport(a *exportACMEConfig) {
+	if config.ACME == nil {
+		config.ACME = defaultACMEConfig()
+	}
+
+	config.ACME.Enabled = a.Enabled
+	config.ACME.AutoRenew = a.AutoRenew
+
+	if a.Email != "" {
+		config.ACME.Email = a.Email
+	}
+	if len(a.Domains) > 0 {
+		config.ACME.Domains = a.Domains
+	}
+	if a.Challenge != "" {
+		config.ACME.Challenge = a.Challenge
+	}
+	if a.CloudflareAPIToken != "" {
+		config.ACME.CloudflareAPIToken = a.CloudflareAPIToken
+	}
+	if a.RenewBeforeDays > 0 {
+		config.ACME.RenewBeforeDays = a.RenewBeforeDays
+	}
 }

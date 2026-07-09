@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/AdguardTeam/AdGuardHome/internal/acme"
 	"github.com/AdguardTeam/AdGuardHome/internal/agh"
 	"github.com/AdguardTeam/AdGuardHome/internal/aghalg"
 	"github.com/AdguardTeam/AdGuardHome/internal/aghos"
@@ -140,6 +141,7 @@ type configuration struct {
 	Stats         statsConfig         `yaml:"statistics"`
 	Notifications notificationsConfig `yaml:"notifications"`
 	YouTube       *youtubeConfig      `yaml:"youtube"`
+	ACME          *acmeConfig         `yaml:"acme"`
 
 	// Filters reflects the filters from [filtering.Config].  It's cloned to the
 	// config used in the filtering module at the startup.  Afterwards it's
@@ -508,6 +510,90 @@ func (c *configuration) normalize() {
 
 	if c.YouTube == nil {
 		c.YouTube = defaultYoutubeConfig()
+	}
+
+	if c.ACME == nil {
+		c.ACME = defaultACMEConfig()
+	} else {
+		c.ACME.applyDefaults()
+	}
+}
+
+// acmeConfig configures automatic issuance and renewal of TLS certificates
+// via ACME (Let's Encrypt), backing the "SSL/TLS issue" section of the
+// encryption settings page.
+type acmeConfig struct {
+	// Enabled indicates whether ACME issuance/renewal is configured.
+	Enabled bool `yaml:"enabled" json:"enabled"`
+
+	// Email is the contact address used to register the ACME account and to
+	// receive expiration notices from the CA.
+	Email string `yaml:"email" json:"email"`
+
+	// Domains are the domain names to request the certificate for.  The
+	// first entry becomes the certificate's Common Name.
+	Domains []string `yaml:"domains" json:"domains"`
+
+	// Challenge is the domain validation method, one of "http-01" and
+	// "dns-01-cloudflare".
+	Challenge string `yaml:"challenge" json:"challenge"`
+
+	// CloudflareAPIToken is the Cloudflare API token used for the
+	// "dns-01-cloudflare" challenge.  It must have Zone:DNS:Edit permission
+	// for the requested domains' zones.
+	CloudflareAPIToken string `yaml:"cloudflare_api_token" json:"cloudflare_api_token"`
+
+	// AutoRenew enables automatic renewal (and hot-swapping of the active
+	// certificate) once the current certificate is within RenewBeforeDays of
+	// expiring.  When disabled, AdGuard Home only sends a Telegram reminder
+	// and leaves renewal to the administrator.
+	AutoRenew bool `yaml:"auto_renew" json:"auto_renew"`
+
+	// RenewBeforeDays is how many days before expiration to attempt
+	// auto-renewal, or to start sending Telegram reminders.
+	RenewBeforeDays int `yaml:"renew_before_days" json:"renew_before_days"`
+
+	// AccountKeyPEM is the persisted ACME account private key, so that
+	// renewals reuse the same account instead of registering a new one.  Not
+	// exposed over the API.
+	AccountKeyPEM string `yaml:"account_key_pem" json:"-"`
+
+	// AccountURI is the persisted ACME account resource URI.  Not exposed
+	// over the API.
+	AccountURI string `yaml:"account_uri" json:"-"`
+
+	// LastIssuedAt is when the certificate was last successfully issued or
+	// renewed via ACME.  The zero value means ACME has never issued a
+	// certificate.
+	LastIssuedAt time.Time `yaml:"last_issued_at" json:"last_issued_at"`
+
+	// LastError is the error message from the most recent failed issuance or
+	// renewal attempt, if any.
+	LastError string `yaml:"-" json:"last_error"`
+}
+
+// defaultACMEConfig returns the default ACME configuration.
+func defaultACMEConfig() (c *acmeConfig) {
+	return &acmeConfig{
+		Challenge:       string(acme.ChallengeHTTP01),
+		AutoRenew:       true,
+		RenewBeforeDays: 14,
+	}
+}
+
+// applyDefaults fills in zero-valued fields of c that must never be empty.
+// c may be nil.
+func (c *acmeConfig) applyDefaults() {
+	if c == nil {
+		return
+	}
+
+	if c.Challenge == "" {
+		c.Challenge = string(acme.ChallengeHTTP01)
+	}
+
+	if c.RenewBeforeDays <= 0 {
+		c.RenewBeforeDays = 14
 	}
 }
 

@@ -1,9 +1,10 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { debounce } from 'lodash';
 import { DEBOUNCE_TIMEOUT, ENCRYPTION_SOURCE } from '../../../helpers/constants';
 
 import { EncryptionFormValues, Form } from './Form';
+import { AcmeForm, AcmeFormValues, CHALLENGE_HTTP01 } from './AcmeForm';
 import Card from '../../ui/Card';
 import PageTitle from '../../ui/PageTitle';
 import Loading from '../../ui/Loading';
@@ -13,10 +14,24 @@ type Props = {
     encryption: EncryptionData;
     setTlsConfig: (values: Partial<EncryptionData>) => void;
     validateTlsConfig: (values: Partial<EncryptionData>) => void;
+    getAcmeConfig: () => void;
+    setAcmeConfig: (values: any) => Promise<void>;
+    issueAcmeCertificate: () => void;
 };
 
-export const Encryption = ({ encryption, setTlsConfig, validateTlsConfig }: Props) => {
+export const Encryption = ({
+    encryption,
+    setTlsConfig,
+    validateTlsConfig,
+    getAcmeConfig,
+    setAcmeConfig,
+    issueAcmeCertificate,
+}: Props) => {
     const { t } = useTranslation();
+
+    useEffect(() => {
+        getAcmeConfig();
+    }, []);
 
     const initialValues = useMemo((): EncryptionFormValues => {
         const {
@@ -95,6 +110,49 @@ export const Encryption = ({ encryption, setTlsConfig, validateTlsConfig }: Prop
 
     const debouncedConfigValidation = useMemo(() => debounce(validateConfig, DEBOUNCE_TIMEOUT), [validateConfig]);
 
+    const acmeInitialValues = useMemo((): AcmeFormValues => {
+        const { acme } = encryption;
+
+        return {
+            enabled: acme?.enabled ?? false,
+            email: acme?.email ?? '',
+            domains: (acme?.domains ?? []).join('\n'),
+            challenge: acme?.challenge ?? CHALLENGE_HTTP01,
+            cloudflareApiToken: acme?.cloudflare_api_token ?? '',
+            autoRenew: acme?.auto_renew ?? true,
+            renewBeforeDays: acme?.renew_before_days ?? 14,
+        };
+    }, [encryption.acme]);
+
+    const getAcmeSubmitValues = useCallback(
+        (values: AcmeFormValues) => ({
+            enabled: values.enabled,
+            email: values.email.trim(),
+            domains: values.domains
+                .split('\n')
+                .map((domain) => domain.trim())
+                .filter(Boolean),
+            challenge: values.challenge,
+            cloudflare_api_token: values.cloudflareApiToken.trim(),
+            auto_renew: values.autoRenew,
+            renew_before_days: Number(values.renewBeforeDays),
+        }),
+        [],
+    );
+
+    const handleAcmeSave = useCallback(
+        (values: AcmeFormValues) => setAcmeConfig(getAcmeSubmitValues(values)),
+        [getAcmeSubmitValues, setAcmeConfig],
+    );
+
+    const handleAcmeIssue = useCallback(
+        async (values: AcmeFormValues) => {
+            await setAcmeConfig(getAcmeSubmitValues(values));
+            issueAcmeCertificate();
+        },
+        [getAcmeSubmitValues, setAcmeConfig, issueAcmeCertificate],
+    );
+
     return (
         <div className="encryption">
             <PageTitle title={t('encryption_settings')} />
@@ -102,19 +160,36 @@ export const Encryption = ({ encryption, setTlsConfig, validateTlsConfig }: Prop
             {encryption.processing ? (
                 <Loading />
             ) : (
-                <Card
-                    title={t('encryption_title')}
-                    subtitle={t('encryption_desc')}
-                    bodyType="card-body box-body--settings">
-                    <Form
-                        initialValues={initialValues}
-                        onSubmit={handleFormSubmit}
-                        debouncedConfigValidation={debouncedConfigValidation}
-                        setTlsConfig={setTlsConfig}
-                        validateTlsConfig={validateTlsConfig}
-                        encryption={encryption}
-                    />
-                </Card>
+                <>
+                    <Card
+                        title={t('encryption_title')}
+                        subtitle={t('encryption_desc')}
+                        bodyType="card-body box-body--settings">
+                        <Form
+                            initialValues={initialValues}
+                            onSubmit={handleFormSubmit}
+                            debouncedConfigValidation={debouncedConfigValidation}
+                            setTlsConfig={setTlsConfig}
+                            validateTlsConfig={validateTlsConfig}
+                            encryption={encryption}
+                        />
+                    </Card>
+
+                    <Card
+                        title={t('acme_title')}
+                        subtitle={t('acme_desc')}
+                        bodyType="card-body box-body--settings">
+                        <AcmeForm
+                            initialValues={acmeInitialValues}
+                            processingConfig={encryption.processingAcmeConfig}
+                            processingIssue={encryption.processingAcmeIssue}
+                            lastIssuedAt={encryption.acme?.last_issued_at ?? null}
+                            lastError={encryption.acme?.last_error ?? ''}
+                            onSave={handleAcmeSave}
+                            onIssue={handleAcmeIssue}
+                        />
+                    </Card>
+                </>
             )}
         </div>
     );

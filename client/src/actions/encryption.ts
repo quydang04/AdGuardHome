@@ -87,3 +87,52 @@ export const validateTlsConfig = (config: any) => async (dispatch: any) => {
         dispatch(validateTlsConfigFailure());
     }
 };
+
+export const getAcmeConfigRequest = createAction('GET_ACME_CONFIG_REQUEST');
+export const getAcmeConfigFailure = createAction('GET_ACME_CONFIG_FAILURE');
+export const getAcmeConfigSuccess = createAction('GET_ACME_CONFIG_SUCCESS');
+
+export const getAcmeConfig = () => async (dispatch: any) => {
+    dispatch(getAcmeConfigRequest());
+    try {
+        const config = await apiClient.getAcmeStatus();
+        dispatch(getAcmeConfigSuccess(config));
+    } catch (error) {
+        dispatch(addErrorToast({ error }));
+        dispatch(getAcmeConfigFailure());
+    }
+};
+
+export const setAcmeConfigRequest = createAction('SET_ACME_CONFIG_REQUEST');
+export const setAcmeConfigFailure = createAction('SET_ACME_CONFIG_FAILURE');
+export const setAcmeConfigSuccess = createAction('SET_ACME_CONFIG_SUCCESS');
+
+export const setAcmeConfig = (config: any) => async (dispatch: any) => {
+    dispatch(setAcmeConfigRequest());
+    try {
+        const response = await apiClient.setAcmeConfig(config);
+        dispatch(setAcmeConfigSuccess(response));
+        dispatch(addSuccessToast('acme_config_saved'));
+    } catch (error) {
+        dispatch(addErrorToast({ error }));
+        dispatch(setAcmeConfigFailure());
+    }
+};
+
+export const issueAcmeCertificateRequest = createAction('ISSUE_ACME_CERTIFICATE_REQUEST');
+export const issueAcmeCertificateFailure = createAction('ISSUE_ACME_CERTIFICATE_FAILURE');
+export const issueAcmeCertificateSuccess = createAction('ISSUE_ACME_CERTIFICATE_SUCCESS');
+
+export const issueAcmeCertificate = () => async (dispatch: any) => {
+    dispatch(issueAcmeCertificateRequest());
+    try {
+        const response = await apiClient.issueAcmeCertificate();
+        response.certificate_chain = atob(response.certificate_chain);
+        response.private_key = atob(response.private_key);
+        dispatch(issueAcmeCertificateSuccess(response));
+        dispatch(addSuccessToast('acme_issue_success'));
+    } catch (error) {
+        dispatch(addErrorToast({ error }));
+        dispatch(issueAcmeCertificateFailure());
+    }
+};
