@@ -21,17 +21,17 @@ import (
 type ServerConfig struct {
 	// Logger is used for logging the operation of the DHCP server.  It must not
 	// be nil.
-	Logger *slog.Logger `yaml:"-"`
+	Logger *slog.Logger `yaml:"-" json:"-"`
 
 	// CommandConstructor is used to run external commands.  It must not be nil.
-	CommandConstructor executil.CommandConstructor `yaml:"-"`
+	CommandConstructor executil.CommandConstructor `yaml:"-" json:"-"`
 
 	// ConfModifier is used to update the global configuration.  It must not be
 	// nil.
-	ConfModifier agh.ConfigModifier `yaml:"-"`
+	ConfModifier agh.ConfigModifier `yaml:"-" json:"-"`
 
 	// Register an HTTP handler
-	HTTPReg aghhttp.Registrar `yaml:"-"`
+	HTTPReg aghhttp.Registrar `yaml:"-" json:"-"`
 
 	Enabled       bool   `yaml:"enabled"`
 	InterfaceName string `yaml:"interface_name"`
@@ -50,10 +50,10 @@ type ServerConfig struct {
 	// WorkDir is used to store DHCP leases.
 	//
 	// Deprecated:  Remove it when migration of DHCP leases will not be needed.
-	WorkDir string `yaml:"-"`
+	WorkDir string `yaml:"-" json:"-"`
 
 	// DataDir is used to store DHCP leases.
-	DataDir string `yaml:"-"`
+	DataDir string `yaml:"-" json:"-"`
 
 	// dbFilePath is the path to the file with stored DHCP leases.
 	dbFilePath string `yaml:"-"`

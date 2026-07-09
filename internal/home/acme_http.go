@@ -18,15 +18,19 @@ import (
 // acmeConfigJSON is the JSON representation of the ACME ("SSL/TLS issue")
 // configuration used by the settings HTTP API.
 type acmeConfigJSON struct {
-	Email              string    `json:"email"`
-	Challenge          string    `json:"challenge"`
-	CloudflareAPIToken string    `json:"cloudflare_api_token"`
-	Domains            []string  `json:"domains"`
-	LastIssuedAt       time.Time `json:"last_issued_at"`
-	LastError          string    `json:"last_error"`
-	RenewBeforeDays    int       `json:"renew_before_days"`
-	Enabled            bool      `json:"enabled"`
-	AutoRenew          bool      `json:"auto_renew"`
+	Email              string   `json:"email"`
+	Challenge          string   `json:"challenge"`
+	CloudflareAPIToken string   `json:"cloudflare_api_token"`
+	Domains            []string `json:"domains"`
+	DNSResolvers       []string `json:"dns_resolvers"`
+
+	// LastIssuedAt is RFC 3339-formatted, or empty if a certificate has
+	// never been issued via ACME.
+	LastIssuedAt    string `json:"last_issued_at"`
+	LastError       string `json:"last_error"`
+	RenewBeforeDays int    `json:"renew_before_days"`
+	Enabled         bool   `json:"enabled"`
+	AutoRenew       bool   `json:"auto_renew"`
 }
 
 // acmeConfigSnapshot returns a copy of the current ACME configuration,
@@ -52,15 +56,21 @@ func toACMEConfigJSON(c *acmeConfig) (j acmeConfigJSON) {
 		c = defaultACMEConfig()
 	}
 
+	var lastIssuedAt string
+	if !c.LastIssuedAt.IsZero() {
+		lastIssuedAt = c.LastIssuedAt.Format(time.RFC3339)
+	}
+
 	return acmeConfigJSON{
 		Enabled:            c.Enabled,
 		Email:              c.Email,
 		Domains:            c.Domains,
 		Challenge:          c.Challenge,
 		CloudflareAPIToken: c.CloudflareAPIToken,
+		DNSResolvers:       c.DNSResolvers,
 		AutoRenew:          c.AutoRenew,
 		RenewBeforeDays:    c.RenewBeforeDays,
-		LastIssuedAt:       c.LastIssuedAt,
+		LastIssuedAt:       lastIssuedAt,
 		LastError:          c.LastError,
 	}
 }
@@ -133,6 +143,7 @@ func (m *tlsManager) handleACMEConfigure(w http.ResponseWriter, r *http.Request)
 	if req.CloudflareAPIToken != "" {
 		config.ACME.CloudflareAPIToken = req.CloudflareAPIToken
 	}
+	config.ACME.DNSResolvers = req.DNSResolvers
 	config.ACME.AutoRenew = req.AutoRenew
 	config.ACME.RenewBeforeDays = req.RenewBeforeDays
 	config.ACME.applyDefaults()
@@ -179,6 +190,7 @@ func (m *tlsManager) handleACMEIssue(w http.ResponseWriter, r *http.Request) {
 		Domains:            cfgJSON.Domains,
 		Challenge:          acme.ChallengeType(cfgJSON.Challenge),
 		CloudflareAPIToken: cfgJSON.CloudflareAPIToken,
+		DNSResolvers:       cfgJSON.DNSResolvers,
 		AccountKeyPEM:      accountKeyPEM,
 		AccountURI:         accountURI,
 	})

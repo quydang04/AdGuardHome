@@ -162,6 +162,7 @@ const encryption = handleActions(
             domains: [],
             challenge: 'http-01',
             cloudflare_api_token: '',
+            dns_resolvers: [],
             auto_renew: true,
             renew_before_days: 14,
             last_issued_at: null,

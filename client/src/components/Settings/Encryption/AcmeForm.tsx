@@ -20,6 +20,7 @@ export type AcmeFormValues = {
     domains: string;
     challenge: string;
     cloudflareApiToken: string;
+    dnsResolvers: string;
     autoRenew: boolean;
     renewBeforeDays: number;
 };
@@ -40,6 +41,7 @@ const defaultValues: AcmeFormValues = {
     domains: '',
     challenge: CHALLENGE_HTTP01,
     cloudflareApiToken: '',
+    dnsResolvers: '',
     autoRenew: true,
     renewBeforeDays: 14,
 };
@@ -195,6 +197,28 @@ export const AcmeForm = ({
                             />
                         )}
                     />
+                </div>
+            )}
+
+            {challenge === CHALLENGE_CLOUDFLARE_DNS01 && (
+                <div className="form__group form__group--settings">
+                    <Controller
+                        name="dnsResolvers"
+                        control={control}
+                        render={({ field }) => (
+                            <Textarea
+                                {...field}
+                                data-testid="acme_dns_resolvers"
+                                placeholder={t('acme_dns_resolvers_placeholder')}
+                                label={t('acme_dns_resolvers')}
+                                disabled={processing}
+                                trimOnBlur
+                            />
+                        )}
+                    />
+                    <div className="form__desc form__desc--top">
+                        <Trans>acme_dns_resolvers_desc</Trans>
+                    </div>
                 </div>
             )}
 

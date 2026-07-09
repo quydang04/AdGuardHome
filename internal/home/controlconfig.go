@@ -177,6 +177,7 @@ type exportACMEConfig struct {
 	Domains            []string `json:"domains,omitempty"`
 	Challenge          string   `json:"challenge,omitempty"`
 	CloudflareAPIToken string   `json:"cloudflare_api_token,omitempty"`
+	DNSResolvers       []string `json:"dns_resolvers,omitempty"`
 	RenewBeforeDays    int      `json:"renew_before_days,omitempty"`
 	Enabled            bool     `json:"enabled"`
 	AutoRenew          bool     `json:"auto_renew"`
@@ -375,6 +376,7 @@ func (web *webAPI) handleExportSettings(w http.ResponseWriter, r *http.Request) 
 			Domains:            a.Domains,
 			Challenge:          a.Challenge,
 			CloudflareAPIToken: a.CloudflareAPIToken,
+			DNSResolvers:       a.DNSResolvers,
 			AutoRenew:          a.AutoRenew,
 			RenewBeforeDays:    a.RenewBeforeDays,
 		}
@@ -505,6 +507,17 @@ func applyImportedSettings(_ *slog.Logger, imp *exportConfig) (err error) {
 	}
 
 	if imp.DHCP != nil {
+		// Preserve the runtime-only dependencies wired in at startup (never
+		// present in the imported JSON, since they're excluded from
+		// marshaling) instead of wiping them out by replacing the whole
+		// struct.
+		imp.DHCP.Logger = config.DHCP.Logger
+		imp.DHCP.CommandConstructor = config.DHCP.CommandConstructor
+		imp.DHCP.ConfModifier = config.DHCP.ConfModifier
+		imp.DHCP.HTTPReg = config.DHCP.HTTPReg
+		imp.DHCP.WorkDir = config.DHCP.WorkDir
+		imp.DHCP.DataDir = config.DHCP.DataDir
+
 		config.DHCP = imp.DHCP
 	}
 
@@ -812,6 +825,9 @@ func applyACMEImport(a *exportACMEConfig) {
 	}
 	if a.CloudflareAPIToken != "" {
 		config.ACME.CloudflareAPIToken = a.CloudflareAPIToken
+	}
+	if len(a.DNSResolvers) > 0 {
+		config.ACME.DNSResolvers = a.DNSResolvers
 	}
 	if a.RenewBeforeDays > 0 {
 		config.ACME.RenewBeforeDays = a.RenewBeforeDays

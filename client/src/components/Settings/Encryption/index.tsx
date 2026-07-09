@@ -119,6 +119,7 @@ export const Encryption = ({
             domains: (acme?.domains ?? []).join('\n'),
             challenge: acme?.challenge ?? CHALLENGE_HTTP01,
             cloudflareApiToken: acme?.cloudflare_api_token ?? '',
+            dnsResolvers: (acme?.dns_resolvers ?? []).join('\n'),
             autoRenew: acme?.auto_renew ?? true,
             renewBeforeDays: acme?.renew_before_days ?? 14,
         };
@@ -134,6 +135,10 @@ export const Encryption = ({
                 .filter(Boolean),
             challenge: values.challenge,
             cloudflare_api_token: values.cloudflareApiToken.trim(),
+            dns_resolvers: values.dnsResolvers
+                .split('\n')
+                .map((resolver) => resolver.trim())
+                .filter(Boolean),
             auto_renew: values.autoRenew,
             renew_before_days: Number(values.renewBeforeDays),
         }),

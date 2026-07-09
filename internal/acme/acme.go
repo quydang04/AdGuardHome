@@ -22,6 +22,7 @@ import (
 	"github.com/AdguardTeam/golibs/errors"
 	"github.com/go-acme/lego/v4/certcrypto"
 	"github.com/go-acme/lego/v4/certificate"
+	"github.com/go-acme/lego/v4/challenge/dns01"
 	"github.com/go-acme/lego/v4/challenge/http01"
 	"github.com/go-acme/lego/v4/lego"
 	"github.com/go-acme/lego/v4/providers/dns/cloudflare"
@@ -74,6 +75,13 @@ type Request struct {
 	// set together with AccountKeyPEM, Issue reuses the existing account
 	// instead of registering a new one.
 	AccountURI string
+
+	// DNSResolvers are the nameservers (as "host" or "host:port", port
+	// defaults to 53) used to check that a DNS-01 TXT record has propagated
+	// before asking the CA to validate it.  Only used for
+	// [ChallengeCloudflareDNS01].  If empty, the host's own system resolver
+	// (e.g. /etc/resolv.conf) is used, same as the rest of AdGuard Home.
+	DNSResolvers []string
 }
 
 // Result is the outcome of a successful certificate issuance or renewal.
@@ -220,7 +228,12 @@ func (m *Manager) setChallengeProvider(client *lego.Client, req *Request) (err e
 			return fmt.Errorf("acme: creating cloudflare dns provider: %w", err)
 		}
 
-		return client.Challenge.SetDNS01Provider(provider)
+		var opts []dns01.ChallengeOption
+		if len(req.DNSResolvers) > 0 {
+			opts = append(opts, dns01.AddRecursiveNameservers(req.DNSResolvers))
+		}
+
+		return client.Challenge.SetDNS01Provider(provider, opts...)
 	default:
 		return fmt.Errorf("acme: unsupported challenge type %q", req.Challenge)
 	}

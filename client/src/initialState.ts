@@ -49,6 +49,7 @@ export type AcmeConfig = {
     domains: string[];
     challenge: string;
     cloudflare_api_token: string;
+    dns_resolvers: string[];
     auto_renew: boolean;
     renew_before_days: number;
     last_issued_at: string | null;
@@ -629,6 +630,7 @@ export const initialState: RootState = {
             domains: [],
             challenge: 'http-01',
             cloudflare_api_token: '',
+            dns_resolvers: [],
             auto_renew: true,
             renew_before_days: 14,
             last_issued_at: null,
