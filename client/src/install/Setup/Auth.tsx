@@ -23,7 +23,7 @@ export const Auth = ({ onAuthSubmit }: Props) => {
         control,
         formState: { isDirty, isValid },
     } = useForm<AuthFormValues>({
-        mode: 'onBlur',
+        mode: 'onChange',
         defaultValues: {
             username: '',
             password: '',
