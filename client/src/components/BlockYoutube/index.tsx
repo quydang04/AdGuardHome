@@ -381,48 +381,6 @@ const BlockYoutube = () => {
                 </div>
             </Card>
 
-            {/* Blocked Ad Domains Info */}
-            <Card
-                title={t('youtube_ad_domains')}
-                bodyType="card-body box-body--settings">
-                <p className="yt-setting__desc mb-3">
-                    {t('youtube_ad_domains_desc')}
-                </p>
-                <div className="table-responsive">
-                    <table className="table">
-                        <thead>
-                            <tr>
-                                <th>{t('domain')}</th>
-                                <th>{t('type')}</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {(youtube?.ad_domains || []).map((domain: string) => (
-                                <tr key={`ad-${domain}`}>
-                                    <td><code>{domain}</code></td>
-                                    <td>
-                                        <span className="badge badge-danger">
-                                            {t('youtube_type_ad')}
-                                        </span>
-                                    </td>
-                                </tr>
-                            ))}
-                            {(youtube?.tracking_domains || []).map((domain: string) => (
-                                <tr key={`track-${domain}`}>
-                                    <td><code>{domain}</code></td>
-                                    <td>
-                                        <span className="badge badge-warning">
-                                            {t('youtube_type_tracking')}
-                                        </span>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-            </Card>
-
-
         </>
     );
 };
