@@ -179,6 +179,7 @@ jobs:
           build-args: |
             BUILD_DATE=${{ github.event.repository.updated_at }}
             VERSION=${{ steps.version.outputs.VERSION }}
+            CHANNEL=release
             VCS_REF=${{ github.sha }}
             NPM_CONFIG_LEGACY_PEER_DEPS=${{ env.NPM_CONFIG_LEGACY_PEER_DEPS }}
           provenance: false

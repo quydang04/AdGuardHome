@@ -73,6 +73,11 @@ ARG TARGETARCH
 ARG TARGETVARIANT
 
 # Cross-compile for the target platform with appropriate GOARM for ARM variants.
+#
+# Strip a leading "v" from VERSION so the embedded version string matches the
+# native release pipeline's format (e.g. "1.0.31", not "v1.0.31"), keeping
+# self-update version comparisons against version.json consistent between
+# Docker and native builds.
 RUN set -eux; \
     echo "Cross-compiling for TARGETOS=${TARGETOS} TARGETARCH=${TARGETARCH} TARGETVARIANT=${TARGETVARIANT}"; \
     case "${TARGETARCH}" in \
@@ -82,9 +87,10 @@ RUN set -eux; \
                 *)  export GOARM=6 ;; \
             esac ;; \
     esac; \
+    BUILD_VERSION="${VERSION#v}"; \
     CGO_ENABLED=0 GOOS="${TARGETOS}" GOARCH="${TARGETARCH}" \
     go build \
-    -ldflags="-s -w -X github.com/AdguardTeam/AdGuardHome/internal/version.version=${VERSION} -X github.com/AdguardTeam/AdGuardHome/internal/version.channel=${CHANNEL}" \
+    -ldflags="-s -w -X github.com/AdguardTeam/AdGuardHome/internal/version.version=${BUILD_VERSION} -X github.com/AdguardTeam/AdGuardHome/internal/version.channel=${CHANNEL}" \
     -o /AdGuardHome; \
     file /AdGuardHome
 
