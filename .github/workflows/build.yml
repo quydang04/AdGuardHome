@@ -133,7 +133,7 @@ jobs:
           OS: ${{ github.event.inputs.build_os || '' }}
           ARCH: ${{ github.event.inputs.build_arch || '' }}
         run: |
-          make SIGN=0 VERBOSE=1 VERSION="${{ steps.version.outputs.NEW_VERSION }}" build-release
+          make SIGN=0 VERBOSE=1 CHANNEL=release VERSION="${{ steps.version.outputs.NEW_VERSION }}" build-release
           rm -f "${{ env.DIST_DIR }}/AdGuardHome_frontend.tar.gz"
 
       - name: List built artifacts
@@ -153,6 +153,7 @@ jobs:
             ${{ env.DIST_DIR }}/*.zip
             ${{ env.DIST_DIR }}/checksums.txt
             ${{ env.DIST_DIR }}/version.txt
+            ${{ env.DIST_DIR }}/version.json
           retention-days: 90
 
       - name: Upload artifacts - Windows
@@ -241,7 +242,7 @@ jobs:
         with:
           tag: ${{ needs.build.outputs.new_tag }}
           name: "${{ needs.build.outputs.new_tag }}"
-          artifacts: "${{ env.DIST_DIR }}/*.tar.gz,${{ env.DIST_DIR }}/*.zip,${{ env.DIST_DIR }}/checksums.txt"
+          artifacts: "${{ env.DIST_DIR }}/*.tar.gz,${{ env.DIST_DIR }}/*.zip,${{ env.DIST_DIR }}/checksums.txt,${{ env.DIST_DIR }}/version.json"
           body: |
             ## AdGuard Home ${{ needs.build.outputs.new_tag }}
 

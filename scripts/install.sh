@@ -3,9 +3,9 @@
 # AdGuard Home Installation Script
 # For the quydang04/AdGuardHome fork.
 
-# Exit the script if a pipeline fails (-e) and consider undefined variables as
-# errors (-u).
-set -eu
+# Exit the script if a pipeline fails (-e), prevent accidental filename
+# expansion (-f), and consider undefined variables as errors (-u).
+set -e -f -u
 
 repo_owner='quydang04'
 repo_name='AdGuardHome'

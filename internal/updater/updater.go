@@ -71,11 +71,16 @@ type Updater struct {
 }
 
 // DefaultVersionURL returns the default URL for the version announcement.
+//
+// This fork publishes its releases as GitHub Releases under
+// quydang04/AdGuardHome rather than to AdGuard's static.adtidy.org CDN, so
+// the update feed points at the latest release's version.json asset there
+// instead.
 func DefaultVersionURL() *url.URL {
 	return &url.URL{
 		Scheme: urlutil.SchemeHTTPS,
-		Host:   "static.adtidy.org",
-		Path:   path.Join("adguardhome", version.Channel(), "version.json"),
+		Host:   "github.com",
+		Path:   path.Join("quydang04", "AdGuardHome", "releases", "latest", "download", "version.json"),
 	}
 }
 

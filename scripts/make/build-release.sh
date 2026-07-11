@@ -329,18 +329,18 @@ log "writing versions"
 echo "version=$version" >"./${dist}/version.txt"
 
 # Create the version.json file.
+#
+# This fork publishes its releases as GitHub Releases under
+# quydang04/AdGuardHome, not to AdGuard's static.adtidy.org CDN, so the
+# self-update feed must point there instead.
+release_tag="v${version}"
+readonly release_tag
 
-version_download_url="https://static.adtidy.org/adguardhome/${channel}"
+version_download_url="https://github.com/quydang04/AdGuardHome/releases/download/${release_tag}"
 version_json="./${dist}/version.json"
 readonly version_download_url version_json
 
-# If the channel is edge, point users to the "Platforms" page on the Wiki,
-# because the direct links to the edge packages are listed there.
-if [ "$channel" = 'edge' ]; then
-	announcement_url='https://github.com/AdguardTeam/AdGuardHome/wiki/Platforms'
-else
-	announcement_url="https://github.com/AdguardTeam/AdGuardHome/releases/tag/${version}"
-fi
+announcement_url="https://github.com/quydang04/AdGuardHome/releases/tag/${release_tag}"
 readonly announcement_url
 
 # TODO(a.garipov): Remove "selfupdate_min_version" in future versions.
