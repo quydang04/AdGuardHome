@@ -19,7 +19,9 @@ ReactModal.setAppElement('#root');
 type AcmeLogLine = {
     time: string;
     level: 'info' | 'error' | 'success';
-    message: string;
+    message?: string;
+    message_key?: string;
+    params?: Record<string, string>;
 };
 
 type AcmeDoneEvent = {
@@ -176,7 +178,7 @@ export const AcmeIssueLogModal = ({ isOpen, onClose }: Props) => {
                                 <span className="acme-log__time">
                                     {new Date(line.time).toLocaleTimeString()}
                                 </span>{' '}
-                                {line.message}
+                                {line.message_key ? t(line.message_key, line.params) : line.message}
                             </div>
                         ))}
                         {finished && (

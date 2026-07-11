@@ -6,11 +6,15 @@ import (
 )
 
 // acmeJobLine is a single progress line recorded by an [acmeJob], suitable
-// for JSON encoding as a Server-Sent Events "line" event.
+// for JSON encoding as a Server-Sent Events "line" event.  Either MessageKey
+// (a frontend i18n translation key, optionally interpolated with Params) or
+// Message (untranslatable text, such as a raw error) is set, never both.
 type acmeJobLine struct {
-	Time    time.Time `json:"time"`
-	Level   string    `json:"level"`
-	Message string    `json:"message"`
+	Time       time.Time         `json:"time"`
+	Level      string            `json:"level"`
+	MessageKey string            `json:"message_key,omitempty"`
+	Params     map[string]string `json:"params,omitempty"`
+	Message    string            `json:"message,omitempty"`
 }
 
 // acmeJobResult is the outcome of a finished [acmeJob], suitable for JSON
@@ -41,9 +45,23 @@ func newAcmeJob() (j *acmeJob) {
 	return &acmeJob{notify: make(chan struct{})}
 }
 
-// log records a progress line.  It's safe for concurrent use, including
-// concurrent use with other methods of j.
+// log records an untranslatable progress line, such as a raw error message.
+// It's safe for concurrent use, including concurrent use with other methods
+// of j.
 func (j *acmeJob) log(level, msg string) {
+	j.appendLine(acmeJobLine{Time: time.Now(), Level: level, Message: msg})
+}
+
+// logKey records a translatable progress line, identified by a frontend i18n
+// key and its interpolation parameters.  It's safe for concurrent use,
+// including concurrent use with other methods of j.
+func (j *acmeJob) logKey(level, key string, params map[string]string) {
+	j.appendLine(acmeJobLine{Time: time.Now(), Level: level, MessageKey: key, Params: params})
+}
+
+// appendLine records line, unless the job has already finished.  It's safe
+// for concurrent use, including concurrent use with other methods of j.
+func (j *acmeJob) appendLine(line acmeJobLine) {
 	j.mu.Lock()
 	defer j.mu.Unlock()
 
@@ -51,7 +69,7 @@ func (j *acmeJob) log(level, msg string) {
 		return
 	}
 
-	j.lines = append(j.lines, acmeJobLine{Time: time.Now(), Level: level, Message: msg})
+	j.lines = append(j.lines, line)
 
 	close(j.notify)
 	j.notify = make(chan struct{})

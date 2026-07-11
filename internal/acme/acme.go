@@ -83,19 +83,35 @@ type Request struct {
 	// (e.g. /etc/resolv.conf) is used, same as the rest of AdGuard Home.
 	DNSResolvers []string
 
-	// Progress, if not nil, is called with human-readable status updates as
-	// the issuance proceeds, so that a caller can show real-time progress
-	// (for example, over a Server-Sent Events stream).
-	Progress func(msg string)
+	// Progress, if not nil, is called with a stable, translatable status key
+	// and its interpolation parameters as the issuance proceeds, so that a
+	// caller can show real-time, localized progress (for example, over a
+	// Server-Sent Events stream).  key is one of the Progress* constants.
+	Progress func(key string, params map[string]string)
 }
 
-// logProgress calls req.Progress with a formatted message, if set.
-func (req *Request) logProgress(format string, args ...any) {
+// Progress event keys reported through [Request.Progress].  These are
+// frontend i18n translation keys, not human-readable text, since the caller
+// is responsible for localizing them.
+const (
+	ProgressPreparing      = "acme_progress_preparing"
+	ProgressReusingAccount = "acme_progress_reusing_account"
+	ProgressGeneratingKey  = "acme_progress_generating_key"
+	ProgressConfiguring    = "acme_progress_configuring"
+	ProgressRegistering    = "acme_progress_registering"
+	ProgressRegistered     = "acme_progress_registered"
+	ProgressRequesting     = "acme_progress_requesting"
+	ProgressObtained       = "acme_progress_obtained"
+	ProgressValidUntil     = "acme_progress_valid_until"
+)
+
+// logProgress calls req.Progress with key and params, if Progress is set.
+func (req *Request) logProgress(key string, params map[string]string) {
 	if req.Progress == nil {
 		return
 	}
 
-	req.Progress(fmt.Sprintf(format, args...))
+	req.Progress(key, params)
 }
 
 // Result is the outcome of a successful certificate issuance or renewal.
@@ -153,7 +169,7 @@ func (m *Manager) Issue(ctx context.Context, req *Request) (res *Result, err err
 	}
 
 	m.logger.InfoContext(ctx, "issuing certificate", "domains", req.Domains, "challenge", req.Challenge)
-	req.logProgress("Preparing ACME client for %s", strings.Join(req.Domains, ", "))
+	req.logProgress(ProgressPreparing, map[string]string{"domains": strings.Join(req.Domains, ", ")})
 
 	user := &acmeUser{email: req.Email}
 	if req.AccountKeyPEM != "" {
@@ -164,10 +180,10 @@ func (m *Manager) Issue(ctx context.Context, req *Request) (res *Result, err err
 
 		if req.AccountURI != "" {
 			user.reg = &registration.Resource{URI: req.AccountURI}
-			req.logProgress("Reusing existing ACME account")
+			req.logProgress(ProgressReusingAccount, nil)
 		}
 	} else {
-		req.logProgress("Generating new ACME account key")
+		req.logProgress(ProgressGeneratingKey, nil)
 
 		user.key, err = ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 		if err != nil {
@@ -183,7 +199,7 @@ func (m *Manager) Issue(ctx context.Context, req *Request) (res *Result, err err
 		return nil, fmt.Errorf("acme: creating client: %w", err)
 	}
 
-	req.logProgress("Configuring %s challenge", req.Challenge)
+	req.logProgress(ProgressConfiguring, map[string]string{"challenge": string(req.Challenge)})
 
 	err = m.setChallengeProvider(client, req)
 	if err != nil {
@@ -191,7 +207,7 @@ func (m *Manager) Issue(ctx context.Context, req *Request) (res *Result, err err
 	}
 
 	if user.reg == nil {
-		req.logProgress("Registering ACME account with Let's Encrypt (%s)", req.Email)
+		req.logProgress(ProgressRegistering, map[string]string{"email": req.Email})
 
 		user.reg, err = client.Registration.Register(registration.RegisterOptions{
 			TermsOfServiceAgreed: true,
@@ -200,13 +216,10 @@ func (m *Manager) Issue(ctx context.Context, req *Request) (res *Result, err err
 			return nil, fmt.Errorf("acme: registering account: %w", err)
 		}
 
-		req.logProgress("ACME account registered")
+		req.logProgress(ProgressRegistered, nil)
 	}
 
-	req.logProgress(
-		"Requesting certificate from Let's Encrypt (this can take up to a minute, " +
-			"especially for DNS-01 propagation checks)",
-	)
+	req.logProgress(ProgressRequesting, nil)
 
 	cert, err := client.Certificate.Obtain(certificate.ObtainRequest{
 		Domains: req.Domains,
@@ -216,7 +229,7 @@ func (m *Manager) Issue(ctx context.Context, req *Request) (res *Result, err err
 		return nil, fmt.Errorf("acme: obtaining certificate: %w", err)
 	}
 
-	req.logProgress("Certificate obtained from Let's Encrypt")
+	req.logProgress(ProgressObtained, nil)
 
 	notAfter, err := certNotAfter(cert.Certificate)
 	if err != nil {
@@ -229,7 +242,7 @@ func (m *Manager) Issue(ctx context.Context, req *Request) (res *Result, err err
 	}
 
 	m.logger.InfoContext(ctx, "issued certificate", "domains", req.Domains, "not_after", notAfter)
-	req.logProgress("Certificate valid until %s", notAfter.Format(time.RFC3339))
+	req.logProgress(ProgressValidUntil, map[string]string{"date": notAfter.Format(time.RFC3339)})
 
 	return &Result{
 		CertificatePEM: cert.Certificate,

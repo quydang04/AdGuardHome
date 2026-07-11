@@ -223,7 +223,7 @@ func (m *tlsManager) runACMEIssueJob(
 ) {
 	defer slogutil.RecoverAndLog(ctx, m.logger)
 
-	job.log("info", fmt.Sprintf("Starting certificate issuance for: %s", strings.Join(cfgJSON.Domains, ", ")))
+	job.logKey("info", "acme_progress_starting", map[string]string{"domains": strings.Join(cfgJSON.Domains, ", ")})
 
 	res, err := m.issueCertificate(ctx, &acme.Request{
 		Email:              cfgJSON.Email,
@@ -233,7 +233,7 @@ func (m *tlsManager) runACMEIssueJob(
 		DNSResolvers:       cfgJSON.DNSResolvers,
 		AccountKeyPEM:      accountKeyPEM,
 		AccountURI:         accountURI,
-		Progress:           func(msg string) { job.log("info", msg) },
+		Progress:           func(key string, params map[string]string) { job.logKey("info", key, params) },
 	})
 	if err != nil {
 		m.recordACMEError(ctx, err)
@@ -244,7 +244,7 @@ func (m *tlsManager) runACMEIssueJob(
 		return
 	}
 
-	job.log("info", "Applying certificate to AdGuard Home...")
+	job.logKey("info", "acme_progress_applying", nil)
 	status, applyErr := m.applyIssuedCertificate(ctx, res)
 
 	config.Lock()
@@ -272,7 +272,7 @@ func (m *tlsManager) runACMEIssueJob(
 		return
 	}
 
-	job.log("success", fmt.Sprintf("Certificate issued successfully, valid until %s", status.NotAfter.Format(time.RFC3339)))
+	job.logKey("success", "acme_progress_success", map[string]string{"date": status.NotAfter.Format(time.RFC3339)})
 	job.finish(&acmeJobResult{
 		Success:          true,
 		Status:           status,
@@ -299,12 +299,11 @@ func (m *tlsManager) handleACMEIssueStream(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	flusher, ok := w.(http.Flusher)
-	if !ok {
-		http.Error(w, "streaming not supported", http.StatusInternalServerError)
-
-		return
-	}
+	// Use [http.ResponseController] instead of a raw [http.Flusher] type
+	// assertion, since w is wrapped by middleware (request logging, gzip)
+	// whose outer layers don't implement [http.Flusher] themselves; the
+	// controller unwraps through them to find the underlying one.
+	rc := http.NewResponseController(w)
 
 	h := w.Header()
 	h.Set("Content-Type", "text/event-stream")
@@ -312,7 +311,12 @@ func (m *tlsManager) handleACMEIssueStream(w http.ResponseWriter, r *http.Reques
 	h.Set("Connection", "keep-alive")
 	h.Set("X-Accel-Buffering", "no")
 	w.WriteHeader(http.StatusOK)
-	flusher.Flush()
+
+	if err := rc.Flush(); err != nil {
+		m.logger.ErrorContext(ctx, "acme issue stream: flushing", slogutil.KeyError, err)
+
+		return
+	}
 
 	sent := 0
 	for {
@@ -320,11 +324,14 @@ func (m *tlsManager) handleACMEIssueStream(w http.ResponseWriter, r *http.Reques
 		for ; sent < len(lines); sent++ {
 			writeSSEEvent(w, "line", lines[sent])
 		}
-		flusher.Flush()
+
+		if err := rc.Flush(); err != nil {
+			return
+		}
 
 		if done {
 			writeSSEEvent(w, "done", result)
-			flusher.Flush()
+			_ = rc.Flush()
 
 			return
 		}
@@ -338,7 +345,7 @@ func (m *tlsManager) handleACMEIssueStream(w http.ResponseWriter, r *http.Reques
 			// Comment ping to keep the connection alive through proxies that
 			// buffer or time out idle connections.
 			_, _ = fmt.Fprint(w, ": ping\n\n")
-			flusher.Flush()
+			_ = rc.Flush()
 		}
 	}
 }
