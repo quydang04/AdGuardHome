@@ -2,13 +2,11 @@ package home
 
 import (
 	"bufio"
-	"bytes"
 	"fmt"
 	"net"
 	"net/http"
 	"net/url"
 	"path"
-	"strconv"
 	"testing"
 	"testing/fstest"
 
@@ -21,28 +19,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/bcrypt"
-	"golang.org/x/net/http2"
-	"golang.org/x/net/http2/hpack"
-)
-
-const (
-	// clientPreface is the message sent to the server as a final confirmation
-	// of HTTP2 usage.
-	clientPreface = "PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n"
-
-	// testSettings is a common value of the HTTP2-Settings header for tests.
-	testSettings = "AAEAABAAAAIAAAABAAQAAP__AAUAAEAAAAgAAAAAAAMAAABkAAYAAQAA"
-
-	// testHpackMaxDynamicTableSize is the common HPACK max dynamic table size
-	// value for tests.
-	testHPACKMaxDynamicTableSize = 4096
-
-	// testTargetStreamID is a common HTTP2 stream ID for sending requests after
-	// an upgrade.
-	//
-	// NOTE: The upgrade request implicitly uses Stream ID 1, so the first
-	// client-side valid ID is 3.
-	testTargetStreamID = 3
 )
 
 // h2c upgrade headers.
@@ -58,46 +34,12 @@ const (
 const (
 	testHeaderValueConnection = "Upgrade, HTTP2-Settings"
 	testHeaderValueUpgrade    = "h2c"
+	testSettings              = "AAEAABAAAAIAAAABAAQAAP__AAUAAEAAAAgAAAAAAAMAAABkAAYAAQAA"
 )
 
-// testDecoder implements HTTP2 HPACK-encoded headers decoding for tests.
-type testDecoder struct {
-	decoder *hpack.Decoder
-	status  int
-}
-
-// newTestDecoder returns a properly initialized *testDecoder.
-func newTestDecoder(tb testing.TB) (d *testDecoder) {
-	tb.Helper()
-
-	d = &testDecoder{}
-	d.decoder = hpack.NewDecoder(testHPACKMaxDynamicTableSize, func(f hpack.HeaderField) {
-		if f.Name != ":status" {
-			return
-		}
-
-		status64, err := strconv.ParseInt(f.Value, 10, 64)
-		require.NoError(tb, err)
-
-		d.status = int(status64)
-	})
-
-	return d
-}
-
-// decodeStatus decodes an HPACK-encoded header block and returns the HTTP
-// status code.
-func (d *testDecoder) decodeStatus(tb testing.TB, b []byte) (status int) {
-	tb.Helper()
-
-	d.status = 0
-
-	_, err := d.decoder.Write(b)
-	require.NoError(tb, err)
-
-	return d.status
-}
-
+// TestWebAPI_h2cVulnerability makes sure that AdGuard Home no longer
+// establishes unencrypted HTTP/2 connections via the HTTP/1.1 upgrade
+// mechanism, which was discontinued per RFC 9113.  See GHSA-p5f5-3p5g-rfjw.
 func TestWebAPI_h2cVulnerability(t *testing.T) {
 	storeGlobals(t)
 
@@ -169,7 +111,7 @@ func TestWebAPI_h2cVulnerability(t *testing.T) {
 	})
 
 	waitForWebAPIReady(t, host)
-	performH2CUpgradeAttack(t, host)
+	requireNoH2CUpgrade(t, host)
 }
 
 // waitForWebAPIReady waits until the [webAPI] server has started and is ready
@@ -194,11 +136,11 @@ func waitForWebAPIReady(tb testing.TB, host string) {
 	}, testTimeout, testTimeout/10)
 }
 
-// performH2CUpgradeAttack establishes a TCP connection to the specified host,
-// performs an HTTP2 protocol upgrade, and attempts to access a protected
-// endpoint without proper authentication, verifying that the server responds
-// with [http.StatusUnauthorized].
-func performH2CUpgradeAttack(tb testing.TB, host string) {
+// requireNoH2CUpgrade establishes a TCP connection to the specified host and
+// attempts to perform an HTTP/1.1-to-h2c protocol upgrade, verifying that the
+// server does not honor it, i.e. does not respond with
+// [http.StatusSwitchingProtocols].  host must not be empty.
+func requireNoH2CUpgrade(tb testing.TB, host string) {
 	tb.Helper()
 
 	dialer := &net.Dialer{}
@@ -230,120 +172,7 @@ func performH2CUpgradeAttack(tb testing.TB, host string) {
 
 	resp, err := http.ReadResponse(reader, req)
 	require.NoError(tb, err)
-	require.Equal(tb, http.StatusSwitchingProtocols, resp.StatusCode)
 	testutil.CleanupAndRequireSuccess(tb, resp.Body.Close)
 
-	_, err = writer.Write([]byte(clientPreface))
-	require.NoError(tb, err)
-
-	framer := http2.NewFramer(writer, reader)
-	decoder := newTestDecoder(tb)
-	performH2CSettingsExchange(tb, framer, writer, decoder)
-	sendH2CRequest(tb, framer, host)
-	require.NoError(tb, writer.Flush())
-
-	readH2CResponse(tb, framer, decoder)
-}
-
-// performH2CSettingsExchange performs the HTTP2 settings exchange handshake. It
-// sends empty client settings, waits for acknowledgement, and then receives the
-// server settings and responds with acknowledgement.  framer, writer and
-// decoder must not be nil.
-func performH2CSettingsExchange(
-	tb testing.TB,
-	framer *http2.Framer,
-	writer *bufio.Writer,
-	decoder *testDecoder,
-) {
-	tb.Helper()
-
-	err := framer.WriteSettings()
-	require.NoError(tb, err)
-	require.NoError(tb, writer.Flush())
-
-	var (
-		gotServerSettings bool
-		gotSettingsAck    bool
-	)
-	for !gotServerSettings || !gotSettingsAck {
-		var frame http2.Frame
-		frame, err = framer.ReadFrame()
-		require.NoError(tb, err)
-
-		switch f := frame.(type) {
-		case *http2.HeadersFrame:
-			// NOTE: The decoder must process all headers frames because the
-			// client and server share the same HPACK dynamic table.  Skipping
-			// frames causes index desynchronization.
-			decoder.decodeStatus(tb, f.HeaderBlockFragment())
-		case *http2.SettingsFrame:
-			if f.IsAck() {
-				gotSettingsAck = true
-
-				continue
-			}
-
-			err = framer.WriteSettingsAck()
-			require.NoError(tb, err)
-			require.NoError(tb, writer.Flush())
-
-			gotServerSettings = true
-		}
-	}
-}
-
-// sendH2CRequest writes a request to a protected endpoint into the framer.
-// framer must not be nil.
-func sendH2CRequest(tb testing.TB, framer *http2.Framer, host string) {
-	tb.Helper()
-
-	var headerBlockFragment bytes.Buffer
-	enc := hpack.NewEncoder(&headerBlockFragment)
-	headers := []hpack.HeaderField{
-		{Name: ":method", Value: http.MethodGet},
-		{Name: ":path", Value: "/control/status"},
-		{Name: ":scheme", Value: urlutil.SchemeHTTP},
-		{Name: ":authority", Value: host},
-	}
-
-	for _, h := range headers {
-		require.NoError(tb, enc.WriteField(h))
-	}
-
-	err := framer.WriteHeaders(http2.HeadersFrameParam{
-		StreamID:      testTargetStreamID,
-		BlockFragment: headerBlockFragment.Bytes(),
-		EndHeaders:    true,
-		EndStream:     true,
-	})
-	require.NoError(tb, err)
-}
-
-// readH2CResponse reads the response from an h2c connection and asserts that
-// the server responds with [http.StatusUnauthorized].  framer and decoder must
-// not be nil.
-func readH2CResponse(tb testing.TB, framer *http2.Framer, decoder *testDecoder) {
-	tb.Helper()
-
-	for {
-		frame, err := framer.ReadFrame()
-		require.NoError(tb, err)
-
-		if frame.Header().StreamID != testTargetStreamID {
-			headerFrame, ok := frame.(*http2.HeadersFrame)
-			if ok {
-				decoder.decodeStatus(tb, headerFrame.HeaderBlockFragment())
-			}
-
-			continue
-		}
-
-		headerFrame := testutil.RequireTypeAssert[*http2.HeadersFrame](tb, frame)
-		require.True(tb, headerFrame.StreamEnded())
-
-		status := decoder.decodeStatus(tb, headerFrame.HeaderBlockFragment())
-		assert.Equal(tb, http.StatusUnauthorized, status)
-
-		break
-	}
+	assert.NotEqual(tb, http.StatusSwitchingProtocols, resp.StatusCode)
 }
