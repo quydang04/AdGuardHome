@@ -33,7 +33,6 @@ type exportConfig struct {
 	SafeSearch    *filtering.SafeSearchConfig `json:"safesearch,omitempty"`
 	Notifications *exportNotificationsConfig  `json:"notifications,omitempty"`
 	General       *exportGeneralConfig        `json:"general,omitempty"`
-	YouTube       *youtubeConfig              `json:"youtube,omitempty"`
 	ACME          *exportACMEConfig           `json:"acme,omitempty"`
 }
 
@@ -399,11 +398,6 @@ func (web *webAPI) handleExportSettings(w http.ResponseWriter, r *http.Request) 
 		}
 	}
 
-	// YouTube config.
-	if yt := config.YouTube; yt != nil {
-		export.YouTube = yt
-	}
-
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Content-Disposition", `attachment; filename="adguardhome-settings.json"`)
 	aghhttp.WriteJSONResponseOK(ctx, l, w, r, export)
@@ -448,10 +442,6 @@ func (web *webAPI) handleImportSettings(w http.ResponseWriter, r *http.Request) 
 	}
 
 	web.confModifier.Apply(ctx)
-
-	if imp.YouTube != nil && ytManager != nil {
-		ytManager.restart(ctx)
-	}
 
 	if imp.Notifications != nil && globalContext.notifier != nil {
 		func() {
@@ -531,10 +521,6 @@ func applyImportedSettings(_ *slog.Logger, imp *exportConfig) (err error) {
 
 	if imp.Notifications != nil {
 		applyNotificationsImport(imp.Notifications)
-	}
-
-	if imp.YouTube != nil {
-		config.YouTube = imp.YouTube
 	}
 
 	if imp.ACME != nil {

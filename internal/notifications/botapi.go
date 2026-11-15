@@ -258,7 +258,6 @@ func (m *Manager) registerBotCommands(ctx context.Context, cfg TelegramConfig) {
 			{Command: "stats", Description: "DNS statistics"},
 			{Command: "filters", Description: "Filter lists info"},
 			{Command: "protection", Description: "Protection status"},
-			{Command: "youtube", Description: "YouTube blocking status"},
 			{Command: "ssl", Description: "SSL/TLS issue status"},
 			{Command: "processes", Description: "Process info"},
 			{Command: "logs", Description: "Recent DNS queries"},

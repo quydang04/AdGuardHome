@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/AdguardTeam/golibs/netutil/urlutil"
 	"github.com/AdguardTeam/golibs/testutil"
@@ -139,6 +140,52 @@ func TestDNSFilter_Update(t *testing.T) {
 
 		f.unload()
 	})
+}
+
+func TestDNSFilter_Update_failureKeepsLastUpdated(t *testing.T) {
+	ctx := testutil.ContextWithTimeout(t, testTimeout)
+
+	dnsFilter := newDNSFilter(t)
+
+	goodAddr := serveFiltersLocally(t, []byte("||example.com^\n"))
+	failAddr := serveHTTPLocally(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+
+	prevUpdated := time.Now().Add(-2 * time.Hour).Truncate(time.Second)
+
+	f := &FilterYAML{
+		Filter:  Filter{ID: 1},
+		Enabled: true,
+		URL:     goodAddr,
+		Name:    "test-filter",
+	}
+	updateAndAssert(t, ctx, dnsFilter, f, require.True, 1)
+
+	require.NoError(t, os.Chtimes(f.Path(dnsFilter.conf.DataDir), prevUpdated, prevUpdated))
+	f.LastUpdated = prevUpdated
+
+	f.URL = failAddr
+	ok, err := dnsFilter.update(f)
+	require.Error(t, err)
+	assert.False(t, ok)
+	assert.Equal(t, prevUpdated, f.LastUpdated)
+
+	st, err := os.Stat(f.Path(dnsFilter.conf.DataDir))
+	require.NoError(t, err)
+	assert.Equal(t, prevUpdated, st.ModTime().Truncate(time.Second))
+
+	filters := []FilterYAML{*f, {
+		Filter:  Filter{ID: 2},
+		Enabled: true,
+		URL:     goodAddr,
+		Name:    "good-filter",
+	}}
+	updCount, _, _, isNetErr := dnsFilter.refreshFiltersArray(ctx, &filters, true)
+	assert.False(t, isNetErr)
+	assert.Equal(t, 1, updCount)
+	assert.Equal(t, prevUpdated, filters[0].LastUpdated)
+	assert.False(t, filters[1].LastUpdated.IsZero())
 }
 
 func TestFilterYAML_EnsureName(t *testing.T) {

@@ -141,7 +141,6 @@ type configuration struct {
 	QueryLog queryLogConfig    `yaml:"querylog"`
 	Stats         statsConfig         `yaml:"statistics"`
 	Notifications notificationsConfig `yaml:"notifications"`
-	YouTube       *youtubeConfig      `yaml:"youtube"`
 	ACME          *acmeConfig         `yaml:"acme"`
 
 	// Filters reflects the filters from [filtering.Config].  It's cloned to the
@@ -509,10 +508,6 @@ func (c *configuration) normalize() {
 		c.Notifications.Telegram.applyDefaults()
 	}
 
-	if c.YouTube == nil {
-		c.YouTube = defaultYoutubeConfig()
-	}
-
 	if c.ACME == nil {
 		c.ACME = defaultACMEConfig()
 	} else {
@@ -699,7 +694,6 @@ var config = &configuration{
 	Notifications: notificationsConfig{
 		Telegram: defaultTelegramConfig(),
 	},
-	YouTube: defaultYoutubeConfig(),
 	// NOTE: Keep these parameters in sync with the one put into
 	// client/src/helpers/filters/filters.ts by scripts/vetted-filters.
 	//

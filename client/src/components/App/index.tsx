@@ -45,7 +45,6 @@ import DnsRewrites from '../../containers/DnsRewrites';
 import CustomRules from '../../containers/CustomRules';
 
 import Services from '../Filters/Services';
-import BlockYoutube from '../BlockYoutube';
 
 import Logs from '../Logs';
 import ProtectionTimer from '../ProtectionTimer';
@@ -112,10 +111,6 @@ const ROUTES = [
     {
         path: FILTERS_URLS.blocked_services,
         component: Services,
-    },
-    {
-        path: FILTERS_URLS.block_youtube,
-        component: BlockYoutube,
     },
 ];
 
