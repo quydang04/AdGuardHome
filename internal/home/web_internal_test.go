@@ -94,7 +94,6 @@ func TestWebAPI_h2cVulnerability(t *testing.T) {
 	})
 
 	mw.set(web)
-	globalContext.web = web
 
 	port := config.HTTPConfig.Address.Port()
 	host := fmt.Sprintf("%s:%d", netutil.IPv4Localhost(), port)

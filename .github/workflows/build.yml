@@ -1,6 +1,14 @@
 name: Build and Release
 
 on:
+  push:
+    branches:
+      - '**'
+    tags:
+      - 'v*'
+  pull_request:
+    branches:
+      - '**'
   workflow_dispatch:
     inputs:
       version_override:
@@ -41,7 +49,7 @@ on:
           - arm
 
 env:
-  GO_VERSION: '1.26.5'
+  GO_VERSION: '1.27.4'
   NODE_VERSION: '24.10.0'
   DIST_DIR: dist
 
@@ -65,6 +73,8 @@ jobs:
         run: |
           if [ -n "${{ github.event.inputs.version_override }}" ]; then
             NEW_VERSION="${{ github.event.inputs.version_override }}"
+          elif [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            NEW_VERSION="${GITHUB_REF_NAME#v}"
           else
             LATEST_TAG=$(git tag --list "v*" --sort=-version:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -n 1)
 
@@ -119,7 +129,6 @@ jobs:
         run: make SIGN=0 VERBOSE=1 VERSION="${{ steps.version.outputs.NEW_VERSION }}" deps
 
       - name: Run backend unit tests
-        if: github.event_name == 'push' || github.event_name == 'pull_request'
         run: go test ./...
 
       - name: Build release
@@ -189,6 +198,7 @@ jobs:
 
   release:
     needs: build
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     permissions:
       contents: write

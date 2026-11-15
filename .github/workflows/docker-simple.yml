@@ -1,6 +1,14 @@
 name: Docker Build and Push
 
 on:
+  push:
+    branches:
+      - '**'
+    tags:
+      - 'v*'
+  pull_request:
+    branches:
+      - '**'
   workflow_dispatch:
     inputs:
       tag:
@@ -68,14 +76,14 @@ jobs:
           fi
 
       - name: Login to Docker Hub
-        if: steps.dockerhub_check.outputs.available == 'true' && github.event_name != 'pull_request'
+        if: steps.dockerhub_check.outputs.available == 'true' && (github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v'))
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Login to GitHub Container Registry
-        if: github.event_name != 'pull_request'
+        if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -154,6 +162,8 @@ jobs:
         run: |
           if [ -n "${{ github.event.inputs.platforms }}" ]; then
             echo "value=${{ github.event.inputs.platforms }}" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event_name }}" != "workflow_dispatch" ] && [[ "${{ github.ref }}" != refs/tags/v* ]]; then
+            echo "value=linux/amd64" >> $GITHUB_OUTPUT
           else
             echo "value=linux/amd64,linux/arm64,linux/arm/v7,linux/arm/v6,linux/386,linux/ppc64le" >> $GITHUB_OUTPUT
           fi
@@ -165,7 +175,7 @@ jobs:
           context: .
           file: ./docker/Dockerfile.ci
           platforms: ${{ steps.platforms.outputs.value }}
-          push: ${{ github.event_name != 'pull_request' }}
+          push: ${{ github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v') }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
@@ -183,7 +193,7 @@ jobs:
         run: echo "Digest=${{ steps.docker_build.outputs.digest }}"
 
       - name: Print usage instructions
-        if: github.event_name != 'pull_request'
+        if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')
         run: |
           echo ""
           echo "============================================"

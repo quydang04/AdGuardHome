@@ -79,7 +79,8 @@ func collectDNSAddresses(tlsMgr *tlsManager) (addrs []string, err error) {
 		}
 	}
 
-	de := getDNSEncryption(tlsMgr)
+	hasDoHRoutes := len(config.HTTPConfig.DoH.Routes) > 0
+	de := getDNSEncryption(tlsMgr, hasDoHRoutes)
 	if de.https != "" {
 		addrs = append(addrs, de.https)
 	}

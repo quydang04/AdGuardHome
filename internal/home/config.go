@@ -25,7 +25,6 @@ import (
 	"github.com/AdguardTeam/AdGuardHome/internal/querylog"
 	"github.com/AdguardTeam/AdGuardHome/internal/schedule"
 	"github.com/AdguardTeam/AdGuardHome/internal/stats"
-	"github.com/AdguardTeam/dnsproxy/fastip"
 	"github.com/AdguardTeam/golibs/errors"
 	"github.com/AdguardTeam/golibs/logutil/slogutil"
 	"github.com/AdguardTeam/golibs/netutil"
@@ -43,6 +42,10 @@ const (
 	// userFilterDataDir is the name of the directory used to store users'
 	// FS-based rule lists.
 	userFilterDataDir = "userfilters"
+
+	// defaultFastestTimeout is the default timeout for proxy fastest upstream
+	// mode.
+	defaultFastestTimeout = 1 * time.Second
 )
 
 // logSettings are the logging settings part of the configuration file.
@@ -136,9 +139,9 @@ type configuration struct {
 
 	// TODO(a.garipov): Make DNS and the fields below pointers and validate
 	// and/or reset on explicit nulling.
-	DNS      dnsConfig         `yaml:"dns"`
-	TLS      tlsConfigSettings `yaml:"tls"`
-	QueryLog queryLogConfig    `yaml:"querylog"`
+	DNS           dnsConfig           `yaml:"dns"`
+	TLS           tlsConfigSettings   `yaml:"tls"`
+	QueryLog      queryLogConfig      `yaml:"querylog"`
 	Stats         statsConfig         `yaml:"statistics"`
 	Notifications notificationsConfig `yaml:"notifications"`
 	ACME          *acmeConfig         `yaml:"acme"`
@@ -639,7 +642,7 @@ var config = &configuration{
 			RefuseAny:              true,
 			UpstreamMode:           dnsforward.UpstreamModeLoadBalance,
 			HandleDDR:              true,
-			FastestTimeout:         timeutil.Duration(fastip.DefaultPingWaitTimeout),
+			FastestTimeout:         timeutil.Duration(defaultFastestTimeout),
 
 			TrustedProxies: []netutil.Prefix{{
 				Prefix: netip.MustParsePrefix("127.0.0.0/8"),
@@ -978,6 +981,10 @@ func validateConfig(ctx context.Context, l *slog.Logger, fileData []byte) (err e
 
 	if !filtering.ValidateUpdateIvl(config.Filtering.FiltersUpdateIntervalHours) {
 		config.Filtering.FiltersUpdateIntervalHours = 24
+	}
+
+	if config.TLS.Enabled && config.TLS.PortHTTPS != 0 && len(config.HTTPConfig.DoH.Routes) == 0 {
+		l.WarnContext(ctx, "no dns-over-https routes configured; dns-over-https is not served")
 	}
 
 	if len(config.Users) == 0 {

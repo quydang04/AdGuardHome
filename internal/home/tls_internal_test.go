@@ -238,6 +238,7 @@ func assertCertSerialNumber(tb testing.TB, conf *tlsConfigSettings, wantSN int64
 	assert.Equal(tb, wantSN, cert.Leaf.SerialNumber.Int64())
 }
 
+// TODO(m.kazantsev):  Refactor.
 func TestTLSManager_Reload(t *testing.T) {
 	storeGlobals(t)
 
@@ -249,8 +250,23 @@ func TestTLSManager_Reload(t *testing.T) {
 	)
 
 	globalContext.dnsServer, err = dnsforward.NewServer(dnsforward.DNSCreateParams{
-		Logger: testLogger,
+		Logger:            testLogger,
+		TLSConfigProvider: aghtls.EmptyTLSConfigProvider{},
 	})
+	require.NoError(t, err)
+
+	err = globalContext.dnsServer.Prepare(
+		testutil.ContextWithTimeout(t, testTimeout),
+		&dnsforward.ServerConfig{
+			TLSConf: &dnsforward.TLSConfig{},
+			Config: dnsforward.Config{
+				UpstreamMode:     dnsforward.UpstreamModeLoadBalance,
+				EDNSClientSubnet: &dnsforward.EDNSClientSubnet{Enabled: false},
+				ClientsContainer: dnsforward.EmptyClientsContainer{},
+			},
+			ServePlainDNS: true,
+		},
+	)
 	require.NoError(t, err)
 
 	globalContext.clients.storage, err = client.NewStorage(ctx, &client.StorageConfig{
@@ -285,7 +301,7 @@ func TestTLSManager_Reload(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	web := newTestWeb(t, &webConfig{})
+	web := newTestWeb(t, &webConfig{tlsManager: m})
 	m.setWebAPI(web)
 
 	extTLSConf := m.extendedTLSConfig()
@@ -501,7 +517,8 @@ func TestTLSManager_HandleTLSConfigure(t *testing.T) {
 	)
 
 	globalContext.dnsServer, err = dnsforward.NewServer(dnsforward.DNSCreateParams{
-		Logger: testLogger,
+		Logger:            testLogger,
+		TLSConfigProvider: aghtls.EmptyTLSConfigProvider{},
 	})
 	require.NoError(t, err)
 
@@ -552,7 +569,7 @@ func TestTLSManager_HandleTLSConfigure(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	web := newTestWeb(t, &webConfig{})
+	web := newTestWeb(t, &webConfig{tlsManager: m})
 	m.setWebAPI(web)
 
 	extTLSConf := m.extendedTLSConfig()
@@ -600,13 +617,8 @@ func TestTLSManager_HandleTLSConfigure(t *testing.T) {
 	assert.Equal(t, wantIssuer, res.tlsConfigStatus.Issuer)
 
 	// Assert that the Web API's TLS configuration has been updated.
-	//
-	// TODO(s.chzhen):  Remove when [httpsServer.cond] is removed.
 	assert.Eventually(t, func() bool {
-		web.httpsServer.condLock.Lock()
-		defer web.httpsServer.condLock.Unlock()
-
-		cert = web.httpsServer.cert
+		cert = web.httpsServer.certificate()
 		if cert.Leaf == nil {
 			return false
 		}

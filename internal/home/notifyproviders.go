@@ -36,9 +36,11 @@ func (a *protectionAdapter) SetProtectionEnabled(enabled bool) error {
 
 // certAdapter implements [notifications.CertProvider] on top of the
 // package-level ACME config and the TLS manager.
-type certAdapter struct{}
+type certAdapter struct {
+	web *webAPI
+}
 
-func (certAdapter) GetCertStatus() (status notifications.CertStatus) {
+func (a certAdapter) GetCertStatus() (status notifications.CertStatus) {
 	snap := acmeConfigSnapshot()
 	status.Enabled = snap.Enabled
 	status.Domains = snap.Domains
@@ -47,7 +49,8 @@ func (certAdapter) GetCertStatus() (status notifications.CertStatus) {
 	status.LastIssuedAt = snap.LastIssuedAt
 	status.LastError = snap.LastError
 
-	if tlsMgr := globalContext.web.tlsManager; tlsMgr != nil {
+	if a.web != nil && a.web.tlsManager != nil {
+		tlsMgr := a.web.tlsManager
 		tlsMgr.mu.Lock()
 		status.NotAfter = tlsMgr.status.NotAfter
 		tlsMgr.mu.Unlock()
@@ -56,7 +59,7 @@ func (certAdapter) GetCertStatus() (status notifications.CertStatus) {
 	return status
 }
 
-func (certAdapter) SetCertAutoRenew(enabled bool) error {
+func (a certAdapter) SetCertAutoRenew(enabled bool) error {
 	func() {
 		config.Lock()
 		defer config.Unlock()
@@ -68,23 +71,24 @@ func (certAdapter) SetCertAutoRenew(enabled bool) error {
 		config.ACME.AutoRenew = enabled
 	}()
 
-	globalContext.web.confModifier.Apply(context.Background())
+	if a.web != nil && a.web.confModifier != nil {
+		a.web.confModifier.Apply(context.Background())
+	}
 
 	return nil
 }
 
-func (certAdapter) IssueCertificateNow() error {
-	tlsMgr := globalContext.web.tlsManager
-	if tlsMgr == nil {
+func (a certAdapter) IssueCertificateNow() error {
+	if a.web == nil || a.web.tlsManager == nil {
 		return errors.Error("tls manager not available")
 	}
 
-	_, err := tlsMgr.startACMEIssueJob(context.Background())
+	_, err := a.web.tlsManager.startACMEIssueJob(context.Background())
 
 	return err
 }
 
-func injectNotificationProviders() {
+func injectNotificationProviders(web *webAPI) {
 	n := globalContext.notifier
 	if n == nil {
 		return
@@ -117,5 +121,5 @@ func injectNotificationProviders() {
 		n.SetLogsProvider(globalContext.queryLog)
 	}
 
-	n.SetCertProvider(certAdapter{})
+	n.SetCertProvider(certAdapter{web: web})
 }

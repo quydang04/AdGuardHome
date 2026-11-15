@@ -154,7 +154,7 @@ func (e *Exchanger) Exchange(
 // rename it to just Upstream.
 type UpstreamMock struct {
 	OnAddress  func() (addr string)
-	OnExchange func(req *dns.Msg) (resp *dns.Msg, err error)
+	OnExchange func(ctx context.Context, req *dns.Msg) (resp *dns.Msg, err error)
 	OnClose    func() (err error)
 }
 
@@ -167,8 +167,8 @@ func (u *UpstreamMock) Address() (addr string) {
 }
 
 // Exchange implements the [upstream.Upstream] interface for *UpstreamMock.
-func (u *UpstreamMock) Exchange(req *dns.Msg) (resp *dns.Msg, err error) {
-	return u.OnExchange(req)
+func (u *UpstreamMock) Exchange(ctx context.Context, req *dns.Msg) (resp *dns.Msg, err error) {
+	return u.OnExchange(ctx, req)
 }
 
 // Close implements the [upstream.Upstream] interface for *UpstreamMock.
@@ -204,10 +204,10 @@ func (m *Registrar) Register(method, path string, h http.HandlerFunc) {
 
 // TLSConfigProvider is a fake [aghtls.TLSConfigProvider] implementation for
 // tests.
-// TODO(m.kazantsev):  Use in tests.
 type TLSConfigProvider struct {
-	OnTLSConfig func() (conf *tls.Config)
-	OnRootCAs   func() (cert *x509.CertPool)
+	OnTLSConfig  func() (conf *tls.Config)
+	OnRootCAs    func() (cert *x509.CertPool)
+	OnHasIPAddrs func() (ok bool)
 }
 
 // type check
@@ -223,4 +223,10 @@ func (t *TLSConfigProvider) TLSConfig() (conf *tls.Config) {
 // *TLSConfigProvider.
 func (t *TLSConfigProvider) RootCAs() (pool *x509.CertPool) {
 	return t.OnRootCAs()
+}
+
+// HasIPAddrs implements the [aghtls.TLSConfigProvider] interface for
+// *TLSConfigProvider.
+func (t *TLSConfigProvider) HasIPAddrs() (ok bool) {
+	return t.OnHasIPAddrs()
 }

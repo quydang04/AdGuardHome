@@ -412,10 +412,20 @@ func (m *tlsManager) applyIssuedCertificate(
 		return status, fmt.Errorf("loading issued certificate: %w", err)
 	}
 
-	restartHTTPS := m.setConfig(ctx, *newConf, status, aghalg.NBNull)
+	restartHTTPS, err := m.setConfig(ctx, *newConf, status, aghalg.NBNull)
+	if err != nil {
+		return status, fmt.Errorf("applying issued certificate: %w", err)
+	}
+
 	m.setCertFileTime(ctx)
 
-	if restartHTTPS {
+	if globalContext.dnsServer != nil {
+		if dnsErr := m.reconfigureDNSServer(ctx); dnsErr != nil {
+			m.logger.ErrorContext(ctx, "reconfiguring dns server", slogutil.KeyError, dnsErr)
+		}
+	}
+
+	if restartHTTPS && m.web != nil {
 		go m.web.tlsConfigChanged(context.Background(), newConf)
 	}
 

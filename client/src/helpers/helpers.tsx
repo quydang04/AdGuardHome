@@ -21,6 +21,8 @@ import {
     FILTERED,
     FILTERED_STATUS,
     R_CLIENT_ID,
+    R_IPV4,
+    R_IPV6,
     STANDARD_DNS_PORT,
     STANDARD_HTTPS_PORT,
     STANDARD_WEB_PORT,
@@ -562,6 +564,70 @@ export const isIpInCidr = (ip: any, cidr: any) => {
         console.error(e);
         return false;
     }
+};
+
+/**
+ * Matches a prefix length without leading zeros, as netip.ParsePrefix requires.
+ */
+const R_PREFIX_LENGTH = /^(0|[1-9]\d*)$/;
+
+/**
+ * Checks that the value is an IP range in CIDR notation the way the backend
+ * parses it with netip.ParsePrefix, including IPv6 ranges with an embedded
+ * dotted-decimal IPv4 address.
+ */
+export const isValidCidr = (value: string) => {
+    const slash = value.lastIndexOf('/');
+    if (slash <= 0) {
+        return false;
+    }
+
+    const addr = value.slice(0, slash);
+    const bits = value.slice(slash + 1);
+
+    if (addr.includes('%') || !R_PREFIX_LENGTH.test(bits)) {
+        return false;
+    }
+
+    const colon = addr.lastIndexOf(':');
+    if (colon === -1) {
+        if (!R_IPV4.test(addr)) {
+            return false;
+        }
+    } else {
+        const ipv4Part = addr.slice(colon + 1);
+        if (ipv4Part.includes('.') && !R_IPV4.test(ipv4Part)) {
+            return false;
+        }
+    }
+
+    try {
+        ipaddr.parseCIDR(value);
+        return true;
+    } catch (e) {
+        return false;
+    }
+};
+
+/**
+ * Checks that the value is an IPv6 address the way the backend parses it with
+ * netip.ParseAddr.
+ */
+export const isValidIpv6 = (value: string) => {
+    const zoneIdx = value.indexOf('%');
+    const addr = zoneIdx === -1 ? value : value.slice(0, zoneIdx);
+
+    if (zoneIdx !== -1 && zoneIdx === value.length - 1) {
+        return false;
+    }
+
+    if (!R_IPV6.test(addr)) {
+        return false;
+    }
+
+    const tail = addr.slice(addr.lastIndexOf(':') + 1);
+
+    return !tail.includes('.') || R_IPV4.test(tail);
 };
 
 /**
