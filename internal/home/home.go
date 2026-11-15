@@ -929,8 +929,6 @@ func runDNSServer(
 			slogLogger.ErrorContext(ctx, "starting dhcp server", slogutil.KeyError, err)
 		}
 	}
-
-	go startYoutubeManager(ctx, slogLogger)
 }
 
 // initTLS initializes TLS manager.  baseLogger, sigHdlr, confModifier,

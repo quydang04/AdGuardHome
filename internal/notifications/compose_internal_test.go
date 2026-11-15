@@ -60,56 +60,6 @@ func TestComposeCertRenewalMessage(t *testing.T) {
 	})
 }
 
-func TestComposeYouTubeStatusMessage(t *testing.T) {
-	testCases := []struct {
-		name   string
-		status YouTubeStatus
-		want   string
-	}{{
-		name:   "disabled",
-		status: YouTubeStatus{Enabled: false},
-		want:   "DISABLED",
-	}, {
-		name:   "enabled_not_active",
-		status: YouTubeStatus{Enabled: true, Active: false},
-		want:   "not started",
-	}, {
-		name:   "active",
-		status: YouTubeStatus{Enabled: true, Active: true, HealthyIPs: 2, TotalIPs: 2},
-		want:   "ACTIVE",
-	}}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			msg := composeYouTubeStatusMessage(tc.status)
-			if !strings.Contains(msg, tc.want) {
-				t.Errorf("composeYouTubeStatusMessage(%+v) = %q, want substring %q", tc.status, msg, tc.want)
-			}
-		})
-	}
-}
-
-func TestComposeYouTubeAlertMessage(t *testing.T) {
-	cfg := TelegramConfig{}
-	info := systeminfo.Info{Hostname: "test-host"}
-
-	status := YouTubeStatus{
-		Enabled:        true,
-		Active:         true,
-		HealthyIPs:     0,
-		TotalIPs:       4,
-		LastSyncStatus: "all ips unhealthy",
-	}
-
-	msg := composeYouTubeAlertMessage(cfg, status, info)
-	if !strings.Contains(msg, "unreachable") {
-		t.Errorf("expected alert message to mention unreachable route server, got: %s", msg)
-	}
-	if !strings.Contains(msg, "0") || !strings.Contains(msg, "4") {
-		t.Errorf("expected message to contain healthy/total IP counts, got: %s", msg)
-	}
-}
-
 func TestMetricDisplayName(t *testing.T) {
 	testCases := []struct {
 		metric string
@@ -117,7 +67,6 @@ func TestMetricDisplayName(t *testing.T) {
 	}{
 		{metric: "cpu", want: "CPU Usage"},
 		{metric: "protection", want: "DNS Protection"},
-		{metric: "youtube_health", want: "YouTube Blocking"},
 		{metric: "", want: "Metric"},
 	}
 

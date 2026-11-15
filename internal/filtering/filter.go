@@ -390,7 +390,9 @@ func (d *DNSFilter) syncUpdatedFilters(
 				continue
 			}
 
-			f.LastUpdated = uf.LastUpdated
+			if !uf.LastUpdated.IsZero() {
+				f.LastUpdated = uf.LastUpdated
+			}
 			if !updated {
 				continue
 			}
@@ -499,6 +501,10 @@ func (d *DNSFilter) update(filter *FilterYAML) (b bool, err error) {
 	ctx := context.TODO()
 
 	b, err = d.updateIntl(ctx, filter)
+	if err != nil {
+		return false, err
+	}
+
 	filter.LastUpdated = time.Now()
 	if !b {
 		chErr := os.Chtimes(
@@ -511,7 +517,7 @@ func (d *DNSFilter) update(filter *FilterYAML) (b bool, err error) {
 		}
 	}
 
-	return b, err
+	return b, nil
 }
 
 // updateIntl updates the flt rewriting it's actual file.  It returns true if
