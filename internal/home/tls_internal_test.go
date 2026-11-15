@@ -516,9 +516,33 @@ func TestTLSManager_HandleTLSConfigure(t *testing.T) {
 		err error
 	)
 
+	const wantSerialNumber int64 = 1
+
+	// Prepare the TLS manager configuration.
+	tmpDir := t.TempDir()
+	certPath := filepath.Join(tmpDir, "cert.pem")
+	keyPath := filepath.Join(tmpDir, "key.pem")
+
+	certDER, key := newCertAndKey(t, wantSerialNumber)
+	writeCertAndKey(t, certDER, certPath, key, keyPath)
+
+	// Initialize the TLS manager and assert its configuration.
+	m, err := newTLSManager(ctx, &tlsManagerConfig{
+		logger:       testLogger,
+		confModifier: agh.EmptyConfigModifier{},
+		manager:      aghtls.EmptyManager{},
+		tlsSettings: tlsConfigSettings{
+			Enabled:         true,
+			CertificatePath: certPath,
+			PrivateKeyPath:  keyPath,
+		},
+		servePlainDNS: true,
+	})
+	require.NoError(t, err)
+
 	globalContext.dnsServer, err = dnsforward.NewServer(dnsforward.DNSCreateParams{
 		Logger:            testLogger,
-		TLSConfigProvider: aghtls.EmptyTLSConfigProvider{},
+		TLSConfigProvider: m,
 	})
 	require.NoError(t, err)
 
@@ -545,41 +569,25 @@ func TestTLSManager_HandleTLSConfigure(t *testing.T) {
 	config.DNS.BindHosts = []netip.Addr{netutil.IPv4Localhost()}
 	config.DNS.Port = 0
 
-	const wantSerialNumber int64 = 1
-
-	// Prepare the TLS manager configuration.
-	tmpDir := t.TempDir()
-	certPath := filepath.Join(tmpDir, "cert.pem")
-	keyPath := filepath.Join(tmpDir, "key.pem")
-
-	certDER, key := newCertAndKey(t, wantSerialNumber)
-	writeCertAndKey(t, certDER, certPath, key, keyPath)
-
-	// Initialize the TLS manager and assert its configuration.
-	m, err := newTLSManager(ctx, &tlsManagerConfig{
-		logger:       testLogger,
-		confModifier: agh.EmptyConfigModifier{},
-		manager:      aghtls.EmptyManager{},
-		tlsSettings: tlsConfigSettings{
-			Enabled:         true,
-			CertificatePath: certPath,
-			PrivateKeyPath:  keyPath,
-		},
-		servePlainDNS: true,
-	})
-	require.NoError(t, err)
-
 	web := newTestWeb(t, &webConfig{tlsManager: m})
 	m.setWebAPI(web)
 
 	extTLSConf := m.extendedTLSConfig()
 	assertCertSerialNumber(t, extTLSConf, wantSerialNumber)
 
+	// Find a free TCP port for DoT so that s.prepareTLS calls m.TLSConfig()
+	// during reconfigureDNSServer.
+	dotLn, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	dotPort := uint16(testutil.RequireTypeAssert[*net.TCPAddr](t, dotLn.Addr()).Port)
+	require.NoError(t, dotLn.Close())
+
 	// Prepare a request with the new TLS configuration.
 	setts := &tlsConfigSettingsExt{
 		tlsConfigSettings: tlsConfigSettings{
 			Enabled:         true,
 			PortHTTPS:       4433,
+			PortDNSOverTLS:  dotPort,
 			CertificatePath: testCertificatePath,
 			PrivateKeyPath:  testPrivateKeyPath,
 		},

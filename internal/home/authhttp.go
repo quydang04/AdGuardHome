@@ -23,6 +23,7 @@ import (
 	"github.com/AdguardTeam/golibs/netutil/httputil"
 	"github.com/AdguardTeam/golibs/timeutil"
 	"github.com/AdguardTeam/golibs/validate"
+	"github.com/go-acme/lego/v4/challenge/http01"
 )
 
 // cookieTTL is the time-to-live of the session cookie.
@@ -326,7 +327,11 @@ func isPublicResource(p string) (ok bool) {
 		"/install.html",
 	}
 
-	return isAsset || isLogin || isForgotPassword || slices.Contains(paths, p)
+	return isAsset ||
+		isLogin ||
+		isForgotPassword ||
+		strings.HasPrefix(p, http01.PathPrefix) ||
+		slices.Contains(paths, p)
 }
 
 // isDoHRoute returns true if r is a request to a DoH route.  r must not be nil.

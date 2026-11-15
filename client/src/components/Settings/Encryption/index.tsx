@@ -16,7 +16,7 @@ type Props = {
     setTlsConfig: (values: Partial<EncryptionData>) => void;
     validateTlsConfig: (values: Partial<EncryptionData>) => void;
     getAcmeConfig: () => void;
-    setAcmeConfig: (values: any) => Promise<void>;
+    setAcmeConfig: (values: any) => Promise<boolean>;
 };
 
 export const Encryption = ({
@@ -67,7 +67,20 @@ export const Encryption = ({
             certificate_source,
             key_source,
         };
-    }, [encryption]);
+    }, [
+        encryption.enabled,
+        encryption.serve_plain_dns,
+        encryption.server_name,
+        encryption.force_https,
+        encryption.port_https,
+        encryption.port_dns_over_tls,
+        encryption.port_dns_over_quic,
+        encryption.certificate_chain,
+        encryption.private_key,
+        encryption.certificate_path,
+        encryption.private_key_path,
+        encryption.private_key_saved,
+    ]);
 
     const getSubmitValues = useCallback((values: any) => {
         const { certificate_source, key_source, private_key_saved, ...config } = values;
@@ -152,8 +165,10 @@ export const Encryption = ({
 
     const handleAcmeIssue = useCallback(
         async (values: AcmeFormValues) => {
-            await setAcmeConfig(getAcmeSubmitValues(values));
-            setIsIssueLogOpen(true);
+            const saved = await setAcmeConfig(getAcmeSubmitValues(values));
+            if (saved) {
+                setIsIssueLogOpen(true);
+            }
         },
         [getAcmeSubmitValues, setAcmeConfig],
     );
@@ -194,10 +209,10 @@ export const Encryption = ({
                             onIssue={handleAcmeIssue}
                         />
                     </Card>
-
-                    <AcmeIssueLogModal isOpen={isIssueLogOpen} onClose={() => setIsIssueLogOpen(false)} />
                 </>
             )}
+
+            <AcmeIssueLogModal isOpen={isIssueLogOpen} onClose={() => setIsIssueLogOpen(false)} />
         </div>
     );
 };

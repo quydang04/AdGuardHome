@@ -211,6 +211,10 @@ func (m *tlsManager) startACMEIssueJob(ctx context.Context) (job *acmeJob, err e
 	return job, nil
 }
 
+// acmeIssueTimeout is the maximum duration allowed for a single background
+// ACME certificate issuance job.
+const acmeIssueTimeout = 10 * time.Minute
+
 // runACMEIssueJob performs the actual issuance, reporting progress to job,
 // applying and persisting the result, and notifying Telegram of the outcome,
 // the same as an automatic renewal.  It's intended to be run as a goroutine.
@@ -221,6 +225,16 @@ func (m *tlsManager) runACMEIssueJob(
 	accountKeyPEM string,
 	accountURI string,
 ) {
+	ctx, cancel := context.WithTimeout(ctx, acmeIssueTimeout)
+	defer cancel()
+
+	defer func() {
+		if !job.isDone() {
+			const msg = "certificate issuance terminated unexpectedly"
+			job.log("error", msg)
+			job.finish(&acmeJobResult{Error: msg})
+		}
+	}()
 	defer slogutil.RecoverAndLog(ctx, m.logger)
 
 	job.logKey("info", "acme_progress_starting", map[string]string{"domains": strings.Join(cfgJSON.Domains, ", ")})
@@ -363,6 +377,10 @@ func writeSSEEvent(w http.ResponseWriter, event string, v any) {
 
 // issueCertificate calls into m.acme, if configured.
 func (m *tlsManager) issueCertificate(ctx context.Context, req *acme.Request) (res *acme.Result, err error) {
+	if m.issueFunc != nil {
+		return m.issueFunc(ctx, req)
+	}
+
 	if m.acme == nil {
 		return nil, errors.Error("acme: not initialized")
 	}
@@ -384,6 +402,22 @@ func (m *tlsManager) recordACMEError(ctx context.Context, err error) {
 	m.confModifier.Apply(ctx)
 }
 
+// pickServerName selects a suitable ServerName from dnsNames when none is
+// configured yet, preferring non-wildcard domain names.
+func pickServerName(dnsNames []string) (name string) {
+	for _, d := range dnsNames {
+		if !strings.HasPrefix(d, "*.") && d != "" {
+			return d
+		}
+	}
+
+	if len(dnsNames) > 0 {
+		return strings.TrimPrefix(dnsNames[0], "*.")
+	}
+
+	return ""
+}
+
 // applyIssuedCertificate installs res as the active TLS certificate,
 // following the same validate-then-apply flow as
 // [tlsManager.handleTLSConfigure].
@@ -391,33 +425,53 @@ func (m *tlsManager) applyIssuedCertificate(
 	ctx context.Context,
 	res *acme.Result,
 ) (status *tlsConfigStatus, err error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
+	var newConf *tlsConfigSettings
+	var restartHTTPS bool
 
-	newConf := m.extTLSConf.clone()
-	newConf.Enabled = true
-	newConf.CertificateChain = string(res.CertificatePEM)
-	newConf.PrivateKey = string(res.PrivateKeyPEM)
-	newConf.CertificatePath = ""
-	newConf.PrivateKeyPath = ""
+	err = func() (innerErr error) {
+		m.mu.Lock()
+		defer m.mu.Unlock()
 
-	err = m.validateTLSSettings(tlsConfigSettingsExt{tlsConfigSettings: *newConf})
+		wasEnabled := m.extTLSConf.Enabled
+		newConf = m.extTLSConf.clone()
+		newConf.Enabled = true
+		newConf.CertificateChain = string(res.CertificatePEM)
+		newConf.PrivateKey = string(res.PrivateKeyPEM)
+		newConf.CertificatePath = ""
+		newConf.PrivateKeyPath = ""
+
+		status = &tlsConfigStatus{}
+		innerErr = m.loadTLSConfig(ctx, newConf, status)
+		if innerErr != nil {
+			return fmt.Errorf("loading issued certificate: %w", innerErr)
+		}
+
+		if newConf.ServerName == "" {
+			newConf.ServerName = pickServerName(status.DNSNames)
+		}
+
+		innerErr = m.validateTLSSettings(tlsConfigSettingsExt{tlsConfigSettings: *newConf})
+		if innerErr != nil {
+			// Preserve the newly issued certificate and key in m.extTLSConf so
+			// the user doesn't lose them if a port is currently busy.
+			newConf.Enabled = wasEnabled
+			_, _ = m.setConfig(ctx, *newConf, status, aghalg.NBNull)
+
+			return fmt.Errorf("validating issued certificate: %w", innerErr)
+		}
+
+		restartHTTPS, innerErr = m.setConfig(ctx, *newConf, status, aghalg.NBNull)
+		if innerErr != nil {
+			return fmt.Errorf("applying issued certificate: %w", innerErr)
+		}
+
+		m.setCertFileTime(ctx)
+
+		return nil
+	}()
 	if err != nil {
-		return nil, fmt.Errorf("validating issued certificate: %w", err)
+		return status, err
 	}
-
-	status = &tlsConfigStatus{}
-	err = m.loadTLSConfig(ctx, newConf, status)
-	if err != nil {
-		return status, fmt.Errorf("loading issued certificate: %w", err)
-	}
-
-	restartHTTPS, err := m.setConfig(ctx, *newConf, status, aghalg.NBNull)
-	if err != nil {
-		return status, fmt.Errorf("applying issued certificate: %w", err)
-	}
-
-	m.setCertFileTime(ctx)
 
 	if globalContext.dnsServer != nil {
 		if dnsErr := m.reconfigureDNSServer(ctx); dnsErr != nil {
@@ -426,7 +480,13 @@ func (m *tlsManager) applyIssuedCertificate(
 	}
 
 	if restartHTTPS && m.web != nil {
-		go m.web.tlsConfigChanged(context.Background(), newConf)
+		go func() {
+			// Give any active SSE stream on the current HTTPS server a brief
+			// window to flush its final "done" event before shutting down the
+			// listener to apply the new certificate.
+			time.Sleep(50 * time.Millisecond)
+			m.web.tlsConfigChanged(context.Background(), newConf)
+		}()
 	}
 
 	m.logger.InfoContext(ctx, "applied acme-issued certificate", "not_after", status.NotAfter)

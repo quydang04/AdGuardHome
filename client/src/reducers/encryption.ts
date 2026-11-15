@@ -114,17 +114,27 @@ const encryption = handleActions(
             ...state,
             processingAcmeIssue: false,
         }),
-        [actions.issueAcmeCertificateSuccess.toString()]: (state: any, { payload }: any) => ({
-            ...state,
-            ...payload.status,
-            certificate_chain: payload.certificate_chain,
-            private_key: payload.private_key,
-            certificate_source: ENCRYPTION_SOURCE.CONTENT,
-            key_source: ENCRYPTION_SOURCE.CONTENT,
-            certificate_path: '',
-            private_key_path: '',
-            processingAcmeIssue: false,
-        }),
+        [actions.issueAcmeCertificateSuccess.toString()]: (state: any, { payload }: any) => {
+            const dnsNames: string[] = Array.isArray(payload.status?.dns_names) ? payload.status.dns_names : [];
+            const pickedServerName =
+                dnsNames.find((d) => d && !d.startsWith('*.')) ||
+                (dnsNames[0] ? dnsNames[0].replace(/^\*\./, '') : '');
+
+            return {
+                ...state,
+                ...payload.status,
+                enabled: true,
+                server_name: state.server_name || pickedServerName,
+                private_key_saved: true,
+                certificate_chain: payload.certificate_chain,
+                private_key: payload.private_key,
+                certificate_source: ENCRYPTION_SOURCE.CONTENT,
+                key_source: ENCRYPTION_SOURCE.CONTENT,
+                certificate_path: '',
+                private_key_path: '',
+                processingAcmeIssue: false,
+            };
+        },
     },
     {
         processing: true,

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { Trans, useTranslation } from 'react-i18next';
 
@@ -61,6 +61,7 @@ export const AcmeForm = ({
         handleSubmit,
         control,
         watch,
+        reset,
         formState: { isSubmitting },
     } = useForm<AcmeFormValues>({
         defaultValues: {
@@ -69,6 +70,13 @@ export const AcmeForm = ({
         },
         mode: 'onBlur',
     });
+
+    useEffect(() => {
+        reset({
+            ...defaultValues,
+            ...initialValues,
+        });
+    }, [initialValues, reset]);
 
     const enabled = watch('enabled');
     const challenge = watch('challenge');

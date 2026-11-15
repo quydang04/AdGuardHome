@@ -113,9 +113,11 @@ export const setAcmeConfig = (config: any) => async (dispatch: any) => {
         const response = await apiClient.setAcmeConfig(config);
         dispatch(setAcmeConfigSuccess(response));
         dispatch(addSuccessToast('acme_config_saved'));
+        return true;
     } catch (error) {
         dispatch(addErrorToast({ error }));
         dispatch(setAcmeConfigFailure());
+        return false;
     }
 };
 

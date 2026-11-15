@@ -242,7 +242,19 @@ func (mw *webMw) set(web *webAPI) {
 	mw.postInstallMw = web.postInstallHandler
 
 	mw.ensureMw = func(method string, h http.HandlerFunc) (wrapped http.Handler) {
-		return web.postInstallHandler(gziphandler.GzipHandler(web.ensure(method, h)))
+		ensured := web.ensure(method, h)
+		gzipped := gziphandler.GzipHandler(ensured)
+
+		return web.postInstallHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path == "/control/tls/acme/issue/stream" ||
+				strings.Contains(r.Header.Get(httphdr.Accept), "text/event-stream") {
+				ensured.ServeHTTP(w, r)
+
+				return
+			}
+
+			gzipped.ServeHTTP(w, r)
+		}))
 	}
 }
 

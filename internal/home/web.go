@@ -3,7 +3,6 @@ package home
 import (
 	"context"
 	"crypto/tls"
-	"fmt"
 	"io/fs"
 	"log/slog"
 	"net/http"
@@ -448,12 +447,16 @@ func (web *webAPI) serveTLS(ctx context.Context) (next bool) {
 	}
 
 	var portHTTPS uint16
-	func() {
-		config.RLock()
-		defer config.RUnlock()
+	if web.tlsManager != nil {
+		portHTTPS = web.tlsManager.extendedTLSConfig().PortHTTPS
+	} else {
+		func() {
+			config.RLock()
+			defer config.RUnlock()
 
-		portHTTPS = config.TLS.PortHTTPS
-	}()
+			portHTTPS = config.TLS.PortHTTPS
+		}()
+	}
 
 	addr := netip.AddrPortFrom(web.conf.BindAddr.Addr(), portHTTPS).String()
 	logger := web.baseLogger.With(loggerKeyServer, "https")
@@ -485,12 +488,10 @@ func (web *webAPI) serveTLS(ctx context.Context) (next bool) {
 		go web.mustStartHTTP3(ctx, addr)
 	}
 
-	logger.InfoContext(ctx, "starting https server")
+	logger.InfoContext(ctx, "starting https server", "addr", addr)
 	err := web.httpsServer.server.ListenAndServeTLS("", "")
 	if !errors.Is(err, http.ErrServerClosed) {
-		cleanupAlways(ctx, logger, web.pidFilePath)
-
-		panic(fmt.Errorf("https: %w", err))
+		logger.ErrorContext(ctx, "https server stopped with error", slogutil.KeyError, err)
 	}
 
 	return true
@@ -498,7 +499,7 @@ func (web *webAPI) serveTLS(ctx context.Context) (next bool) {
 
 // mustStartHTTP3 initializes and starts HTTP3 server.
 func (web *webAPI) mustStartHTTP3(ctx context.Context, address string) {
-	defer slogutil.RecoverAndExit(ctx, web.logger, osutil.ExitCodeFailure)
+	defer slogutil.RecoverAndLog(ctx, web.logger)
 
 	web.httpsServer.server3 = &http3.Server{
 		// TODO(a.garipov): See if there is a way to use the error log as
@@ -518,9 +519,7 @@ func (web *webAPI) mustStartHTTP3(ctx context.Context, address string) {
 	web.logger.DebugContext(ctx, "starting http/3 server")
 	err := web.httpsServer.server3.ListenAndServe()
 	if !errors.Is(err, http.ErrServerClosed) {
-		cleanupAlways(ctx, web.logger, web.pidFilePath)
-
-		panic(fmt.Errorf("http3: %w", err))
+		web.logger.ErrorContext(ctx, "http/3 server stopped with error", slogutil.KeyError, err)
 	}
 }
 

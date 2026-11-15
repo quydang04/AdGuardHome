@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 
 import { Trans, useTranslation } from 'react-i18next';
 
@@ -157,6 +157,13 @@ export const Form = ({
         },
         mode: 'onBlur',
     });
+
+    useEffect(() => {
+        reset({
+            ...defaultValues,
+            ...initialValues,
+        });
+    }, [initialValues, reset]);
 
     const {
         enabled: isEnabled,
@@ -558,7 +565,9 @@ export const Form = ({
                     </div>
 
                     <div className="form__status">
-                        {(privateKey || privateKeyPath) && <KeyStatus validKey={valid_key} keyType={key_type} />}
+                        {(privateKey || privateKeyPath || privateKeySaved) && (
+                            <KeyStatus validKey={valid_key} keyType={key_type} />
+                        )}
                     </div>
                 </div>
                 {validationMessage(warning_validation, isWarning)}

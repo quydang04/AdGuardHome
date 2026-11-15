@@ -5,6 +5,8 @@ import { useTranslation } from 'react-i18next';
 
 import apiClient from '../../../api/Api';
 import {
+    getAcmeConfig,
+    getTlsStatus,
     issueAcmeCertificateRequest,
     issueAcmeCertificateSuccess,
     issueAcmeCertificateFailure,
@@ -109,10 +111,12 @@ export const AcmeIssueLogModal = ({ isOpen, onClose }: Props) => {
                             private_key: data.private_key ? atob(data.private_key) : '',
                         }),
                     );
+                    dispatch(getAcmeConfig());
                     dispatch(addSuccessToast('acme_issue_success'));
                     finish(true);
                 } else {
                     dispatch(issueAcmeCertificateFailure());
+                    dispatch(getAcmeConfig());
                     dispatch(addErrorToast({ error: data?.error || t('acme_issue_log_unknown_error') }));
                     finish(false);
                 }
@@ -142,6 +146,9 @@ export const AcmeIssueLogModal = ({ isOpen, onClose }: Props) => {
 
     const handleClose = () => {
         if (finished) {
+            if (success) {
+                dispatch(getTlsStatus());
+            }
             onClose();
         }
     };
@@ -157,7 +164,7 @@ export const AcmeIssueLogModal = ({ isOpen, onClose }: Props) => {
                 <div className="modal-header">
                     <h4 className="modal-title">{t('acme_issue_log_title')}</h4>
                     {finished && (
-                        <button type="button" className="close" onClick={onClose}>
+                        <button type="button" className="close" onClick={handleClose}>
                             <span className="sr-only">Close</span>
                         </button>
                     )}
@@ -194,7 +201,7 @@ export const AcmeIssueLogModal = ({ isOpen, onClose }: Props) => {
                     <button
                         type="button"
                         className="btn btn-secondary"
-                        onClick={onClose}
+                        onClick={handleClose}
                         disabled={!finished}>
                         {finished ? t('acme_issue_log_close') : t('acme_issue_log_in_progress')}
                     </button>

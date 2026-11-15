@@ -91,6 +91,9 @@ type tlsManager struct {
 	// case the "SSL/TLS issue" feature is unavailable.
 	acme *acme.Manager
 
+	// issueFunc, if non-nil, overrides acme.Issue in tests.
+	issueFunc func(ctx context.Context, req *acme.Request) (*acme.Result, error)
+
 	// acmeJobMu protects acmeJob.
 	acmeJobMu sync.Mutex
 
@@ -301,66 +304,79 @@ func (m *tlsManager) handleCertFileChange(ctx context.Context) {
 //
 // TODO(s.chzhen):  Consider returning an error.
 func (m *tlsManager) reload(ctx context.Context) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
+	var extTLSConf tlsConfigSettings
+	var changed bool
+	func() {
+		m.mu.Lock()
+		defer m.mu.Unlock()
 
-	tlsConfPtr := m.extTLSConf
+		tlsConfPtr := m.extTLSConf
 
-	if !tlsConfPtr.Enabled || len(tlsConfPtr.CertificatePath) == 0 {
+		if !tlsConfPtr.Enabled || len(tlsConfPtr.CertificatePath) == 0 {
+			return
+		}
+
+		certPath := tlsConfPtr.CertificatePath
+		fi, err := os.Stat(certPath)
+		if err != nil {
+			m.logger.ErrorContext(ctx, "checking certificate file", slogutil.KeyError, err)
+
+			return
+		}
+
+		if fi.ModTime().UTC().Equal(m.certLastMod) {
+			m.logger.InfoContext(ctx, "certificate file is not modified")
+
+			return
+		}
+
+		m.logger.InfoContext(ctx, "certificate file is modified")
+
+		extTLSConf = *tlsConfPtr
+		status := &tlsConfigStatus{}
+
+		err = m.loadTLSConfig(ctx, &extTLSConf, status)
+		if err != nil {
+			m.logger.WarnContext(ctx, "reloading interrupted", slogutil.KeyError, err)
+
+			return
+		}
+
+		err = m.updateTLSCert(&extTLSConf)
+		if err != nil {
+			m.logger.WarnContext(ctx, "failed to update tls certificate", slogutil.KeyError, err)
+
+			return
+		}
+
+		m.extTLSConf = &extTLSConf
+		m.status = status
+
+		m.certLastMod = fi.ModTime().UTC()
+		changed = true
+	}()
+
+	if !changed {
 		return
 	}
-
-	certPath := tlsConfPtr.CertificatePath
-	fi, err := os.Stat(certPath)
-	if err != nil {
-		m.logger.ErrorContext(ctx, "checking certificate file", slogutil.KeyError, err)
-
-		return
-	}
-
-	if fi.ModTime().UTC().Equal(m.certLastMod) {
-		m.logger.InfoContext(ctx, "certificate file is not modified")
-
-		return
-	}
-
-	m.logger.InfoContext(ctx, "certificate file is modified")
-
-	extTLSConf := *tlsConfPtr
-	status := &tlsConfigStatus{}
-
-	err = m.loadTLSConfig(ctx, &extTLSConf, status)
-	if err != nil {
-		m.logger.WarnContext(ctx, "reloading interrupted", slogutil.KeyError, err)
-
-		return
-	}
-
-	err = m.updateTLSCert(&extTLSConf)
-	if err != nil {
-		m.logger.WarnContext(ctx, "failed to update tls certificate", slogutil.KeyError, err)
-
-		return
-	}
-
-	m.extTLSConf = &extTLSConf
-	m.status = status
-
-	m.certLastMod = fi.ModTime().UTC()
 
 	// The background context is used because the TLSConfigChanged wraps context
 	// with timeout on its own and shuts down the server, which handles current
 	// request.
-	m.web.tlsConfigChanged(context.Background(), m.extTLSConf)
+	m.web.tlsConfigChanged(context.Background(), &extTLSConf)
 }
 
 // reconfigureDNSServer updates the DNS server configuration using the stored
-// TLS settings.  m.mu is expected to be locked.
+// TLS settings.  m.mu must not be locked by the caller, because
+// [dnsforward.Server.Reconfigure] calls [tlsManager.TLSConfig], which acquires
+// m.mu.
 func (m *tlsManager) reconfigureDNSServer(ctx context.Context) (err error) {
+	extTLSConf := m.extendedTLSConfig()
+
 	newConf, err := newServerConfig(
 		&config.DNS,
 		config.Clients.Sources,
-		m.extTLSConf,
+		extTLSConf,
 		config.HTTPConfig.DoH,
 		m,
 		m.httpReg,
@@ -522,12 +538,14 @@ type tlsConfigSettingsExt struct {
 // handleTLSStatus is the handler for the GET /control/tls/status HTTP API.
 func (m *tlsManager) handleTLSStatus(w http.ResponseWriter, r *http.Request) {
 	var tlsConf *tlsConfigSettings
+	var status *tlsConfigStatus
 	var servePlainDNS bool
 	func() {
 		m.mu.Lock()
 		defer m.mu.Unlock()
 
 		tlsConf = m.extTLSConf.clone()
+		status = m.status
 		servePlainDNS = m.servePlainDNS
 	}()
 
@@ -536,7 +554,7 @@ func (m *tlsManager) handleTLSStatus(w http.ResponseWriter, r *http.Request) {
 			tlsConfigSettings: *tlsConf,
 			ServePlainDNS:     aghalg.BoolToNullBool(servePlainDNS),
 		},
-		tlsConfigStatus: m.status,
+		tlsConfigStatus: status,
 	}
 
 	m.marshalTLS(r.Context(), w, r, data)
@@ -658,42 +676,51 @@ func (m *tlsManager) handleTLSConfigure(w http.ResponseWriter, r *http.Request) 
 		}
 	}()
 
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	if req.PrivateKeySaved {
-		req.PrivateKey = m.extTLSConf.PrivateKey
-	}
-
-	req.StrictSNICheck = m.extTLSConf.StrictSNICheck
-
-	if err = m.validateTLSSettings(req); err != nil {
-		aghhttp.ErrorAndLog(ctx, m.logger, r, w, http.StatusBadRequest, "%s", err)
-
-		return
-	}
-
 	status := &tlsConfigStatus{}
-	err = m.loadTLSConfig(ctx, &req.tlsConfigSettings, status)
-	if err != nil {
-		resp := &tlsConfig{
-			tlsConfigSettingsExt: req,
-			tlsConfigStatus:      status,
+	var handled bool
+	func() {
+		m.mu.Lock()
+		defer m.mu.Unlock()
+
+		if req.PrivateKeySaved {
+			req.PrivateKey = m.extTLSConf.PrivateKey
 		}
 
-		m.marshalTLS(ctx, w, r, resp)
+		req.StrictSNICheck = m.extTLSConf.StrictSNICheck
 
+		if err = m.validateTLSSettings(req); err != nil {
+			aghhttp.ErrorAndLog(ctx, m.logger, r, w, http.StatusBadRequest, "%s", err)
+			handled = true
+
+			return
+		}
+
+		err = m.loadTLSConfig(ctx, &req.tlsConfigSettings, status)
+		if err != nil {
+			resp := &tlsConfig{
+				tlsConfigSettingsExt: req,
+				tlsConfigStatus:      status,
+			}
+
+			m.marshalTLS(ctx, w, r, resp)
+			handled = true
+
+			return
+		}
+
+		restartHTTPS, err = m.setConfig(ctx, req.tlsConfigSettings, status, req.ServePlainDNS)
+		if err != nil {
+			aghhttp.ErrorAndLog(ctx, m.logger, r, w, http.StatusInternalServerError, "%s", err)
+			handled = true
+
+			return
+		}
+
+		m.setCertFileTime(ctx)
+	}()
+	if handled {
 		return
 	}
-
-	restartHTTPS, err = m.setConfig(ctx, req.tlsConfigSettings, status, req.ServePlainDNS)
-	if err != nil {
-		aghhttp.ErrorAndLog(ctx, m.logger, r, w, http.StatusInternalServerError, "%s", err)
-
-		return
-	}
-
-	m.setCertFileTime(ctx)
 
 	if req.ServePlainDNS != aghalg.NBNull {
 		func() {
@@ -715,7 +742,7 @@ func (m *tlsManager) handleTLSConfigure(w http.ResponseWriter, r *http.Request) 
 
 	resp := &tlsConfig{
 		tlsConfigSettingsExt: req,
-		tlsConfigStatus:      m.status,
+		tlsConfigStatus:      status,
 	}
 
 	m.marshalTLS(ctx, w, r, resp)
@@ -752,11 +779,14 @@ func (m *tlsManager) validateTLSSettings(setts tlsConfigSettingsExt) (err error)
 		plainDNSPort uint16
 	)
 
+	if m.extTLSConf != nil {
+		tlsConf = *m.extTLSConf
+	}
+
 	func() {
 		config.Lock()
 		defer config.Unlock()
 
-		tlsConf = config.TLS
 		webAPIAddr = config.HTTPConfig.Address.Addr()
 		webAPIPort = config.HTTPConfig.Address.Port()
 		plainDNSPort = config.DNS.Port
@@ -898,7 +928,7 @@ func (m *tlsManager) checkPortAvailability(
 	var errs []error
 	for _, v := range needBindingCheck {
 		port := v.newPort
-		if v.currPort == port {
+		if port == 0 || (currConf.Enabled && v.currPort == port) {
 			continue
 		}
 
