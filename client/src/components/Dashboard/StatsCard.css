@@ -1,92 +1,145 @@
-.stats-card {
+.stats-card-v1 {
     display: flex;
     flex-direction: column;
-    padding-bottom: 12px;
+    margin-bottom: 1.5rem;
 }
 
-@media (min-width: 768px) {
-    .stats-card {
-        padding-bottom: 8px;
-    }
+.stats-card-v1--queries {
+    --stats-accent: #64748b;
+    --stats-chart: #94a3b8;
 }
 
-.stats-card--queries {
-    --stats-card-accent: var(--mcolor);
+.stats-card-v1--ads {
+    --stats-accent: #f97316;
+    --stats-chart: #f97316;
 }
 
-.stats-card--ads {
-    --stats-card-accent: #F67247;
+.stats-card-v1--threats {
+    --stats-accent: #f59e0b;
+    --stats-chart: #f59e0b;
 }
 
-.stats-card--threats {
-    --stats-card-accent: #D58500;
+.stats-card-v1--adult {
+    --stats-accent: #a855f7;
+    --stats-chart: #a855f7;
 }
 
-.stats-card--adult {
-    --stats-card-accent: #A870B2;
-}
-
-.stats-card > .card {
-    flex: none;
-    height: 110px;
+.stats-card-v1__box {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    height: 114px;
+    border-radius: 14px;
+    background: var(--card-bgcolor, #ffffff);
+    border: 1px solid var(--border-color, rgba(0, 40, 100, 0.08));
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    padding: 14px 18px 0 18px;
     overflow: hidden;
-    margin-bottom: 4px;
-    border-radius: 4px;
+    position: relative;
+    text-decoration: none !important;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
-.stats-card__inner {
-    display: flex;
-    flex: 1 1 auto;
-    flex-direction: column;
-    min-height: 0;
+.stats-card-v1__box:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
 }
 
-.stats-card__header {
+.stats-card-v1__header {
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
-    gap: 8px;
-    padding: 12px 14px 0;
+    z-index: 2;
+    position: relative;
 }
 
-.stats-card__value {
-    font-size: 22px;
+.stats-card-v1__value {
+    font-size: 1.85rem;
+    font-weight: 700;
     line-height: 1.1;
-    color: var(--mcolor);
+    color: var(--black, #0f172a);
+    letter-spacing: -0.02em;
 }
 
-.stats-card__percent {
-    font-size: 13px;
+.stats-card-v1__percent {
+    font-size: 0.9375rem;
+    font-weight: 700;
     line-height: 1.2;
-    color: var(--stats-card-accent);
+    color: var(--stats-accent);
 }
 
-.stats-card__chart {
-    height: 48px;
-    min-height: 16px;
+.stats-card-v1__chart {
+    height: 52px;
+    margin: 0 -18px 0 -18px;
+    position: relative;
+    z-index: 1;
+}
+
+.stats-card-v1__label {
     margin-top: 8px;
-    padding: 0 4px;
+    padding-left: 2px;
 }
 
-.stats-card__title {
-    padding: 0 4px;
-    min-height: 0;
-    font-size: 13px;
-    line-height: 1.4;
-    color: var(--stats-card-accent);
+.stats-card-v1__label,
+.stats-card-v1__label a {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--stats-accent) !important;
+    text-decoration: none !important;
+    transition: opacity 0.15s ease;
 }
 
-.stats-card__title a {
-    color: inherit;
-    text-decoration: none;
+.stats-card-v1__label a:hover {
+    opacity: 0.8;
 }
 
-.stats-card__title a:hover,
-.stats-card__title a:focus {
-    color: inherit;
-    text-decoration: underline;
+[data-theme='dark'] .stats-card-v1--queries {
+    --stats-accent: #94a3b8;
 }
 
-.stats-card__title :not(a) {
-    color: inherit;
+[data-theme='dark'] .stats-card-v1__box {
+    background: #1f1f1f !important;
+    border: 1px solid #383838 !important;
+    border-radius: 12px !important;
+    box-shadow: none !important;
+}
+
+[data-theme='dark'] .stats-card-v1__value {
+    color: #ffffff !important;
+}
+
+[data-theme='dark'] .stats-card-v1__label,
+[data-theme='dark'] .stats-card-v1__label a {
+    color: #9ca3af !important;
+}
+
+@media (max-width: 576px) {
+    .stats-card-v1 {
+        margin-bottom: 1rem;
+    }
+
+    .stats-card-v1__box {
+        height: 98px;
+        padding: 12px 14px 0 14px;
+        border-radius: 12px;
+    }
+
+    .stats-card-v1__value {
+        font-size: 1.55rem;
+    }
+
+    .stats-card-v1__percent {
+        font-size: 0.85rem;
+    }
+
+    .stats-card-v1__chart {
+        height: 44px;
+        margin: 0 -14px 0 -14px;
+    }
+
+    .stats-card-v1__label,
+    .stats-card-v1__label a {
+        font-size: 0.75rem;
+    }
 }

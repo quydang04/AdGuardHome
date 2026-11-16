@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 
 import { HashRouter, Route, Switch, useLocation } from 'react-router-dom';
 import LoadingBar from 'react-redux-loading-bar';
@@ -25,7 +25,8 @@ import { FILTERS_URLS, MENU_URLS, SETTINGS_URLS, THEMES } from '../../helpers/co
 
 import { getLogsUrlParams, setHtmlLangAttr, setUITheme } from '../../helpers/helpers';
 
-import Header from '../Header';
+import Sidebar from '../Sidebar';
+import MobileHeader from '../Sidebar/MobileHeader';
 
 import { getDnsStatus, getTimerStatus } from '../../actions';
 
@@ -136,6 +137,7 @@ const RoutesWithTransition = ({ processing, isCoreRunning }: { processing: boole
 
 const AppContent = () => {
     const dispatch = useDispatch();
+    const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
     const { language, isCoreRunning, isUpdateAvailable, processing, theme } = useSelector<
         RootState,
         RootState['dashboard']
@@ -216,45 +218,53 @@ const AppContent = () => {
     };
 
     return (
-        <>
-            {updateAvailable && (
-                <>
-                    <UpdateTopline />
+        <div className="app-layout">
+            <Sidebar
+                isMobileOpen={isMobileNavOpen}
+                closeMobile={() => setIsMobileNavOpen(false)}
+            />
 
-                    <UpdateOverlay />
-                </>
-            )}
+            <div className="app-main">
+                <MobileHeader
+                    onToggleNav={() => setIsMobileNavOpen((prev) => !prev)}
+                />
 
-            {!processingEncryption && <EncryptionTopline />}
-
-            <LoadingBar className="loading-bar" updateTime={1000} />
-
-            <Header />
-
-            <ProtectionTimer />
-
-            <div className="container container--wrap pb-5 pt-5">
-                {processing && <Loading />}
-
-                {!isCoreRunning && (
-                    <div className="row row-cards">
-                        <div className="col-lg-12">
-                            <Status reloadPage={reloadPage} message="dns_start" />
-
-                            <Loading />
-                        </div>
-                    </div>
+                {updateAvailable && (
+                    <>
+                        <UpdateTopline />
+                        <UpdateOverlay />
+                    </>
                 )}
 
-                <RoutesWithTransition processing={processing} isCoreRunning={isCoreRunning} />
-            </div>
+                {!processingEncryption && <EncryptionTopline />}
 
-            <Footer />
+                <LoadingBar className="loading-bar" updateTime={1000} />
+
+                <ProtectionTimer />
+
+                <main className="app-content">
+                    {processing && <Loading />}
+
+                    {!isCoreRunning && (
+                        <div className="row row-cards">
+                            <div className="col-lg-12">
+                                <Status reloadPage={reloadPage} message="dns_start" />
+
+                                <Loading />
+                            </div>
+                        </div>
+                    )}
+
+                    <RoutesWithTransition processing={processing} isCoreRunning={isCoreRunning} />
+                </main>
+
+                <Footer />
+            </div>
 
             <Toasts />
 
             <Icons />
-        </>
+        </div>
     );
 };
 

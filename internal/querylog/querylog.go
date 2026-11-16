@@ -30,6 +30,10 @@ type QueryLog interface {
 	// WriteDiskConfig writes the query log configuration to c.
 	WriteDiskConfig(c *Config)
 
+	// UpdateConfig replaces the runtime configuration, e.g. on settings
+	// import.
+	UpdateConfig(c ImportedConfig) (err error)
+
 	// ShouldLog returns true if request for the host should be logged.
 	ShouldLog(host string, qType, qClass uint16, ids []string) bool
 

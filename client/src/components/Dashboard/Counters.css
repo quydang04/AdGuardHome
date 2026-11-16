@@ -1,0 +1,115 @@
+.general-stats {
+    padding: 0.25rem 0;
+}
+
+.general-stats__row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 1.5rem;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.03);
+    gap: 16px;
+    transition: background-color 0.15s ease;
+}
+
+.general-stats__row:hover {
+    background-color: var(--ctrl-select-bgcolor, rgba(99, 102, 241, 0.03));
+}
+
+.general-stats__row--bottom {
+    border-bottom: none;
+    padding-top: 12px;
+    padding-bottom: 12px;
+}
+
+.general-stats__left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: 1;
+    min-width: 0;
+}
+
+.general-stats__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+}
+
+.general-stats__label {
+    font-size: 13.5px;
+    font-weight: 500;
+    color: var(--black, #1e293b);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.general-stats__right {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-shrink: 0;
+}
+
+.general-stats__value {
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+    text-align: right;
+}
+
+.general-stats__value a {
+    color: inherit;
+    text-decoration: none;
+}
+
+.general-stats__value a:hover {
+    text-decoration: underline;
+}
+
+.general-stats__value--bold {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--black, #1e293b);
+}
+
+.general-stats__bar-track {
+    width: 80px;
+    height: 4px;
+    background: var(--border-color, rgba(0, 40, 100, 0.08));
+    border-radius: 2px;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.general-stats__bar-fill {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 0.3s ease;
+}
+
+.general-stats__divider {
+    height: 1px;
+    background: var(--border-color, rgba(0, 0, 0, 0.06));
+    margin: 4px 1.5rem;
+}
+
+[data-theme='dark'] .general-stats__label {
+    color: #f1f5f9;
+}
+
+[data-theme='dark'] .general-stats__value--bold {
+    color: #f1f5f9;
+}
+
+[data-theme='dark'] .general-stats__row {
+    border-bottom-color: rgba(255, 255, 255, 0.03);
+}
+
+[data-theme='dark'] .general-stats__divider {
+    background: rgba(255, 255, 255, 0.06);
+}

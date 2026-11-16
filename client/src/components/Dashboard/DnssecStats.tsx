@@ -11,7 +11,7 @@ interface DnssecStatsProps {
     refreshButton: React.ReactNode;
 }
 
-const DnssecStats = ({ numDnssec, numDnsQueries, numEncryptedDns, subtitle, refreshButton }: DnssecStatsProps) => {
+const DnssecStats = React.memo(({ numDnssec, numDnsQueries, numEncryptedDns, subtitle, refreshButton }: DnssecStatsProps) => {
     const { t } = useTranslation();
 
     const numPlainDns = numDnsQueries - numEncryptedDns;
@@ -36,6 +36,6 @@ const DnssecStats = ({ numDnssec, numDnsQueries, numEncryptedDns, subtitle, refr
             </div>
         </Card>
     );
-};
+});
 
 export default DnssecStats;

@@ -1,6 +1,6 @@
 .ReactTable .rt-th,
 .ReactTable .rt-td {
-    padding: 10px 15px;
+    padding: 12px 16px;
     overflow: hidden;
     text-overflow: ellipsis;
 }
@@ -9,9 +9,95 @@
     overflow: visible;
 }
 
+/* ReactTable Modern Layout & Flex structure */
+.ReactTable {
+    display: flex !important;
+    flex-direction: column !important;
+    position: relative !important;
+    width: 100% !important;
+}
+
+.ReactTable .rt-table {
+    order: 1 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    width: 100% !important;
+    flex: 0 0 auto !important;
+}
+
+.ReactTable .rt-thead {
+    flex: 0 0 auto !important;
+}
+
+.ReactTable .rt-tbody {
+    flex: 0 0 auto !important;
+    display: flex !important;
+    flex-direction: column !important;
+}
+
+/* Prevent rows from vertically expanding when there are few items (e.g. 1 client, 1 upstream) */
+.ReactTable .rt-tr-group {
+    flex: 0 0 auto !important;
+    height: auto !important;
+    min-height: 48px !important;
+}
+
+.ReactTable .rt-tr {
+    flex: 0 0 auto !important;
+    min-height: 48px !important;
+}
+
+.ReactTable .rt-tbody .rt-td {
+    min-height: 48px !important;
+    padding: 12px 16px !important;
+    display: flex !important;
+    align-items: center !important;
+}
+
+/* Hide empty padding rows so they don't render empty dummy border lines */
+.ReactTable .rt-tbody .rt-tr-group:has(.rt-tr.-padRow),
+.ReactTable .rt-tr.-padRow {
+    display: none !important;
+    border: none !important;
+    height: 0 !important;
+    min-height: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+}
+
+/* Clean, non-overlapping "No data" message in normal flow between rt-table and pagination */
 .ReactTable .rt-noData {
-    color: var(--rt-nodata-color);
-    background-color: var(--rt-nodata-bgcolor);
+    order: 2 !important;
+    position: static !important;
+    top: auto !important;
+    left: auto !important;
+    transform: none !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    min-height: 120px !important;
+    padding: 24px 16px !important;
+    color: #9ca3af !important;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    font-size: 14px !important;
+    font-weight: 500 !important;
+    text-align: center !important;
+    white-space: normal !important;
+    pointer-events: none !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+}
+
+.ReactTable .pagination-bottom,
+.ReactTable .-pagination {
+    order: 3 !important;
+}
+
+[data-theme='dark'] .ReactTable .rt-noData {
+    background: transparent !important;
+    color: #9ca3af !important;
 }
 
 .ReactTable .-loading {
@@ -19,40 +105,140 @@
     background-color: var(--rt-nodata-bgcolor);
 }
 
-.ReactTable .rt-noData {
-    border: 0;
-    box-shadow: none;
-}
-
-[data-theme='dark'] .ReactTable .rt-noData {
-    background: transparent;
-    color: var(--scolor);
-}
-
 .ReactTable .-loading .-loading-inner {
     color: var(--gray300);
 }
 
-.ReactTable .-pagination input,
-.ReactTable .-pagination select {
-    color: var(--rt-nodata-color);
-    background-color: var(--rt-nodata-bgcolor);
+/* Modern Polished Pagination */
+.ReactTable .-pagination {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    background: #1f1f1f !important;
+    border-top: 1px solid #333333 !important;
+    box-shadow: none !important;
+    padding: 14px 20px !important;
+    min-height: 60px !important;
+    border-radius: 0 0 12px 12px !important;
+    gap: 16px !important;
 }
 
-[data-theme='dark'] .ReactTable .rt-table::-webkit-scrollbar-track {
-    background-color: var(--card-bgcolor);
+.ReactTable .-pagination .-previous,
+.ReactTable .-pagination .-next {
+    flex: 0 0 auto !important;
+    width: auto !important;
 }
 
-[data-theme='dark'] .ReactTable .rt-table::-webkit-scrollbar-thumb {
-    background-color: #888888;
+.ReactTable .-pagination .-btn {
+    filter: none !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    height: 38px !important;
+    padding: 0 20px !important;
+    font-size: 13.5px !important;
+    font-weight: 600 !important;
+    border-radius: 9px !important;
+    border: 1px solid #444444 !important;
+    background: #2a2a2a !important;
+    color: #e5e7eb !important;
+    transition: all 0.18s ease !important;
+    cursor: pointer !important;
+    box-shadow: none !important;
+    letter-spacing: 0.01em !important;
 }
 
-[data-theme='dark'] .ReactTable .-pagination .-btn {
-    filter: invert(1);
+.ReactTable .-pagination .-btn:not([disabled]):hover {
+    background: #363636 !important;
+    border-color: #67b279 !important;
+    color: #67b279 !important;
+    transform: translateY(-1px) !important;
 }
 
-[data-theme='dark'] .ReactTable .-pagination .-btn:disabled {
-    opacity: 1;
+.ReactTable .-pagination .-btn:not([disabled]):active {
+    transform: translateY(0) !important;
+}
+
+.ReactTable .-pagination .-btn[disabled] {
+    opacity: 1 !important;
+    background: rgba(255, 255, 255, 0.03) !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    color: #64748b !important;
+    cursor: not-allowed !important;
+    transform: none !important;
+    box-shadow: none !important;
+}
+
+.ReactTable .-pagination .-center {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 18px !important;
+    flex: 1 1 auto !important;
+    margin: 0 !important;
+}
+
+.ReactTable .-pagination .-pageInfo {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    color: #9ca3af !important;
+    font-size: 13.5px !important;
+    font-weight: 500 !important;
+    margin: 0 !important;
+}
+
+.ReactTable .-pagination .-pageJump {
+    display: inline-block !important;
+    margin: 0 !important;
+}
+
+.ReactTable .-pagination .-pageJump input {
+    width: 48px !important;
+    height: 36px !important;
+    background: #2a2a2a !important;
+    border: 1px solid #444444 !important;
+    border-radius: 8px !important;
+    color: #ffffff !important;
+    font-size: 13.5px !important;
+    font-weight: 600 !important;
+    text-align: center !important;
+    padding: 0 4px !important;
+    outline: none !important;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease !important;
+}
+
+.ReactTable .-pagination .-pageJump input:focus {
+    border-color: #67b279 !important;
+    box-shadow: 0 0 0 2px rgba(103, 178, 121, 0.25) !important;
+}
+
+.ReactTable .-pagination .-totalPages {
+    color: #ffffff !important;
+    font-weight: 600 !important;
+}
+
+.ReactTable .-pagination .-pageSizeOptions {
+    margin: 0 !important;
+}
+
+.ReactTable .-pagination .-pageSizeOptions select {
+    height: 36px !important;
+    background: #2a2a2a !important;
+    border: 1px solid #444444 !important;
+    border-radius: 8px !important;
+    color: #ffffff !important;
+    font-size: 13.5px !important;
+    font-weight: 500 !important;
+    padding: 0 12px !important;
+    outline: none !important;
+    cursor: pointer !important;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease !important;
+}
+
+.ReactTable .-pagination .-pageSizeOptions select:focus {
+    border-color: #67b279 !important;
+    box-shadow: 0 0 0 2px rgba(103, 178, 121, 0.25) !important;
 }
 
 .rt-tr-group.logs__row--red {

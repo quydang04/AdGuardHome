@@ -19,20 +19,23 @@
 
 .toast {
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     margin: 0;
-    padding: 14px 16px;
-    font-weight: 600;
+    padding: 14px 20px;
+    font-weight: 500;
     color: #ffffff;
-    border-radius: 14px;
-    background: linear-gradient(135deg, rgba(236, 53, 53, 0.9), rgba(236, 53, 53, 0.82));
-    box-shadow: 0 14px 35px rgba(0, 0, 0, 0.2);
-    backdrop-filter: blur(8px);
+    border-radius: 12px;
+    background: #3d3d3d !important;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
     border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .toast--success {
-    background: linear-gradient(135deg, rgba(84, 194, 106, 0.9), rgba(63, 123, 217, 0.85));
+    background: #3d3d3d !important;
+}
+
+.toast--error {
+    background: #3d3d3d !important;
 }
 
 .toast:last-child {
@@ -44,44 +47,72 @@
     flex: 0 0 auto;
     align-items: center;
     justify-content: center;
-    margin-right: 12px;
-    color: #fff;
-    opacity: 0.9;
-    background: rgba(255, 255, 255, 0.12);
-    border-radius: 12px;
-    width: 32px;
-    height: 32px;
+    margin-right: 14px;
+    background: transparent;
+    border-radius: 0;
+    width: auto;
+    height: auto;
+}
+
+.toast--success .toast__icon {
+    color: #67b279;
+}
+
+.toast--error .toast__icon {
+    color: #e9653a;
+}
+
+.toast__icon svg {
+    width: 18px;
+    height: 18px;
 }
 
 .toast__content {
     flex: 1 1 auto;
-    margin: 0 12px 0 0;
+    margin: 0;
     text-overflow: ellipsis;
     overflow: hidden;
+    font-size: 14px;
+    font-weight: 500;
+    color: #ffffff;
+    line-height: 1.4;
 }
 
 .toast__content a {
     font-weight: 600;
-    color: #fff;
+    color: #67b279;
     text-decoration: underline;
 }
 
 .toast__dismiss {
-    display: block;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     flex: 0 0 auto;
     padding: 0;
-    background: rgba(255, 255, 255, 0.12);
+    background: transparent;
     border: 0;
     cursor: pointer;
     border-radius: 50%;
-    width: 32px;
-    height: 32px;
+    width: 24px;
+    height: 24px;
+    margin-left: 12px;
+    color: #9ca3af;
+    opacity: 0.6;
+    transition: opacity 0.2s ease, background 0.2s ease;
 }
 
 .toast__dismiss:hover,
 .toast__dismiss:focus {
     outline: none;
-    background: rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.1);
+    opacity: 1;
+}
+
+.toast__dismiss svg {
+    stroke: currentColor;
+    width: 16px;
+    height: 16px;
 }
 
 .toast-enter {

@@ -240,7 +240,8 @@
     align-items: center;
     padding: 0.75rem 1.5rem;
     border-bottom: 1px solid rgba(0, 0, 0, 0.03);
-    gap: 1.5rem;
+    gap: 1rem;
+    min-width: 0;
     transition: background-color 0.2s ease;
 }
 
@@ -263,22 +264,43 @@
 .info-card__row-label {
     font-size: 0.8125rem;
     color: var(--mdui-theme-on-surface);
-    opacity: 0.6;
+    opacity: 0.7;
     font-weight: 500;
-    min-width: 0;
-    flex-shrink: 1;
+    min-width: fit-content;
+    flex-shrink: 0;
 }
 
 .info-card__row-value {
     font-size: 0.85rem;
     font-weight: 600;
     text-align: right;
-    white-space: nowrap;
+    word-break: break-word;
+    white-space: normal;
+    max-width: 65%;
     color: var(--mdui-theme-on-surface);
     padding: 3px 8px;
     background: rgba(0, 0, 0, 0.02);
     border-radius: 8px;
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+@media (max-width: 575.98px) {
+    .info-card__row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.4rem;
+        padding: 0.75rem 1rem;
+    }
+
+    .info-card__row-label {
+        width: 100%;
+    }
+
+    .info-card__row-value {
+        max-width: 100%;
+        text-align: left;
+        align-self: flex-start;
+    }
 }
 
 [data-theme='dark'] .info-card__row-value {
@@ -322,4 +344,49 @@
     display: flex;
     align-items: center;
     gap: 0.75rem;
+}
+
+/* ── Dark theme matching v1.0 matte dark style ── */
+[data-theme='dark'] .gauge-card,
+[data-theme='dark'] .info-card {
+    background: #1f1f1f !important;
+    border: 1px solid #383838 !important;
+    border-radius: 14px !important;
+    box-shadow: none !important;
+}
+
+[data-theme='dark'] .gauge-card:hover,
+[data-theme='dark'] .info-card:hover {
+    border-color: #555555 !important;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4) !important;
+}
+
+[data-theme='dark'] .gauge-card__value,
+[data-theme='dark'] .info-card__row-value,
+[data-theme='dark'] .info-card__title {
+    color: #ffffff !important;
+}
+
+[data-theme='dark'] .gauge-card__label,
+[data-theme='dark'] .gauge-card__detail,
+[data-theme='dark'] .info-card__row-label {
+    color: #9ca3af !important;
+}
+
+[data-theme='dark'] .info-card__title {
+    background: transparent !important;
+    border-bottom: 1px solid #2e2e2e !important;
+}
+
+[data-theme='dark'] .info-card__row {
+    border-bottom: 1px solid #2e2e2e !important;
+}
+
+[data-theme='dark'] .info-card__row:hover {
+    background: rgba(255, 255, 255, 0.03) !important;
+}
+
+[data-theme='dark'] .info-card__row-value {
+    background: rgba(255, 255, 255, 0.06) !important;
+    color: #ffffff !important;
 }

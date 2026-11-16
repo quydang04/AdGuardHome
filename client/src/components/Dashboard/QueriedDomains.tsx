@@ -6,6 +6,7 @@ import { withTranslation, Trans } from 'react-i18next';
 
 import Card from '../ui/Card';
 import Cell from '../ui/Cell';
+import EmptyCardState from '../ui/EmptyCardState';
 import DomainCell from './DomainCell';
 
 import { DASHBOARD_TABLES_DEFAULT_PAGE_SIZE, STATUS_COLORS, TABLES_MIN_ROWS } from '../../helpers/constants';
@@ -39,33 +40,41 @@ interface QueriedDomainsProps {
     t: (...args: unknown[]) => string;
 }
 
-const QueriedDomains = ({ t, refreshButton, topQueriedDomains, subtitle, dnsQueries }: QueriedDomainsProps) => (
-    <Card title={t('stats_query_domain')} subtitle={subtitle} bodyType="card-table" refresh={refreshButton}>
-        <ReactTable
-            data={topQueriedDomains.map(({ name: domain, count }: any) => ({
-                domain,
-                count,
-            }))}
-            columns={[
-                {
-                    Header: <Trans>domain</Trans>,
-                    accessor: 'domain',
-                    Cell: DomainCell,
-                },
-                {
-                    Header: <Trans>requests_count</Trans>,
-                    accessor: 'count',
-                    maxWidth: 190,
-                    Cell: countCell(dnsQueries),
-                },
-            ]}
-            showPagination={false}
-            noDataText={t('no_domains_found')}
-            minRows={TABLES_MIN_ROWS}
-            defaultPageSize={DASHBOARD_TABLES_DEFAULT_PAGE_SIZE}
-            className="-highlight card-table-overflow--limited stats__table"
-        />
-    </Card>
-);
+const QueriedDomains = ({ t, refreshButton, topQueriedDomains, subtitle, dnsQueries }: QueriedDomainsProps) => {
+    const hasData = topQueriedDomains && topQueriedDomains.length > 0;
+
+    return (
+        <Card title={t('stats_query_domain')} subtitle={subtitle} bodyType="card-table" refresh={refreshButton}>
+            {!hasData ? (
+                <EmptyCardState />
+            ) : (
+                <ReactTable
+                    data={topQueriedDomains.map(({ name: domain, count }: any) => ({
+                        domain,
+                        count,
+                    }))}
+                    columns={[
+                        {
+                            Header: <Trans>domain</Trans>,
+                            accessor: 'domain',
+                            Cell: DomainCell,
+                        },
+                        {
+                            Header: <Trans>requests_count</Trans>,
+                            accessor: 'count',
+                            maxWidth: 190,
+                            Cell: countCell(dnsQueries),
+                        },
+                    ]}
+                    showPagination={false}
+                    noDataText={t('no_domains_found')}
+                    minRows={TABLES_MIN_ROWS}
+                    defaultPageSize={DASHBOARD_TABLES_DEFAULT_PAGE_SIZE}
+                    className="-highlight card-table-overflow--limited stats__table"
+                />
+            )}
+        </Card>
+    );
+};
 
 export default withTranslation()(QueriedDomains);

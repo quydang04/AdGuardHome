@@ -9,6 +9,7 @@ import classNames from 'classnames';
 
 import Card from '../ui/Card';
 import Cell from '../ui/Cell';
+import EmptyCardState from '../ui/EmptyCardState';
 
 import { getPercent, sortIp } from '../../helpers/helpers';
 import {
@@ -159,47 +160,53 @@ const Clients = ({ refreshButton, subtitle }: ClientsProps) => {
         shallowEqual,
     );
 
+    const hasData = topClients && topClients.length > 0;
+
     return (
         <Card title={t('top_clients')} subtitle={subtitle} bodyType="card-table" refresh={refreshButton}>
-            <ReactTable
-                data={topClients.map(({ name: ip, count, info, blocked }: any) => ({
-                    ip,
-                    count,
-                    info,
-                    blocked,
-                }))}
-                columns={[
-                    {
-                        Header: <Trans>client_table_header</Trans>,
-                        accessor: 'ip',
-                        sortMethod: sortIp,
-                        Cell: ClientCell,
-                    },
-                    {
-                        Header: <Trans>requests_count</Trans>,
-                        accessor: 'count',
-                        minWidth: 180,
-                        maxWidth: 200,
-                        Cell: CountCell,
-                    },
-                ]}
-                showPagination={false}
-                noDataText={t('no_clients_found')}
-                minRows={TABLES_MIN_ROWS}
-                defaultPageSize={DASHBOARD_TABLES_DEFAULT_PAGE_SIZE}
-                className="-highlight card-table-overflow--limited clients__table"
-                getTrProps={(_state: any, rowInfo: any) => {
-                    if (!rowInfo) {
-                        return {};
-                    }
+            {!hasData ? (
+                <EmptyCardState />
+            ) : (
+                <ReactTable
+                    data={topClients.map(({ name: ip, count, info, blocked }: any) => ({
+                        ip,
+                        count,
+                        info,
+                        blocked,
+                    }))}
+                    columns={[
+                        {
+                            Header: <Trans>client_table_header</Trans>,
+                            accessor: 'ip',
+                            sortMethod: sortIp,
+                            Cell: ClientCell,
+                        },
+                        {
+                            Header: <Trans>requests_count</Trans>,
+                            accessor: 'count',
+                            minWidth: 180,
+                            maxWidth: 200,
+                            Cell: CountCell,
+                        },
+                    ]}
+                    showPagination={false}
+                    noDataText={t('no_clients_found')}
+                    minRows={TABLES_MIN_ROWS}
+                    defaultPageSize={DASHBOARD_TABLES_DEFAULT_PAGE_SIZE}
+                    className="-highlight card-table-overflow--limited clients__table"
+                    getTrProps={(_state: any, rowInfo: any) => {
+                        if (!rowInfo) {
+                            return {};
+                        }
 
-                    const {
-                        info: { disallowed },
-                    } = rowInfo.original;
+                        const {
+                            info: { disallowed },
+                        } = rowInfo.original;
 
-                    return disallowed ? { className: 'logs__row--red' } : {};
-                }}
-            />
+                        return disallowed ? { className: 'logs__row--red' } : {};
+                    }}
+                />
+            )}
         </Card>
     );
 };

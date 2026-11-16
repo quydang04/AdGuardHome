@@ -361,6 +361,21 @@ func TestTLSManager_HandleTLSStatus(t *testing.T) {
 func TestValidateTLSSettings(t *testing.T) {
 	storeGlobals(t)
 
+	// Don't depend on the web address left in the global config by other
+	// tests: on Windows, binding a specific address succeeds even if the port
+	// is busy on the wildcard address.
+	config.Lock()
+	prevAddr := config.HTTPConfig.Address
+	config.HTTPConfig.Address = netip.AddrPort{}
+	config.Unlock()
+
+	t.Cleanup(func() {
+		config.Lock()
+		defer config.Unlock()
+
+		config.HTTPConfig.Address = prevAddr
+	})
+
 	var (
 		ctx = testutil.ContextWithTimeout(t, testTimeout)
 		err error

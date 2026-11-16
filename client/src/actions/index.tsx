@@ -118,7 +118,14 @@ export const toggleProtectionFailure = createAction('TOGGLE_PROTECTION_FAILURE')
 export const toggleProtectionSuccess = createAction('TOGGLE_PROTECTION_SUCCESS');
 
 const getDisabledMessage = (time: any) => {
-    switch (time) {
+    if (!time) {
+        return 'disabled_protection';
+    }
+
+    const matchedTime =
+        Object.values(DISABLE_PROTECTION_TIMINGS).find((t) => Math.abs(t - time) <= 1500) || time;
+
+    switch (matchedTime) {
         case DISABLE_PROTECTION_TIMINGS.HALF_MINUTE:
             return i18next.t('disable_notify_for_seconds', {
                 count: msToSeconds(DISABLE_PROTECTION_TIMINGS.HALF_MINUTE),

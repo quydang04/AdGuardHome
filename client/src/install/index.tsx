@@ -10,9 +10,13 @@ import '../theme/mdui-bridge.css';
 import configureStore from '../configureStore';
 import reducers from '../reducers/install';
 import '../i18n';
+import { setUITheme } from '../helpers/helpers';
+import { THEMES } from '../helpers/constants';
 
 import { Setup } from './Setup';
 import { InstallState } from '../initialState';
+
+setUITheme();
 
 const store = configureStore<InstallState>(reducers, {});
 

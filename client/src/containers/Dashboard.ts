@@ -1,7 +1,7 @@
 import { connect } from 'react-redux';
 
 import { toggleProtection, getClients } from '../actions';
-import { getStats, getStatsConfig } from '../actions/stats';
+import { getStats, getStatsConfig, setStatsConfig } from '../actions/stats';
 import { getAccessList } from '../actions/access';
 import { getFilteringStatus } from '../actions/filtering';
 
@@ -19,6 +19,7 @@ type DispatchProps = {
     getClients: (...args: unknown[]) => unknown;
     getStats: (...args: unknown[]) => unknown;
     getStatsConfig: (...args: unknown[]) => unknown;
+    setStatsConfig: (...args: unknown[]) => unknown;
     getAccessList: () => (dispatch: any) => void;
     getFilteringStatus: (...args: unknown[]) => unknown;
 };
@@ -28,6 +29,7 @@ const mapDispatchToProps: DispatchProps = {
     getClients,
     getStats,
     getStatsConfig,
+    setStatsConfig,
     getAccessList,
     getFilteringStatus,
 };

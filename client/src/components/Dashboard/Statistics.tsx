@@ -1,10 +1,7 @@
 import React from 'react';
-
-import { Link } from 'react-router-dom';
 import { withTranslation, Trans } from 'react-i18next';
 
 import { StatsCard, STATS_CARD_VARIANTS } from './StatsCard';
-
 import { getPercent } from '../../helpers/helpers';
 import { RESPONSE_FILTER } from '../../helpers/constants';
 
@@ -30,64 +27,47 @@ const Statistics = ({
     numReplacedSafebrowsing,
     numReplacedParental,
 }: StatisticsProps) => (
-    <div className="row">
-        <div className="col-sm-6 col-lg-3">
+    <div className="row stats-cards-row">
+        <div className="col-6 col-lg-3">
             <StatsCard
                 total={numDnsQueries}
                 lineData={dnsQueries}
-                title={
-                    <Link to="logs">
-                        <Trans>dns_query</Trans>
-                    </Link>
-                }
+                title={<Trans>dns_query</Trans>}
                 variant={STATS_CARD_VARIANTS.QUERIES}
+                to="logs"
             />
         </div>
 
-        <div className="col-sm-6 col-lg-3">
+        <div className="col-6 col-lg-3">
             <StatsCard
                 total={numBlockedFiltering}
                 lineData={blockedFiltering}
                 percent={getPercent(numDnsQueries, numBlockedFiltering)}
-                title={
-                    <Trans
-                        components={[
-                            <Link to={`logs?response_status=${RESPONSE_FILTER.BLOCKED.QUERY}`} key="0">
-                                link
-                            </Link>,
-                        ]}>
-                        blocked_by
-                    </Trans>
-                }
+                title={<Trans>ads_blocked</Trans>}
                 variant={STATS_CARD_VARIANTS.ADS}
+                to={`logs?response_status=${RESPONSE_FILTER.BLOCKED.QUERY}`}
             />
         </div>
 
-        <div className="col-sm-6 col-lg-3">
+        <div className="col-6 col-lg-3">
             <StatsCard
                 total={numReplacedSafebrowsing}
                 lineData={replacedSafebrowsing}
                 percent={getPercent(numDnsQueries, numReplacedSafebrowsing)}
-                title={
-                    <Link to={`logs?response_status=${RESPONSE_FILTER.BLOCKED_THREATS.QUERY}`}>
-                        <Trans>stats_malware_phishing</Trans>
-                    </Link>
-                }
+                title={<Trans>threats_blocked</Trans>}
                 variant={STATS_CARD_VARIANTS.THREATS}
+                to={`logs?response_status=${RESPONSE_FILTER.BLOCKED_THREATS.QUERY}`}
             />
         </div>
 
-        <div className="col-sm-6 col-lg-3">
+        <div className="col-6 col-lg-3">
             <StatsCard
                 total={numReplacedParental}
                 lineData={replacedParental}
                 percent={getPercent(numDnsQueries, numReplacedParental)}
-                title={
-                    <Link to={`logs?response_status=${RESPONSE_FILTER.BLOCKED_ADULT_WEBSITES.QUERY}`}>
-                        <Trans>stats_adult</Trans>
-                    </Link>
-                }
+                title={<Trans>adult_blocked</Trans>}
                 variant={STATS_CARD_VARIANTS.ADULT}
+                to={`logs?response_status=${RESPONSE_FILTER.BLOCKED_ADULT_WEBSITES.QUERY}`}
             />
         </div>
     </div>

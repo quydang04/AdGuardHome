@@ -770,14 +770,14 @@ export const setTheme = (theme: any) => {
  * @returns {string}
  */
 
-export const getTheme = () => LocalStorageHelper.getItem(LOCAL_STORAGE_KEYS.THEME) || THEMES.light;
+export const getTheme = () => LocalStorageHelper.getItem(LOCAL_STORAGE_KEYS.THEME) || THEMES.dark;
 
 /**
  * Sets UI theme.
  *
  * @param theme
  */
-export const setUITheme = (theme: any) => {
+export const setUITheme = (theme?: any) => {
     let currentTheme = theme || getTheme();
 
     if (currentTheme === THEMES.auto) {
@@ -786,6 +786,9 @@ export const setUITheme = (theme: any) => {
     }
     setTheme(currentTheme);
     document.body.dataset.theme = currentTheme;
+    if (document.documentElement) {
+        document.documentElement.setAttribute('data-theme', currentTheme);
+    }
 };
 
 /**

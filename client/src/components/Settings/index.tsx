@@ -516,6 +516,7 @@ class Settings extends Component<SettingsProps, SettingsState> {
                     </button>
                     {portMessage && (
                         <div
+                            style={{ whiteSpace: 'pre-line' }}
                             className={cn('settings__message', {
                                 'settings__message--success': portMessageType === 'success',
                                 'settings__message--error': portMessageType === 'error',
@@ -641,9 +642,13 @@ class Settings extends Component<SettingsProps, SettingsState> {
 
             this.setState({ importExportProcessing: true, importExportMessage: '', importExportMessageType: '' });
 
-            await apiClient.importSettings(data);
+            const res: any = await apiClient.importSettings(data);
+            const warnings: string[] = Array.isArray(res?.warnings) ? res.warnings : [];
+
             this.setState({
-                importExportMessage: t('settings_imported') as string,
+                importExportMessage: warnings.length > 0
+                    ? `${t('settings_imported_warnings') as string}\n- ${warnings.join('\n- ')}`
+                    : t('settings_imported') as string,
                 importExportMessageType: 'success',
             });
         } catch (error) {
@@ -695,6 +700,7 @@ class Settings extends Component<SettingsProps, SettingsState> {
                     </div>
                     {importExportMessage && (
                         <div
+                            style={{ whiteSpace: 'pre-line' }}
                             className={cn('settings__message', {
                                 'settings__message--success': importExportMessageType === 'success',
                                 'settings__message--error': importExportMessageType === 'error',

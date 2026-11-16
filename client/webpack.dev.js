@@ -1,8 +1,10 @@
 import { merge } from 'webpack-merge';
-import { load as loadYaml } from 'js-yaml';
+import yaml from 'js-yaml';
 import fs from 'fs';
 import { BASE_URL } from './constants.js';
 import common from './webpack.common.js';
+
+const { load: loadYaml } = yaml;
 
 const ZERO_HOST = '0.0.0.0';
 const LOCALHOST = '127.0.0.1';

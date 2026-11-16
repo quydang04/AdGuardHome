@@ -6,9 +6,8 @@ import { withTranslation, Trans } from 'react-i18next';
 
 import { TFunction } from 'i18next';
 import Card from '../ui/Card';
-
 import Cell from '../ui/Cell';
-
+import EmptyCardState from '../ui/EmptyCardState';
 import DomainCell from './DomainCell';
 
 import { getPercent } from '../../helpers/helpers';
@@ -38,33 +37,41 @@ interface UpstreamResponsesProps {
     t: TFunction;
 }
 
-const UpstreamResponses = ({ t, refreshButton, topUpstreamsResponses, subtitle }: UpstreamResponsesProps) => (
-    <Card title={t('top_upstreams')} subtitle={subtitle} bodyType="card-table" refresh={refreshButton}>
-        <ReactTable
-            data={topUpstreamsResponses.map(({ name: domain, count }: { name: string; count: number }) => ({
-                domain,
-                count,
-            }))}
-            columns={[
-                {
-                    Header: <Trans>upstream</Trans>,
-                    accessor: 'domain',
-                    Cell: DomainCell,
-                },
-                {
-                    Header: <Trans>requests_count</Trans>,
-                    accessor: 'count',
-                    maxWidth: 190,
-                    Cell: CountCell(getTotalUpstreamRequests(topUpstreamsResponses)),
-                },
-            ]}
-            showPagination={false}
-            noDataText={t('no_upstreams_data_found')}
-            minRows={TABLES_MIN_ROWS}
-            defaultPageSize={DASHBOARD_TABLES_DEFAULT_PAGE_SIZE}
-            className="-highlight card-table-overflow--limited stats__table"
-        />
-    </Card>
-);
+const UpstreamResponses = ({ t, refreshButton, topUpstreamsResponses, subtitle }: UpstreamResponsesProps) => {
+    const hasData = topUpstreamsResponses && topUpstreamsResponses.length > 0;
+
+    return (
+        <Card title={t('top_upstreams')} subtitle={subtitle} bodyType="card-table" refresh={refreshButton}>
+            {!hasData ? (
+                <EmptyCardState />
+            ) : (
+                <ReactTable
+                    data={topUpstreamsResponses.map(({ name: domain, count }: { name: string; count: number }) => ({
+                        domain,
+                        count,
+                    }))}
+                    columns={[
+                        {
+                            Header: <Trans>upstream</Trans>,
+                            accessor: 'domain',
+                            Cell: DomainCell,
+                        },
+                        {
+                            Header: <Trans>requests_count</Trans>,
+                            accessor: 'count',
+                            maxWidth: 190,
+                            Cell: CountCell(getTotalUpstreamRequests(topUpstreamsResponses)),
+                        },
+                    ]}
+                    showPagination={false}
+                    noDataText={t('no_upstreams_data_found')}
+                    minRows={TABLES_MIN_ROWS}
+                    defaultPageSize={DASHBOARD_TABLES_DEFAULT_PAGE_SIZE}
+                    className="-highlight card-table-overflow--limited stats__table"
+                />
+            )}
+        </Card>
+    );
+};
 
 export default withTranslation()(UpstreamResponses);

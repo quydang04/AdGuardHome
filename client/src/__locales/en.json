@@ -1,4 +1,7 @@
 {
+    "custom_build_badge": "Custom Edition",
+    "custom_build_desc": "AdGuard Home build featuring modern Flat Dark UI and enhanced user experience customized by quydangblog.",
+    "developed_by": "Author / Blog",
     "client_settings": "Client settings",
     "example_upstream_reserved": "an upstream <0>for specific domains</0>;",
     "example_multiple_upstreams_reserved": "multiple upstreams <0>for specific domains</0>;",
@@ -911,7 +914,8 @@
     "export_settings_desc": "Download all current settings as a JSON file.",
     "import_settings_desc": "Upload a JSON settings file to restore configuration.",
     "settings_exported": "Settings exported successfully",
-    "settings_imported": "Settings imported successfully. Please restart AdGuard Home for all changes to take effect.",
+    "settings_imported": "Settings imported and applied.",
+    "settings_imported_warnings": "Settings imported, but some items could not be applied:",
     "settings_export_error": "Failed to export settings",
     "settings_import_error": "Failed to import settings",
     "settings_import_confirm": "Are you sure you want to import these settings? This will overwrite your current configuration.",

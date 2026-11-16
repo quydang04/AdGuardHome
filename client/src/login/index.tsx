@@ -13,8 +13,14 @@ import '../i18n';
 
 import { Login } from './Login';
 import { LoginState } from '../initialState';
+import { setUITheme } from '../helpers/helpers';
 
-const store = configureStore<LoginState>(reducers, {});
+setUITheme();
+
+const store = configureStore<LoginState>(reducers, {
+    login: { processingLogin: false },
+    toasts: { notices: [] },
+} as any);
 
 ReactDOM.render(
     <Provider store={store}>

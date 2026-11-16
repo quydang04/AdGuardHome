@@ -1,7 +1,6 @@
 package aghnet
 
 import (
-	"slices"
 	"strings"
 
 	"github.com/AdguardTeam/urlfilter"
@@ -59,7 +58,7 @@ func (e *IgnoreEngine) Has(host string) (ignore bool) {
 
 // Values returns a copy of list of rules for ignoring hostnames.
 func (e *IgnoreEngine) Values() (ignored []string) {
-	return slices.Clone(e.ignored)
+	return append([]string{}, e.ignored...)
 }
 
 // IsEnabled returns true if hostnames ignoring is enabled.

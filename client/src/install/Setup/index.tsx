@@ -1,11 +1,10 @@
-import React, { useEffect, Fragment } from 'react';
+import React, { useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import debounce from 'lodash/debounce';
 
 import * as actionCreators from '../../actions/install';
-
-import { getWebAddress } from '../../helpers/helpers';
-import { INSTALL_TOTAL_STEPS, ALL_INTERFACES_IP, DEBOUNCE_TIMEOUT } from '../../helpers/constants';
+import { getWebAddress, setUITheme } from '../../helpers/helpers';
+import { INSTALL_TOTAL_STEPS, ALL_INTERFACES_IP, DEBOUNCE_TIMEOUT, THEMES } from '../../helpers/constants';
 
 import Loading from '../../components/ui/Loading';
 import Greeting from './Greeting';
@@ -15,19 +14,30 @@ import { Submit } from './Submit';
 import { Progress } from './Progress';
 import { Auth } from './Auth';
 import Toasts from '../../components/Toasts';
-import Footer from '../../components/ui/Footer';
 import Icons from '../../components/ui/Icons';
-import { Logo } from '../../components/ui/svg/logo';
+import { LanguageDropdown } from '../../components/ui/LanguageDropdown';
+import { ThemeDropdown } from '../../components/ui/ThemeDropdown';
 
 import './Setup.css';
 import '../../components/ui/Tabler.css';
 import { InstallInterface, InstallState } from '../../initialState';
+
+// SVG Icons matching modern UI
+const ShieldLogoIcon = () => (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="#67b279" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 2L4 5v6.09c0 5.05 3.41 9.76 8 10.91 4.59-1.15 8-5.86 8-10.91V5l-8-3zm-1.06 14.54L6.7 12.3a.75.75 0 0 1 1.06-1.06l3.18 3.18 6.36-6.36a.75.75 0 0 1 1.06 1.06l-7.42 7.42a.75.75 0 0 1-1.06 0z" />
+    </svg>
+);
 
 export const Setup = () => {
     const dispatch = useDispatch();
 
     const install = useSelector((state: InstallState) => state.install);
     const { processingDefault, step, web, dns, staticIp, interfaces } = install;
+
+    useEffect(() => {
+        setUITheme();
+    }, []);
 
     useEffect(() => {
         dispatch(actionCreators.getDefaultAddresses());
@@ -107,17 +117,55 @@ export const Setup = () => {
     return (
         <>
             <div className="setup">
-                <div className="setup__container">
-                    <Logo className="setup__logo" />
-                    {renderPage(step, { web, dns, staticIp }, interfaces)}
-                    <Progress step={step} />
-                </div>
+                {/* Top Navigation Bar */}
+                <header className="setup__header">
+                    <div className="setup__brand">
+                        <ShieldLogoIcon />
+                        <span className="setup__brand-text">adguard home</span>
+                    </div>
 
-                <Footer />
+                    <div className="setup__actions">
+                        <ThemeDropdown direction="down" />
+                        <LanguageDropdown direction="down" />
+                    </div>
+                </header>
+
+                {/* Content Area with Centered Card */}
+                <main className="setup__content">
+                    <div className="setup__container">
+                        {step === 1 && (
+                            <div className="setup__card-logo">
+                                <svg width="56" height="56" viewBox="0 0 24 24" fill="#67b279" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M12 2L4 5v6.09c0 5.05 3.41 9.76 8 10.91 4.59-1.15 8-5.86 8-10.91V5l-8-3zm-1.06 14.54L6.7 12.3a.75.75 0 0 1 1.06-1.06l3.18 3.18 6.36-6.36a.75.75 0 0 1 1.06 1.06l-7.42 7.42a.75.75 0 0 1-1.06 0z" />
+                                </svg>
+                            </div>
+                        )}
+                        {renderPage(step, { web, dns, staticIp }, interfaces)}
+                        <Progress step={step} />
+                    </div>
+                </main>
+
+                <footer className="setup__footer">
+                    <span>
+                        Copyright &copy; {new Date().getFullYear()}{' '}
+                        <a
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            href="https://link.adtidy.org/forward.html?action=home&from=ui&app=home">
+                            AdGuard
+                        </a>
+                        {' '}&ndash; Customize by{' '}
+                        <a
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            href="http://quydang.name.vn">
+                            quydangblog
+                        </a>
+                    </span>
+                </footer>
             </div>
 
             <Toasts />
-
             <Icons />
         </>
     );

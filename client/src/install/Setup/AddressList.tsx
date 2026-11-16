@@ -15,11 +15,12 @@ const renderItem = ({ ip, port, isDns }: renderItemProps) => {
     const dnsAddress = getDnsAddress(ip, port);
 
     return (
-        <li key={ip}>
+        <li key={ip} className="setup__address-item">
+            <span className="setup__address-dot" />
             {isDns ? (
-                <strong>{dnsAddress}</strong>
+                <strong className="setup__address-text">{dnsAddress}</strong>
             ) : (
-                <a href={webAddress} target="_blank" rel="noopener noreferrer">
+                <a href={webAddress} target="_blank" rel="noopener noreferrer" className="setup__address-link">
                     {webAddress}
                 </a>
             )}
@@ -35,7 +36,7 @@ interface AddressListProps {
 }
 
 const AddressList = ({ address, interfaces, port, isDns }: AddressListProps) => (
-    <ul className="list-group pl-4">
+    <ul className="setup__address-list">
         {address === ALL_INTERFACES_IP
             ? getIpList(interfaces).map((ip: any) =>
                   renderItem({

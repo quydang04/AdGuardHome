@@ -19,7 +19,7 @@ interface DonutChartProps {
     total: number;
 }
 
-const DonutChart = ({ data, total }: DonutChartProps) => {
+const DonutChart = React.memo(({ data, total }: DonutChartProps) => {
     const size = 160;
     const strokeWidth = 28;
     const radius = (size - strokeWidth) / 2;
@@ -62,7 +62,7 @@ const DonutChart = ({ data, total }: DonutChartProps) => {
             })}
         </svg>
     );
-};
+});
 
 interface GafamDominanceProps {
     gafamStats: Record<string, number>;
@@ -141,4 +141,4 @@ const GafamDominance = ({ gafamStats, numDnsQueries, subtitle, refreshButton }: 
     );
 };
 
-export default GafamDominance;
+export default React.memo(GafamDominance);

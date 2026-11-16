@@ -1,7 +1,6 @@
 package home
 
 import (
-	"encoding/json"
 	"io"
 	"log/slog"
 	"net/netip"
@@ -21,6 +20,9 @@ import (
 // exportConfig is the JSON structure used for exporting and importing all
 // AdGuard Home settings.
 type exportConfig struct {
+	// Version is the export format version.  Files without it (or with 0) are
+	// treated as legacy and are normalized by [decodeImport].
+	Version       int                         `json:"export_version,omitempty"`
 	DNS           *exportDNSConfig            `json:"dns"`
 	DHCP          *dhcpd.ServerConfig         `json:"dhcp,omitempty"`
 	Filtering     *exportFilteringConfig      `json:"filtering,omitempty"`
@@ -187,7 +189,15 @@ func (web *webAPI) handleExportSettings(w http.ResponseWriter, r *http.Request) 
 	ctx := r.Context()
 	l := web.logger
 
-	export := &exportConfig{}
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Disposition", `attachment; filename="adguardhome-settings.json"`)
+	aghhttp.WriteJSONResponseOK(ctx, l, w, r, buildExportConfig())
+}
+
+// buildExportConfig collects the current settings into an [exportConfig].  It
+// locks config itself.
+func buildExportConfig() (export *exportConfig) {
+	export = &exportConfig{Version: exportFormatVersion}
 
 	config.RLock()
 	defer config.RUnlock()
@@ -398,9 +408,7 @@ func (web *webAPI) handleExportSettings(w http.ResponseWriter, r *http.Request) 
 		}
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Content-Disposition", `attachment; filename="adguardhome-settings.json"`)
-	aghhttp.WriteJSONResponseOK(ctx, l, w, r, export)
+	return export
 }
 
 // handleImportSettings handles POST /control/settings/import.
@@ -415,12 +423,15 @@ func (web *webAPI) handleImportSettings(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	var imp exportConfig
-	err = json.Unmarshal(body, &imp)
+	imp, warnings, err := decodeImport(body)
 	if err != nil {
 		aghhttp.ErrorAndLog(ctx, l, r, w, http.StatusBadRequest, "parsing json: %s", err)
 
 		return
+	}
+
+	for _, warn := range warnings {
+		l.WarnContext(ctx, "import settings", "warning", warn)
 	}
 
 	l.InfoContext(ctx, "importing settings")
@@ -429,7 +440,7 @@ func (web *webAPI) handleImportSettings(w http.ResponseWriter, r *http.Request) 
 		config.Lock()
 		defer config.Unlock()
 
-		err = applyImportedSettings(l, &imp)
+		err = applyImportedSettings(l, imp)
 	}()
 
 	if err != nil {
@@ -440,6 +451,12 @@ func (web *webAPI) handleImportSettings(w http.ResponseWriter, r *http.Request) 
 
 		return
 	}
+
+	// Push the imported values into the running services.  This must happen
+	// before confModifier.Apply, because config.write reads the live state of
+	// the services back into config, which would otherwise overwrite the
+	// imported values with the old ones.
+	warnings = append(warnings, web.applyImportedRuntime(ctx, imp)...)
 
 	web.confModifier.Apply(ctx)
 
@@ -455,9 +472,11 @@ func (web *webAPI) handleImportSettings(w http.ResponseWriter, r *http.Request) 
 	l.InfoContext(ctx, "settings imported successfully")
 
 	aghhttp.WriteJSONResponseOK(ctx, l, w, r, struct {
-		Status string `json:"status"`
+		Status   string   `json:"status"`
+		Warnings []string `json:"warnings,omitempty"`
 	}{
-		Status: "ok",
+		Status:   "ok",
+		Warnings: warnings,
 	})
 }
 

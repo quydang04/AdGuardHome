@@ -1,0 +1,55 @@
+.stats-cell {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 12px;
+    width: 100%;
+}
+
+.stats-cell__value {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 13px;
+    white-space: nowrap;
+}
+
+.stats-cell__value strong,
+.stats-cell__value strong a {
+    font-weight: 600;
+    color: var(--black, #1e293b);
+    text-decoration: none;
+}
+
+.stats-cell__percent {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--card-subtitle-color, #9aa0ac);
+}
+
+.stats-cell__bar {
+    width: 75px;
+    height: 4px;
+    background: var(--border-color, rgba(0, 40, 100, 0.08));
+    border-radius: 2px;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.stats-cell__bar-fill {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 0.3s ease;
+}
+
+/* In blocked domains table, text and bar are orange/red */
+.blocked-domains__table .stats-cell__value strong,
+.blocked-domains__table .stats-cell__value strong a,
+.blocked-domains__table .stats-cell__percent {
+    color: #f97316 !important;
+}
+
+[data-theme='dark'] .stats-cell__value strong,
+[data-theme='dark'] .stats-cell__value strong a {
+    color: #f1f5f9;
+}

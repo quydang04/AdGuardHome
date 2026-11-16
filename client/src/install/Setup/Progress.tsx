@@ -11,7 +11,9 @@ type Props = {
 
 export const Progress = ({ step }: Props) => (
     <div className="setup__progress">
-        <Trans>install_step</Trans> {step}/{INSTALL_TOTAL_STEPS}
+        <div className="setup__progress-text">
+            <Trans>install_step</Trans> {step}/{INSTALL_TOTAL_STEPS}
+        </div>
         <div className="setup__progress-wrap">
             <div className="setup__progress-inner" style={{ width: `${getProgressPercent(step)}%` }} />
         </div>

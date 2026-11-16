@@ -3,6 +3,7 @@ package home
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/AdguardTeam/golibs/testutil"
@@ -25,6 +26,11 @@ func TestConfigFilePath(t *testing.T) {
 	brokenLinkPath := filepath.Join(workDir, brokenLinkConf)
 
 	err := os.Symlink(targetPath, linkPath)
+	if err != nil && runtime.GOOS == "windows" {
+		// Creating symlinks on Windows requires a privilege that is often not
+		// held, e.g. without Developer Mode.
+		t.Skipf("symlinks are not permitted: %s", err)
+	}
 	require.NoError(t, err)
 
 	err = os.Symlink(missingPath, brokenLinkPath)

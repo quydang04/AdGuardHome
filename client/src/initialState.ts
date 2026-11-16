@@ -285,6 +285,7 @@ export type StatsData = {
     topBlockedFilterLists: { name: string; count: number }[];
     systemInfo: SystemInfoData | null;
     gafamStats: Record<string, number>;
+    ignored?: string[];
 };
 
 export type ClientsData = {

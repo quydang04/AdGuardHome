@@ -101,6 +101,10 @@ type Interface interface {
 	// WriteDiskConfig puts the Interface's configuration to the dc.
 	WriteDiskConfig(dc *Config)
 
+	// UpdateConfig replaces the runtime configuration, e.g. on settings
+	// import.
+	UpdateConfig(enabled bool, limit time.Duration, ignored []string, ignoredEnabled bool) (err error)
+
 	// ShouldCount returns true if request for the host should be counted.
 	ShouldCount(host string, qType, qClass uint16, ids []string) bool
 

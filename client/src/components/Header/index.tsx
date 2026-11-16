@@ -43,9 +43,9 @@ const Header = () => {
                         <span className="header-toggler-icon" />
                     </div>
 
-                    <div className="header__column">
+                    <div className="header__column header__column--brand">
                         <div className="d-flex align-items-center">
-                            <Link to="/" className="nav-link pl-0 pr-1">
+                            <Link to="/" className="header__brand-link" title="AdGuard Home">
                                 <Logo className="header-brand-img" />
                             </Link>
                             {!processing && isCoreRunning && (
@@ -56,10 +56,10 @@ const Header = () => {
 
                     <Menu pathname={pathname} isMenuOpen={isMenuOpen} closeMenu={closeMenu} />
 
-                    <div className="header__column">
+                    <div className="header__column header__column--right">
                         <div className="header__right">
                             {!processingProfile && name && (
-                                <a href="control/logout" className="btn btn-sm btn-outline-secondary" data-testid="sign_out">
+                                <a href="control/logout" className="btn btn-sm btn-outline-secondary header__btn-logout" data-testid="sign_out">
                                     {t('sign_out')}
                                 </a>
                             )}

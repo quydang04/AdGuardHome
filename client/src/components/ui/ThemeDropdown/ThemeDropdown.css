@@ -1,0 +1,176 @@
+.theme-dropdown {
+    position: relative;
+    display: inline-block;
+    user-select: none;
+}
+
+/* Trigger Button */
+.theme-dropdown__btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    background: transparent;
+    border: none;
+    padding: 6px 10px;
+    border-radius: 8px;
+    color: #e2e8f0;
+    font-size: 13.5px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.18s ease;
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+.theme-dropdown__btn:hover {
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.theme-dropdown__btn:focus,
+.theme-dropdown__btn:focus-visible {
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+.theme-dropdown__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: inherit;
+}
+
+.theme-dropdown__label {
+    font-size: 13px;
+    font-weight: 500;
+    color: inherit;
+}
+
+/* Chevron */
+.theme-dropdown__chevron {
+    display: inline-flex;
+    align-items: center;
+    transition: transform 0.22s ease;
+    color: #94a3b8;
+}
+
+.theme-dropdown__chevron--open {
+    transform: rotate(180deg);
+}
+
+/* Dropdown Menu Card */
+.theme-dropdown__menu {
+    position: absolute;
+    right: 0;
+    min-width: 150px;
+    background: #363636;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55), 0 2px 8px rgba(0, 0, 0, 0.25);
+    padding: 8px 6px;
+    z-index: 1050;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    animation: themeFadeIn 0.18s ease-out;
+}
+
+.theme-dropdown--down .theme-dropdown__menu {
+    top: calc(100% + 8px);
+}
+
+.theme-dropdown--up .theme-dropdown__menu {
+    bottom: calc(100% + 8px);
+}
+
+@keyframes themeFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(4px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Theme Item */
+.theme-dropdown__item {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    width: 100%;
+    padding: 8px 12px;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: #d1d5db;
+    font-size: 13.5px;
+    font-weight: 400;
+    text-align: left;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    outline: none !important;
+}
+
+.theme-dropdown__item svg {
+    color: inherit;
+    flex-shrink: 0;
+}
+
+.theme-dropdown__item:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: #ffffff;
+}
+
+.theme-dropdown__item:focus,
+.theme-dropdown__item:focus-visible {
+    outline: none !important;
+    background: rgba(255, 255, 255, 0.08);
+}
+
+/* Active Theme */
+.theme-dropdown__item--active {
+    color: #ffffff !important;
+    font-weight: 700 !important;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+/* ── Light Mode Overrides ── */
+[data-theme='light'] .theme-dropdown__btn {
+    color: #334155;
+}
+
+[data-theme='light'] .theme-dropdown__btn:hover {
+    color: #0f172a;
+    background: rgba(0, 0, 0, 0.05);
+}
+
+[data-theme='light'] .theme-dropdown__chevron {
+    color: #64748b;
+}
+
+[data-theme='light'] .theme-dropdown__menu {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.1), 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+[data-theme='light'] .theme-dropdown__item {
+    color: #475569;
+}
+
+[data-theme='light'] .theme-dropdown__item:hover {
+    background: #f1f5f9;
+    color: #0f172a;
+}
+
+[data-theme='light'] .theme-dropdown__item:focus,
+[data-theme='light'] .theme-dropdown__item:focus-visible {
+    background: #f1f5f9;
+}
+
+[data-theme='light'] .theme-dropdown__item--active {
+    color: #0f172a !important;
+    background: #f8fafc;
+}

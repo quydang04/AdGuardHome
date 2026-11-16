@@ -52,10 +52,28 @@
     background-repeat: no-repeat;
     background-position: center center;
     background-size: 12px 10px;
-    border-radius: 3px;
+    border-radius: 6px;
+    border: 1px solid var(--border-color, #5b5b5b);
     transition:
-        0.3s ease-in-out box-shadow,
-        0.3s ease-in-out opacity;
+        0.2s ease-in-out box-shadow,
+        0.2s ease-in-out background-color,
+        0.2s ease-in-out opacity;
+}
+
+[data-theme='dark'] .checkbox__label:before {
+    background-color: #3d3d3d;
+    border: 1px solid #5b5b5b;
+}
+
+[data-theme='dark'] .checkbox__input:checked + .checkbox__label:before {
+    background-color: #67b279;
+    border-color: #67b279;
+    background-image: url("data:image/svg+xml;charset=utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12.3 9.2'%3E%3Cpath stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' fill='none' d='M11.3 1L4.8 8.2 1 4.4'/%3E%3C/svg%3E");
+}
+
+[data-theme='dark'] .checkbox__input:focus + .checkbox__label:before {
+    box-shadow: none;
+    border-color: #67b279;
 }
 
 .checkbox__label--l {

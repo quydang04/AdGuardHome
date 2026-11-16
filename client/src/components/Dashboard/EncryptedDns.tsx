@@ -10,7 +10,7 @@ interface EncryptedDnsProps {
     refreshButton: React.ReactNode;
 }
 
-const EncryptedDns = ({ numEncryptedDns, numDnsQueries, subtitle, refreshButton }: EncryptedDnsProps) => {
+const EncryptedDns = React.memo(({ numEncryptedDns, numDnsQueries, subtitle, refreshButton }: EncryptedDnsProps) => {
     const { t } = useTranslation();
 
     const percentage = numDnsQueries > 0
@@ -33,6 +33,6 @@ const EncryptedDns = ({ numEncryptedDns, numDnsQueries, subtitle, refreshButton 
             </div>
         </Card>
     );
-};
+});
 
 export default EncryptedDns;

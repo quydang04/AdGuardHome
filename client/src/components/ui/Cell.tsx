@@ -1,8 +1,8 @@
 import React from 'react';
 
 import LogsSearchLink from './LogsSearchLink';
-
 import { formatNumber } from '../../helpers/helpers';
+import './Cell.css';
 
 interface CellProps {
     value: number;
@@ -13,20 +13,20 @@ interface CellProps {
 }
 
 const Cell = ({ value, percent, color, search }: CellProps) => (
-    <div className="stats__row">
-        <div className="stats__row-value mb-1">
+    <div className="stats-cell">
+        <div className="stats-cell__value">
             <strong>
                 {search ? <LogsSearchLink search={search}>{formatNumber(value)}</LogsSearchLink> : formatNumber(value)}
             </strong>
 
-            <small className="ml-3 text-muted">{percent}%</small>
+            <span className="stats-cell__percent">({percent}%)</span>
         </div>
 
-        <div className="progress progress-xs">
+        <div className="stats-cell__bar">
             <div
-                className="progress-bar"
+                className="stats-cell__bar-fill"
                 style={{
-                    width: `${percent}%`,
+                    width: `${Math.min(percent, 100)}%`,
                     backgroundColor: color,
                 }}
             />

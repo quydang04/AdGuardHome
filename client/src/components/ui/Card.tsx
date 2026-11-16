@@ -9,20 +9,24 @@ interface CardProps {
     bodyType?: string;
     type?: string;
     refresh?: React.ReactNode;
+    headerExtra?: React.ReactNode;
     children: React.ReactNode;
 }
 
-const Card = ({ type, id, title, subtitle, refresh, bodyType, children }: CardProps) => (
+const Card = ({ type, id, title, subtitle, refresh, headerExtra, bodyType, children }: CardProps) => (
     <div className={type ? `card ${type}` : 'card'} id={id || ''}>
-        {(title || subtitle) && (
-            <div className="card-header with-border">
+        {(title || subtitle || headerExtra || refresh) && (
+            <div className="card-header">
                 <div className="card-inner">
                     {title && <div className="card-title">{title}</div>}
 
                     {subtitle && <div className="card-subtitle" dangerouslySetInnerHTML={{ __html: subtitle }} />}
                 </div>
 
-                {refresh && <div className="card-options">{refresh}</div>}
+                <div className="card-options">
+                    {headerExtra && <div className="card-header-extra">{headerExtra}</div>}
+                    {refresh}
+                </div>
             </div>
         )}
 

@@ -19,7 +19,7 @@ const Toast = ({ id, message, type, options }: ToastProps) => {
     const clearRemoveToastTimeout = () => clearTimeout(timerId);
     const removeCurrentToast = () => dispatch(removeToast(id));
     const setRemoveToastTimeout = () => {
-        const timeout = TOAST_TIMEOUTS[type];
+        const timeout = TOAST_TIMEOUTS[type] || 5000;
         const timerId = setTimeout(removeCurrentToast, timeout);
 
         setTimerId(timerId);
