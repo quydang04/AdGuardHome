@@ -54,12 +54,14 @@ const UpstreamResponses = ({ t, refreshButton, topUpstreamsResponses, subtitle }
                         {
                             Header: <Trans>upstream</Trans>,
                             accessor: 'domain',
+                            minWidth: 280,
                             Cell: DomainCell,
                         },
                         {
                             Header: <Trans>requests_count</Trans>,
                             accessor: 'count',
-                            maxWidth: 190,
+                            minWidth: 210,
+                            maxWidth: 230,
                             Cell: CountCell(getTotalUpstreamRequests(topUpstreamsResponses)),
                         },
                     ]}

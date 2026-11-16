@@ -73,12 +73,14 @@ const UpstreamAvgTime = ({ t, refreshButton, topUpstreamsAvgTime, subtitle }: Up
                         {
                             Header: <Trans>upstream</Trans>,
                             accessor: 'domain',
+                            minWidth: 280,
                             Cell: DomainCell,
                         },
                         {
                             Header: <Trans>response_time</Trans>,
                             accessor: 'count',
-                            maxWidth: 190,
+                            minWidth: 160,
+                            maxWidth: 200,
                             Cell: TimeCell,
                         },
                     ]}

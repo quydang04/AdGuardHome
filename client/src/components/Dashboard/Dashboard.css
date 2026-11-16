@@ -694,15 +694,55 @@
 /* ── Sleek Table Styling (v1.0 Beta Layout) ── */
 .dashboard .ReactTable {
     border: none !important;
+    border-radius: 0 !important;
+}
+
+.dashboard .ReactTable.card-table-overflow--limited {
+    max-height: 292px !important;
+    overflow-x: auto !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+}
+
+.dashboard .ReactTable .rt-table {
+    overflow: visible !important;
+    min-width: 100% !important;
+    width: max-content !important;
+}
+
+.dashboard .ReactTable .rt-thead {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    min-width: 100%;
+    background: var(--card-bgcolor, #ffffff);
+}
+
+[data-theme='dark'] .dashboard .ReactTable .rt-thead {
+    background: #252525;
+}
+
+.dashboard .ReactTable .rt-tbody {
+    min-width: 100%;
 }
 
 .dashboard .ReactTable .rt-thead .rt-th {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    text-align: left !important;
     font-size: 12.5px !important;
     font-weight: 600 !important;
     color: var(--card-subtitle-color, #9aa0ac) !important;
     border-bottom: 1px solid var(--border-color, rgba(0, 40, 100, 0.06)) !important;
     padding: 10px 1.5rem !important;
     box-shadow: none !important;
+    white-space: nowrap !important;
+}
+
+.dashboard .ReactTable .rt-thead .rt-th:last-child {
+    justify-content: flex-end !important;
+    text-align: right !important;
 }
 
 .dashboard .ReactTable .rt-tbody .rt-tr-group {
@@ -717,25 +757,142 @@
     padding: 10px 1.5rem !important;
     font-size: 13.5px !important;
     border: none !important;
+    overflow: hidden !important;
+}
+
+.dashboard .ReactTable .rt-tbody .rt-td:last-child {
+    justify-content: flex-end !important;
+}
+
+.dashboard .logs__row {
+    width: 100% !important;
+    margin: 0 !important;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    transform: none !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 8px !important;
+    min-width: 0 !important;
+}
+
+.dashboard .ReactTable .rt-tbody .rt-td:last-child .logs__row {
+    justify-content: flex-end !important;
+}
+
+.dashboard .logs__text {
+    flex: 1 1 auto;
+    min-width: 0;
+    white-space: normal !important;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    text-overflow: clip !important;
+    overflow: visible !important;
+    line-height: 1.4 !important;
+}
+
+.dashboard .logs__text--full {
+    text-align: right;
+}
+
+.dashboard .logs__whois {
+    white-space: normal !important;
+}
+
+.dashboard .logs__row > .tooltip-custom__trigger,
+.dashboard .logs__row > .table__action {
+    flex-shrink: 0 !important;
+    margin-left: auto !important;
+}
+
+@media (max-width: 767.98px) {
+    .dashboard .card-table {
+        overflow: hidden !important;
+    }
+
+    .dashboard .ReactTable.card-table-overflow--limited {
+        max-height: none !important;
+        overflow-x: auto !important;
+        overflow-y: hidden !important;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .dashboard .ReactTable .rt-table {
+        display: flex !important;
+        flex-direction: column !important;
+        overflow: hidden !important;
+        min-width: 100% !important;
+        width: max-content !important;
+    }
+
+    .dashboard .ReactTable .rt-thead {
+        position: sticky !important;
+        top: 0 !important;
+        z-index: 10 !important;
+        flex: 0 0 auto !important;
+        min-width: 100% !important;
+        background: var(--card-bgcolor, #ffffff) !important;
+    }
+
+    [data-theme='dark'] .dashboard .ReactTable .rt-thead {
+        background: #252525 !important;
+    }
+
+    .dashboard .ReactTable .rt-thead .rt-tr {
+        display: flex !important;
+        flex-wrap: nowrap !important;
+        align-items: center !important;
+        min-height: 40px !important;
+    }
+
+    .dashboard .ReactTable .rt-tbody {
+        max-height: 250px !important;
+        overflow-y: auto !important;
+        overflow-x: hidden !important;
+        -webkit-overflow-scrolling: touch;
+        min-width: 100% !important;
+    }
+
+    .dashboard .ReactTable .rt-thead .rt-th,
+    .dashboard .ReactTable .rt-tbody .rt-td {
+        padding: 10px 1rem !important;
+        white-space: nowrap !important;
+    }
+
+    .dashboard .clients__table .rt-thead .rt-th:first-child,
+    .dashboard .clients__table .rt-tbody .rt-td:first-child {
+        min-width: 345px !important;
+    }
+
+    .dashboard .logs__text,
+    .dashboard .logs__whois {
+        white-space: nowrap !important;
+        overflow-wrap: normal !important;
+        word-break: normal !important;
+    }
 }
 
 /* Scrollbar styling */
-.card-table-overflow--limited::-webkit-scrollbar {
+.card-table-overflow--limited::-webkit-scrollbar,
+.general-stats::-webkit-scrollbar {
     width: 6px;
     height: 6px;
 }
 
-.card-table-overflow--limited::-webkit-scrollbar-thumb {
-    background: rgba(0, 0, 0, 0.15);
+.card-table-overflow--limited::-webkit-scrollbar-thumb,
+.general-stats::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.18);
     border-radius: 4px;
 }
 
-[data-theme='dark'] .card-table-overflow--limited::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.15);
+[data-theme='dark'] .card-table-overflow--limited::-webkit-scrollbar-thumb,
+[data-theme='dark'] .general-stats::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
 }
 
-.card-table-overflow--limited::-webkit-scrollbar-track {
+.card-table-overflow--limited::-webkit-scrollbar-track,
+.general-stats::-webkit-scrollbar-track {
     background: transparent;
 }
-
-

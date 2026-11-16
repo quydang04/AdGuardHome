@@ -48,8 +48,10 @@
 
 .stats-card-v1__header {
     display: flex;
-    align-items: flex-start;
+    align-items: baseline;
     justify-content: space-between;
+    gap: 6px;
+    flex-wrap: wrap;
     z-index: 2;
     position: relative;
 }
@@ -126,11 +128,11 @@
     }
 
     .stats-card-v1__value {
-        font-size: 1.55rem;
+        font-size: 1.4rem;
     }
 
     .stats-card-v1__percent {
-        font-size: 0.85rem;
+        font-size: 0.8rem;
     }
 
     .stats-card-v1__chart {

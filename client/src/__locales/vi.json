@@ -922,5 +922,22 @@
     "settings_import_invalid_file": "File cấu hình không hợp lệ. Vui lòng chọn file JSON đúng định dạng.",
     "select_file": "Chọn file",
     "enabled": "Đã bật",
-    "type": "Loại"
+    "type": "Loại",
+    "ads_blocked": "Chặn bởi bộ lọc",
+    "threats_blocked": "Mã độc/lừa đảo đã chặn",
+    "adult_blocked": "Website người lớn đã chặn",
+    "safe_search_used": "Bắt buộc tìm kiếm an toàn",
+    "queries_total": "tổng truy vấn",
+    "blocked_total": "tổng bị chặn",
+    "total_count": "tổng",
+    "no_stats_yet": "Chưa có dữ liệu thống kê",
+    "overview": "Tổng quan",
+    "more_options": "Tùy chọn khác",
+    "stats_config_title": "Cấu hình lưu trữ thống kê",
+    "collapse_menu": "Thu gọn menu",
+    "expand_menu": "Mở rộng menu",
+    "sign_out_confirm_title": "Xác nhận đăng xuất",
+    "sign_out_confirm_desc": "Bạn có chắc chắn muốn đăng xuất khỏi hệ thống không?",
+    "hide_password": "Ẩn mật khẩu",
+    "show_password": "Hiện mật khẩu"
 }

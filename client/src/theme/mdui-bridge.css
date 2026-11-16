@@ -579,9 +579,16 @@ label,
     border-spacing: 0 !important;
     background: var(--card-bgcolor, #1f1f1f) !important;
     border-radius: 12px !important;
-    overflow: hidden !important;
+    overflow: hidden;
     border: 1px solid var(--border-color, #383838) !important;
     box-shadow: none !important;
+}
+
+.ReactTable.card-table-overflow,
+.ReactTable.card-table-overflow--limited {
+    overflow-x: auto !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
 }
 
 .table thead th,

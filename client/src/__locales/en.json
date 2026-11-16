@@ -922,5 +922,22 @@
     "settings_import_invalid_file": "Invalid settings file. Please select a valid JSON file.",
     "select_file": "Select file",
     "enabled": "Enabled",
-    "type": "Type"
+    "type": "Type",
+    "ads_blocked": "Blocked by filters",
+    "threats_blocked": "Blocked malware/phishing",
+    "adult_blocked": "Blocked adult websites",
+    "safe_search_used": "Enforced safe search",
+    "queries_total": "queries total",
+    "blocked_total": "blocked total",
+    "total_count": "total",
+    "no_stats_yet": "No statistics yet",
+    "overview": "Overview",
+    "more_options": "More options",
+    "stats_config_title": "Configure statistics retention",
+    "collapse_menu": "Collapse menu",
+    "expand_menu": "Expand menu",
+    "sign_out_confirm_title": "Confirm sign out",
+    "sign_out_confirm_desc": "Are you sure you want to sign out?",
+    "hide_password": "Hide password",
+    "show_password": "Show password"
 }

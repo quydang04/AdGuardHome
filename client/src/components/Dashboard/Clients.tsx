@@ -178,14 +178,15 @@ const Clients = ({ refreshButton, subtitle }: ClientsProps) => {
                         {
                             Header: <Trans>client_table_header</Trans>,
                             accessor: 'ip',
+                            minWidth: 280,
                             sortMethod: sortIp,
                             Cell: ClientCell,
                         },
                         {
                             Header: <Trans>requests_count</Trans>,
                             accessor: 'count',
-                            minWidth: 180,
-                            maxWidth: 200,
+                            minWidth: 210,
+                            maxWidth: 230,
                             Cell: CountCell,
                         },
                     ]}

@@ -70,12 +70,14 @@ const BlockedDomains = ({
                         {
                             Header: <Trans>domain</Trans>,
                             accessor: 'domain',
+                            minWidth: 280,
                             Cell: DomainCell,
                         },
                         {
                             Header: <Trans>requests_count</Trans>,
                             accessor: 'count',
-                            maxWidth: 190,
+                            minWidth: 210,
+                            maxWidth: 230,
                             Cell: CountCell(totalBlocked),
                         },
                     ]}
