@@ -297,8 +297,6 @@ func newWebAPI(ctx context.Context, conf *webAPIConfig) (w *webAPI) {
 // tlsConfigChanged updates the TLS configuration and restarts the HTTPS server
 // if necessary.  tlsConf must not be nil.
 func (web *webAPI) tlsConfigChanged(ctx context.Context, tlsConf *tlsConfigSettings) {
-	defer slogutil.RecoverAndExit(ctx, web.logger, osutil.ExitCodeFailure)
-
 	web.logger.DebugContext(ctx, "applying new tls configuration")
 
 	enabled := tlsConf.Enabled &&
@@ -310,7 +308,9 @@ func (web *webAPI) tlsConfigChanged(ctx context.Context, tlsConf *tlsConfigSetti
 	if enabled {
 		cert, err = tls.X509KeyPair(tlsConf.CertificateChainData, tlsConf.PrivateKeyData)
 		if err != nil {
-			panic(err)
+			web.logger.ErrorContext(ctx, "parsing tls certificate for https server", slogutil.KeyError, err)
+
+			return
 		}
 	}
 
@@ -429,7 +429,7 @@ func (web *webAPI) close(ctx context.Context) {
 
 // tlsServerLoop implements retry logic for http server start.
 func (web *webAPI) tlsServerLoop(ctx context.Context) {
-	defer slogutil.RecoverAndExit(ctx, web.logger, osutil.ExitCodeFailure)
+	defer slogutil.RecoverAndLog(ctx, web.logger)
 
 	for {
 		shouldContinue := web.serveTLS(ctx)
