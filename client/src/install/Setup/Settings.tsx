@@ -22,6 +22,7 @@ import { validateRequiredValue } from '../../helpers/validators';
 import { InstallInterface } from '../../initialState';
 import { Input } from '../../components/ui/Controls/Input';
 import { Select } from '../../components/ui/Controls/Select';
+import { confirmDialog } from '../../components/ui/ConfirmModal';
 import { toNumber } from '../../helpers/form';
 
 const validateInstallPort = (value: number) => {
@@ -172,7 +173,7 @@ export const Settings = ({ handleSubmit, handleFix, validateForm, config, interf
         handleFix(web, dns, set_static_ip);
     };
 
-    const handleStaticIp = (ip: string) => {
+    const handleStaticIp = async (ip: string) => {
         const web = {
             ip: watchFields.web?.ip,
             port: watchFields.web?.port,
@@ -185,7 +186,13 @@ export const Settings = ({ handleSubmit, handleFix, validateForm, config, interf
         };
         const set_static_ip = true;
 
-        if (window.confirm(t('confirm_static_ip', { ip }))) {
+        const confirmed = await confirmDialog({
+            title: t('confirm_action', 'Confirm'),
+            message: t('confirm_static_ip', { ip }),
+            confirmText: t('confirm_btn', 'Confirm'),
+            variant: 'success',
+        });
+        if (confirmed) {
             handleFix(web, dns, set_static_ip);
         }
     };

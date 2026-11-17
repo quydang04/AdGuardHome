@@ -298,6 +298,7 @@ a:hover {
     align-items: center;
     justify-content: center;
     gap: 0.4rem;
+    line-height: 1.4 !important;
     border-radius: 10px !important;
     border: 1px solid transparent !important;
     font-weight: 600 !important;
@@ -311,6 +312,15 @@ a:hover {
 
 .btn:active {
     transform: translateY(1px);
+}
+
+button:focus,
+button:focus-visible,
+.btn:focus,
+.btn:focus-visible,
+.btn:active:focus {
+    outline: none !important;
+    box-shadow: none !important;
 }
 
 .btn-sm {

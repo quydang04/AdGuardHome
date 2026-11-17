@@ -1,0 +1,36 @@
+.confirm-modal__dialog {
+    max-width: 460px;
+    width: calc(100% - 2rem);
+    margin: 1rem auto;
+}
+
+.confirm-modal {
+    width: 100%;
+}
+
+.confirm-modal__message {
+    white-space: pre-line;
+    line-height: 1.55;
+    font-size: 14.5px;
+    color: inherit;
+    overflow-wrap: anywhere;
+}
+
+[data-theme='light'] .confirm-modal.modal-content {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    border-color: rgba(15, 23, 42, 0.12) !important;
+    box-shadow: 0 20px 40px rgba(15, 23, 42, 0.14) !important;
+}
+
+[data-theme='light'] .confirm-modal .modal-header {
+    border-bottom-color: rgba(15, 23, 42, 0.08) !important;
+}
+
+[data-theme='light'] .confirm-modal .modal-footer {
+    border-top-color: rgba(15, 23, 42, 0.08) !important;
+}
+
+[data-theme='light'] .confirm-modal .modal-title {
+    color: #0f172a !important;
+}

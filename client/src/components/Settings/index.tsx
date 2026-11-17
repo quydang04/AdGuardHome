@@ -10,6 +10,7 @@ import { Checkbox } from '../ui/Controls/Checkbox';
 import Loading from '../ui/Loading';
 import PageTitle from '../ui/PageTitle';
 import Card from '../ui/Card';
+import { confirmDialog } from '../ui/ConfirmModal';
 
 import { getObjectKeysSorted, captitalizeWords, setHtmlLangAttr, setUITheme } from '../../helpers/helpers';
 import { THEMES } from '../../helpers/constants';
@@ -636,7 +637,13 @@ class Settings extends Component<SettingsProps, SettingsState> {
             const text = await file.text();
             const data = JSON.parse(text);
 
-            if (!window.confirm(t('settings_import_confirm') as string)) {
+            const confirmed = await confirmDialog({
+                title: t('import_settings') as string,
+                message: t('settings_import_confirm') as string,
+                confirmText: t('import_settings') as string,
+                variant: 'danger',
+            });
+            if (!confirmed) {
                 return;
             }
 

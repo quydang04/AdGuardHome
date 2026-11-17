@@ -9,6 +9,7 @@ import { CACHE_CONFIG_FIELDS, UINT32_RANGE } from '../../../../helpers/constants
 import { replaceZeroWithEmptyString } from '../../../../helpers/helpers';
 import { RootState } from '../../../../initialState';
 import { Checkbox } from '../../../ui/Controls/Checkbox';
+import { confirmDialog } from '../../../ui/ConfirmModal';
 
 const INPUTS_FIELDS = [
     {
@@ -75,8 +76,14 @@ const Form = ({ initialValues, onSubmit }: CacheFormProps) => {
     const minExceedsMax = cache_ttl_min > 0 && cache_ttl_max > 0 && cache_ttl_min > cache_ttl_max;
     const cacheSizeZeroWhenEnabled = cache_enabled && cache_size === 0;
 
-    const handleClearCache = () => {
-        if (window.confirm(t('confirm_dns_cache_clear'))) {
+    const handleClearCache = async () => {
+        const confirmed = await confirmDialog({
+            title: t('clear_cache'),
+            message: t('confirm_dns_cache_clear'),
+            confirmText: t('clear_cache'),
+            variant: 'danger',
+        });
+        if (confirmed) {
             dispatch(clearDnsCache());
         }
     };
@@ -158,21 +165,23 @@ const Form = ({ initialValues, onSubmit }: CacheFormProps) => {
                 </div>
             </div>
 
-            <button
-                type="submit"
-                data-testid="dns_save"
-                className="btn btn-success btn-standard btn-large"
-                disabled={isSubmitting || processingSetConfig || minExceedsMax || cacheSizeZeroWhenEnabled}>
-                {t('save_btn')}
-            </button>
+            <div className="mt-5 form__actions">
+                <button
+                    type="submit"
+                    data-testid="dns_save"
+                    className="btn btn-success btn-standard btn-large"
+                    disabled={isSubmitting || processingSetConfig || minExceedsMax || cacheSizeZeroWhenEnabled}>
+                    {t('save_btn')}
+                </button>
 
-            <button
-                type="button"
-                data-testid="dns_clear"
-                className="btn btn-outline-secondary btn-standard form__button"
-                onClick={handleClearCache}>
-                {t('clear_cache')}
-            </button>
+                <button
+                    type="button"
+                    data-testid="dns_clear"
+                    className="btn btn-outline-secondary btn-standard"
+                    onClick={handleClearCache}>
+                    {t('clear_cache')}
+                </button>
+            </div>
         </form>
     );
 };

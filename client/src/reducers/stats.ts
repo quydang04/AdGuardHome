@@ -22,6 +22,7 @@ const defaultStats = {
     numDnssec: 0,
     avgProcessingTime: 0,
     timeUnits: TIME_UNITS.HOURS,
+    viewInterval: null as number | null,
     topBlockedFilterLists: [],
     systemInfo: null,
     gafamStats: {},
@@ -72,9 +73,18 @@ const stats = handleActions(
             ...state,
             ...payload,
 
+            viewInterval:
+                state.viewInterval && payload.interval && state.viewInterval <= payload.interval
+                    ? state.viewInterval
+                    : null,
             customInterval: !STATS_INTERVALS_DAYS.includes(payload.interval) ? payload.interval / HOUR : null,
 
             processingGetConfig: false,
+        }),
+
+        [actions.setStatsViewInterval.toString()]: (state: any, { payload }: any) => ({
+            ...state,
+            viewInterval: payload ?? null,
         }),
 
         [actions.setStatsConfigRequest.toString()]: (state: any) => ({
@@ -88,6 +98,10 @@ const stats = handleActions(
         [actions.setStatsConfigSuccess.toString()]: (state, { payload }: any) => ({
             ...state,
             ...payload,
+            viewInterval:
+                state.viewInterval && payload.interval && state.viewInterval <= payload.interval
+                    ? state.viewInterval
+                    : null,
             processingSetConfig: false,
         }),
 

@@ -2,6 +2,7 @@ import React, { Component } from 'react';
 import { withTranslation } from 'react-i18next';
 
 import Card from '../../ui/Card';
+import { confirmDialog } from '../../ui/ConfirmModal';
 
 import { Form, FormValues } from './Form';
 import { HOUR } from '../../../helpers/constants';
@@ -19,7 +20,7 @@ interface StatsConfigProps {
 }
 
 class StatsConfig extends Component<StatsConfigProps> {
-    handleFormSubmit = ({ enabled, interval, ignored, customInterval }: FormValues) => {
+    handleFormSubmit = async ({ enabled, interval, ignored, customInterval }: FormValues) => {
         const { t, interval: prevInterval } = this.props;
         const newInterval = customInterval ? customInterval * HOUR : interval;
 
@@ -30,7 +31,13 @@ class StatsConfig extends Component<StatsConfigProps> {
         };
 
         if (config.interval < prevInterval) {
-            if (window.confirm(t('statistics_retention_confirm'))) {
+            const confirmed = await confirmDialog({
+                title: t('confirm_action', 'Confirm'),
+                message: t('statistics_retention_confirm'),
+                confirmText: t('save_btn'),
+                variant: 'danger',
+            });
+            if (confirmed) {
                 this.props.setStatsConfig(config);
             }
         } else {
@@ -38,10 +45,15 @@ class StatsConfig extends Component<StatsConfigProps> {
         }
     };
 
-    handleReset = () => {
+    handleReset = async () => {
         const { t, resetStats } = this.props;
-        // eslint-disable-next-line no-alert
-        if (window.confirm(t('statistics_clear_confirm'))) {
+        const confirmed = await confirmDialog({
+            title: t('statistics_clear'),
+            message: t('statistics_clear_confirm'),
+            confirmText: t('statistics_clear'),
+            variant: 'danger',
+        });
+        if (confirmed) {
             resetStats();
         }
     };

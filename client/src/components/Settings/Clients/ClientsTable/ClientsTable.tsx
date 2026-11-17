@@ -20,6 +20,7 @@ import Card from '../../../ui/Card';
 import CellWrap from '../../../ui/CellWrap';
 
 import LogsSearchLink from '../../../ui/LogsSearchLink';
+import { confirmDialog } from '../../../ui/ConfirmModal';
 
 import Modal from '../Modal';
 import { LocalStorageHelper, LOCAL_STORAGE_KEYS } from '../../../../helpers/localStorageHelper';
@@ -163,9 +164,14 @@ const ClientsTable = ({
         };
     };
 
-    const handleDelete = (data: any) => {
-        // eslint-disable-next-line no-alert
-        if (window.confirm(t('client_confirm_delete', { key: data.name }))) {
+    const handleDelete = async (data: any) => {
+        const confirmed = await confirmDialog({
+            title: t('delete'),
+            message: t('client_confirm_delete', { key: data.name }),
+            confirmText: t('delete'),
+            variant: 'danger',
+        });
+        if (confirmed) {
             deleteClient(data);
             getStats();
         }

@@ -151,6 +151,9 @@ const Counters = ({ refreshButton, subtitle }: CountersProps) => {
     const percentAdult = getPercent(numDnsQueries, numReplacedParental);
     const percentSafeSearch = getPercent(numDnsQueries, numReplacedSafesearch);
 
+    const formatCountWithPercent = (count: number, percent: number) =>
+        count > 0 ? `${formatNumber(count)} (${percent}%)` : '0';
+
     const hasData = numDnsQueries > 0;
 
     return (
@@ -158,7 +161,7 @@ const Counters = ({ refreshButton, subtitle }: CountersProps) => {
             title={t('general_statistics')}
             headerExtra={
                 hasData ? (
-                    <span className="card-header-badge--muted">
+                    <span className="card-header-badge--muted d-none d-md-inline-flex">
                         {formatNumber(numDnsQueries)} {t('queries_total', 'queries total')}
                     </span>
                 ) : null
@@ -175,14 +178,14 @@ const Counters = ({ refreshButton, subtitle }: CountersProps) => {
                         countText={`${formatNumber(numDnsQueries)} (${t('total_count', 'total')})`}
                         response_status={RESPONSE_FILTER.ALL.QUERY}
                         percent={100}
-                        barColor="#475569"
+                        barColor="#6b7280"
                     />
 
                     <StatItem
                         icon={<AdsIcon />}
                         iconColor="#f97316"
                         label="ads_blocked"
-                        countText={`${formatNumber(numBlockedFiltering)} (${percentAds}%)`}
+                        countText={formatCountWithPercent(numBlockedFiltering, percentAds)}
                         valueColor="#f97316"
                         response_status={RESPONSE_FILTER.BLOCKED.QUERY}
                         percent={percentAds}
@@ -193,7 +196,7 @@ const Counters = ({ refreshButton, subtitle }: CountersProps) => {
                         icon={<ThreatsIcon />}
                         iconColor="#f59e0b"
                         label="threats_blocked"
-                        countText={`${formatNumber(numReplacedSafebrowsing)} (${percentThreats}%)`}
+                        countText={formatCountWithPercent(numReplacedSafebrowsing, percentThreats)}
                         valueColor="#f59e0b"
                         response_status={RESPONSE_FILTER.BLOCKED_THREATS.QUERY}
                         percent={percentThreats}
@@ -204,7 +207,7 @@ const Counters = ({ refreshButton, subtitle }: CountersProps) => {
                         icon={<AdultIcon />}
                         iconColor="#a855f7"
                         label="adult_blocked"
-                        countText={`${formatNumber(numReplacedParental)} (${percentAdult}%)`}
+                        countText={formatCountWithPercent(numReplacedParental, percentAdult)}
                         valueColor="#a855f7"
                         response_status={RESPONSE_FILTER.BLOCKED_ADULT_WEBSITES.QUERY}
                         percent={percentAdult}
@@ -215,7 +218,7 @@ const Counters = ({ refreshButton, subtitle }: CountersProps) => {
                         icon={<SafeSearchIcon />}
                         iconColor="#10b981"
                         label="safe_search_used"
-                        countText={`${formatNumber(numReplacedSafesearch)} (${percentSafeSearch}%)`}
+                        countText={formatCountWithPercent(numReplacedSafesearch, percentSafeSearch)}
                         valueColor="#10b981"
                         response_status={RESPONSE_FILTER.SAFE_SEARCH.QUERY}
                         percent={percentSafeSearch}

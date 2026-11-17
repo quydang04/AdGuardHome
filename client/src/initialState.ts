@@ -257,6 +257,7 @@ export type StatsData = {
     processingStats: boolean;
     processingReset: boolean;
     interval: number;
+    viewInterval?: number | null;
     customInterval?: number;
     dnsQueries: number[];
     blockedFiltering: number[];

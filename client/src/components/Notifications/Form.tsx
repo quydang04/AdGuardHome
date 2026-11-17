@@ -279,7 +279,7 @@ export const Form = ({ initialValues, processing, processingTest, onSubmit, onTe
                 </div>
             </div>
 
-            <div className="mt-5 d-flex flex-wrap gap-2">
+            <div className="mt-5 form__actions">
                 <button
                     type="submit"
                     className="btn btn-success btn-standard btn-large"

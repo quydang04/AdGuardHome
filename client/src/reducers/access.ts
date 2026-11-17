@@ -32,10 +32,22 @@ const access = handleActions(
             ...state,
             processingSet: false,
         }),
-        [actions.setAccessListSuccess.toString()]: (state: any) => ({
-            ...state,
-            processingSet: false,
-        }),
+        [actions.setAccessListSuccess.toString()]: (state: any, { payload }: any) => {
+            if (!payload) {
+                return {
+                    ...state,
+                    processingSet: false,
+                };
+            }
+            const { allowed_clients, disallowed_clients, blocked_hosts } = payload;
+            return {
+                ...state,
+                allowed_clients: allowed_clients?.join('\n') || '',
+                disallowed_clients: disallowed_clients?.join('\n') || '',
+                blocked_hosts: blocked_hosts?.join('\n') || '',
+                processingSet: false,
+            };
+        },
 
         [actions.toggleClientBlockRequest.toString()]: (state: any) => ({
             ...state,

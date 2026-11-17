@@ -9,6 +9,7 @@ import { LEASES_TABLE_DEFAULT_PAGE_SIZE, MODAL_TYPE } from '../../../../helpers/
 import { sortIp } from '../../../../helpers/helpers';
 
 import Modal from './Modal';
+import { confirmDialog } from '../../../ui/ConfirmModal';
 import { addStaticLease, removeStaticLease, toggleLeaseModal, updateStaticLease } from '../../../../actions';
 
 interface cellWrapProps {
@@ -57,10 +58,15 @@ const StaticLeases = ({
         }
     };
 
-    const handleDelete = (ip: any, mac: any, hostname = '') => {
+    const handleDelete = async (ip: any, mac: any, hostname = '') => {
         const name = hostname || ip;
-        // eslint-disable-next-line no-alert
-        if (window.confirm(t('delete_confirm', { key: name }))) {
+        const confirmed = await confirmDialog({
+            title: t('delete'),
+            message: t('delete_confirm', { key: name }),
+            confirmText: t('delete'),
+            variant: 'danger',
+        });
+        if (confirmed) {
             dispatch(
                 removeStaticLease({
                     ip,

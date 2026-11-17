@@ -503,9 +503,9 @@ func (clients *clientsContainer) findClient(
 	)
 	cj.Disallowed = &disallowed
 
-	if disallowed && rule != "" {
-		// Since "disallowed_rule" is omitted from JSON unless present, it
-		// should only be set when the client is actually blocked.
+	if rule != "" {
+		// Include the matching access rule (disallowed or allowed) so the UI
+		// can display allowlist/blocklist state and update rules accurately.
 		cj.DisallowedRule = &rule
 	}
 
@@ -593,9 +593,9 @@ func (clients *clientsContainer) findRuntime(
 	disallowed, rule := clients.clientChecker.IsBlockedClient(ip, string(params.ClientID))
 
 	var disallowedRule *string
-	if disallowed && rule != "" {
-		// Since "disallowed_rule" is omitted from JSON unless present, it
-		// should only be set when the client is actually blocked.
+	if rule != "" {
+		// Include the matching access rule (disallowed or allowed) so the UI
+		// can display allowlist/blocklist state and update rules accurately.
 		disallowedRule = &rule
 	}
 

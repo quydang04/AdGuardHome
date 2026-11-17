@@ -23,6 +23,7 @@ import {
     ENCRYPTION_SOURCE,
 } from '../../../helpers/constants';
 import { Checkbox } from '../../ui/Controls/Checkbox';
+import { confirmDialog } from '../../ui/ConfirmModal';
 import { Radio } from '../../ui/Controls/Radio';
 import { Input } from '../../ui/Controls/Input';
 import { Textarea } from '../../ui/Controls/Textarea';
@@ -191,8 +192,14 @@ export const Form = ({
         return !isValid || processing || !valid_key || !valid_cert || !valid_pair;
     };
 
-    const clearFields = () => {
-        if (window.confirm(t('encryption_reset'))) {
+    const clearFields = async () => {
+        const confirmed = await confirmDialog({
+            title: t('reset_settings'),
+            message: t('encryption_reset'),
+            confirmText: t('reset_settings'),
+            variant: 'danger',
+        });
+        if (confirmed) {
             reset();
             setTlsConfig(defaultValues);
             validateTlsConfig(defaultValues);

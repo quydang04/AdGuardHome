@@ -35,14 +35,20 @@ export const setStatsConfig = (config: any) => async (dispatch: any) => {
     }
 };
 
+export const setStatsViewInterval = createAction('SET_STATS_VIEW_INTERVAL');
+
 export const getStatsRequest = createAction('GET_STATS_REQUEST');
 export const getStatsFailure = createAction('GET_STATS_FAILURE');
 export const getStatsSuccess = createAction('GET_STATS_SUCCESS');
 
-export const getStats = () => async (dispatch: any) => {
+export const getStats = (recentOverride?: number | null) => async (dispatch: any, getState?: any) => {
     dispatch(getStatsRequest());
     try {
-        const stats = await apiClient.getStats();
+        const stateStats = typeof getState === 'function' ? getState()?.stats : undefined;
+        const recent = recentOverride !== undefined ? recentOverride : stateStats?.viewInterval;
+        const maxInterval = stateStats?.interval;
+        const validRecent = recent && maxInterval && recent <= maxInterval ? recent : null;
+        const stats = await apiClient.getStats(validRecent);
         const normalizedTopClients = normalizeTopStats(stats.top_clients);
 
         const clientsParams = getParamsForClientsSearch(normalizedTopClients, 'name');

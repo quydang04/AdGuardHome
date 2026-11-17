@@ -33,9 +33,10 @@ interface DashboardProps {
     dashboard: DashboardData;
     stats: StatsData;
     access: AccessData;
-    getStats: (...args: unknown[]) => unknown;
+    getStats: (recentOverride?: number | null) => unknown;
     getStatsConfig: (...args: unknown[]) => unknown;
     setStatsConfig: (...args: unknown[]) => unknown;
+    setStatsViewInterval: (interval: number | null) => unknown;
     getFilteringStatus: (...args: unknown[]) => unknown;
     toggleProtection: (...args: unknown[]) => unknown;
     getClients: (...args: unknown[]) => unknown;
@@ -46,7 +47,7 @@ const Dashboard = ({
     getAccessList,
     getStats,
     getStatsConfig,
-    setStatsConfig,
+    setStatsViewInterval,
     getFilteringStatus,
     dashboard: { protectionEnabled, processingProtection, protectionDisabledDuration },
     toggleProtection,
@@ -67,7 +68,14 @@ const Dashboard = ({
     const refreshTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     useEffect(() => {
-        const handleClickOutside = (e: MouseEvent) => {
+        if (!protectionEnabled) {
+            setIsProtectionOptionsOpen(false);
+            setIsMobileProtectionOptionsOpen(false);
+        }
+    }, [protectionEnabled]);
+
+    useEffect(() => {
+        const handleClickOutside = (e: Event) => {
             const target = e.target as Node;
             if (protectionOptionsRef.current && !protectionOptionsRef.current.contains(target)) {
                 setIsProtectionOptionsOpen(false);
@@ -82,8 +90,8 @@ const Dashboard = ({
                 setIsMobileIntervalOpen(false);
             }
         };
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
+        document.addEventListener('pointerdown', handleClickOutside);
+        return () => document.removeEventListener('pointerdown', handleClickOutside);
     }, []);
 
     const getAllStats = useCallback(() => {
@@ -141,21 +149,22 @@ const Dashboard = ({
         };
     }, []);
 
+    const activeInterval =
+        stats.viewInterval && stats.interval && stats.viewInterval <= stats.interval
+            ? stats.viewInterval
+            : stats.interval || DAY;
+
     const subtitle = useMemo(() => {
         if (!stats.enabled) {
             return t('stats_disabled_short');
         }
 
-        const msIn7Days = 604800000;
-
-        if (stats.timeUnits === TIME_UNITS.HOURS && stats.interval === msIn7Days) {
-            return t('for_last_days', { count: msToDays(stats.interval) });
+        if (activeInterval <= DAY) {
+            return t('for_last_hours', { count: msToHours(activeInterval) });
         }
 
-        return stats.timeUnits === TIME_UNITS.HOURS
-            ? t('for_last_hours', { count: msToHours(stats.interval) })
-            : t('for_last_days', { count: msToDays(stats.interval) });
-    }, [stats.enabled, stats.timeUnits, stats.interval, t]);
+        return t('for_last_days', { count: msToDays(activeInterval) });
+    }, [stats.enabled, activeInterval, t]);
 
     const INTERVAL_OPTIONS = useMemo(() => {
         const maxLimit = stats.interval || DAY;
@@ -166,24 +175,30 @@ const Dashboard = ({
             { label: t('for_last_days', { count: 30 }), value: DAY * 30 },
             { label: t('for_last_days', { count: 90 }), value: DAY * 90 },
         ];
-        return all.filter((opt) => opt.value <= Math.max(maxLimit, DAY));
+        const filtered = all.filter((opt) => opt.value <= Math.max(maxLimit, DAY));
+        if (maxLimit > DAY && !filtered.some((opt) => opt.value === maxLimit)) {
+            const customLabel =
+                maxLimit % DAY === 0
+                    ? t('for_last_days', { count: msToDays(maxLimit) })
+                    : t('for_last_hours', { count: msToHours(maxLimit) });
+            filtered.push({ label: customLabel, value: maxLimit });
+            filtered.sort((a, b) => a.value - b.value);
+        }
+        return filtered;
     }, [t, stats.interval]);
 
     const handleSelectInterval = useCallback(
-        async (val: number) => {
+        (val: number) => {
             setIsIntervalOpen(false);
             setIsMobileIntervalOpen(false);
-            if (val === stats.interval) {
+            if (val === activeInterval) {
                 return;
             }
-            await setStatsConfig({
-                enabled: stats.enabled !== false,
-                interval: val,
-                ignored: stats.ignored || [],
-            });
-            getStats();
+            const nextViewInterval = val === stats.interval ? null : val;
+            setStatsViewInterval(nextViewInterval);
+            getStats(nextViewInterval);
         },
-        [setStatsConfig, getStats, stats.enabled, stats.interval, stats.ignored],
+        [activeInterval, getStats, setStatsViewInterval, stats.interval],
     );
 
     const buttonClass = classNames('btn btn-sm dashboard-protection-button', {
@@ -244,7 +259,7 @@ const Dashboard = ({
                 type="button"
                 key={`disable_timings_${index}`}
                 className="dropdown-item dropdown-item--protection"
-                onMouseDown={(e) => {
+                onPointerDown={(e) => {
                     e.stopPropagation();
                 }}
                 onClick={(e) => {
@@ -262,14 +277,14 @@ const Dashboard = ({
         ));
 
     const getRemaningTimeText = (milliseconds: any) => {
-        if (!milliseconds) {
+        if (!milliseconds || milliseconds <= 0) {
             return '';
         }
 
-        const date = new Date(milliseconds);
-        const hh = date.getUTCHours();
-        const mm = `0${date.getUTCMinutes()}`.slice(-2);
-        const ss = `0${date.getUTCSeconds()}`.slice(-2);
+        const totalSeconds = Math.floor(milliseconds / 1000);
+        const hh = Math.floor(totalSeconds / 3600);
+        const mm = `0${Math.floor((totalSeconds % 3600) / 60)}`.slice(-2);
+        const ss = `0${totalSeconds % 60}`.slice(-2);
         const formattedHH = `0${hh}`.slice(-2);
 
         return hh ? `${formattedHH}:${mm}:${ss}` : `${mm}:${ss}`;
@@ -308,8 +323,13 @@ const Dashboard = ({
                         <div className="dashboard-more-dropdown" ref={protectionOptionsRef}>
                             <button
                                 type="button"
-                                className="dashboard-more-btn"
-                                onClick={() => setIsProtectionOptionsOpen((prev) => !prev)}
+                                className={classNames('dashboard-more-btn', {
+                                    'dashboard-more-btn--active': isProtectionOptionsOpen,
+                                })}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    setIsProtectionOptionsOpen((prev) => !prev);
+                                }}
                                 title={t('more_options', 'More options')}>
                                 <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
                                     <circle cx="12" cy="5" r="2.2" />
@@ -331,18 +351,19 @@ const Dashboard = ({
                         type="button"
                         className={`dashboard-refresh-btn${isRefreshing ? ' btn-loading' : ''}`}
                         disabled={isRefreshing}
-                        onClick={handleManualRefresh}>
-                        <span><Trans>refresh_statics</Trans></span>
+                        onClick={handleManualRefresh}
+                        title={t('refresh_statics', 'Refresh statistics')}
+                        aria-label={t('refresh_statics', 'Refresh statistics')}>
                         <svg
-                            width="14"
-                            height="14"
+                            width="18"
+                            height="18"
                             viewBox="0 0 24 24"
                             fill="none"
                             stroke="currentColor"
                             strokeWidth="2.2"
                             strokeLinecap="round"
                             strokeLinejoin="round"
-                            className={`dashboard-refresh-icon ml-2${isRefreshing ? ' icon-spin' : ''}`}>
+                            className={`dashboard-refresh-icon${isRefreshing ? ' icon-spin' : ''}`}>
                             <polyline points="23 4 23 10 17 10" />
                             <polyline points="1 20 1 14 7 14" />
                             <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
@@ -352,20 +373,24 @@ const Dashboard = ({
                     <div className="dashboard-interval-dropdown-wrap" ref={intervalRef}>
                         <button
                             type="button"
-                            className="dashboard-interval-btn"
+                            className={classNames('dashboard-interval-btn', {
+                                'dashboard-interval-btn--open': isIntervalOpen,
+                            })}
                             onClick={() => setIsIntervalOpen((prev) => !prev)}
                             title={t('stats_config_title', 'Configure stats retention')}>
                             <span>{subtitle}</span>
                             <svg
-                                width="14"
-                                height="14"
+                                width="15"
+                                height="15"
                                 viewBox="0 0 24 24"
                                 fill="none"
                                 stroke="currentColor"
                                 strokeWidth="2.2"
                                 strokeLinecap="round"
                                 strokeLinejoin="round"
-                                className="dashboard-interval-icon ml-1">
+                                className={classNames('dashboard-interval-icon', {
+                                    'dashboard-interval-icon--open': isIntervalOpen,
+                                })}>
                                 <polyline points="6 9 12 15 18 9" />
                             </svg>
                         </button>
@@ -377,11 +402,11 @@ const Dashboard = ({
                                         key={opt.value}
                                         type="button"
                                         className={classNames('dashboard-interval-menu-item', {
-                                            'dashboard-interval-menu-item--active': stats.interval === opt.value,
+                                            'dashboard-interval-menu-item--active': activeInterval === opt.value,
                                         })}
                                         onClick={() => handleSelectInterval(opt.value)}>
                                         <span className="dashboard-interval-menu-item__icon">
-                                            {stats.interval === opt.value ? (
+                                            {activeInterval === opt.value ? (
                                                 <span className="dashboard-interval-menu-item__check">✓</span>
                                             ) : (
                                                 <span className="dashboard-interval-menu-item__dot">•</span>
@@ -457,8 +482,17 @@ const Dashboard = ({
                     <div className="dashboard-more-dropdown" ref={mobileProtectionOptionsRef}>
                         <button
                             type="button"
-                            className="dashboard-more-btn"
-                            onClick={() => setIsMobileProtectionOptionsOpen((prev) => !prev)}
+                            className={classNames('dashboard-more-btn', {
+                                'dashboard-more-btn--active': protectionEnabled && isMobileProtectionOptionsOpen,
+                                'dashboard-more-btn--disabled': !protectionEnabled,
+                            })}
+                            disabled={!protectionEnabled}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                if (protectionEnabled) {
+                                    setIsMobileProtectionOptionsOpen((prev) => !prev);
+                                }
+                            }}
                             title={t('more_options', 'More options')}>
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                                 <circle cx="12" cy="5" r="2.2" />
@@ -466,19 +500,30 @@ const Dashboard = ({
                                 <circle cx="12" cy="19" r="2.2" />
                             </svg>
                         </button>
-                        {isMobileProtectionOptionsOpen && (
-                            <div className="dropdown-menu dropdown-menu--protection show">
+                        {protectionEnabled && isMobileProtectionOptionsOpen && (
+                            <div className="dropdown-menu dropdown-menu--protection dropdown-menu--protection-mobile show">
                                 {getDisableProtectionItems(true)}
                             </div>
                         )}
                     </div>
                 </div>
 
+                {!protectionEnabled && protectionDisabledDuration > 0 && (
+                    <div className="dashboard-mobile-resume-timer">
+                        {t('protection_will_resume_in', {
+                            time: getRemaningTimeText(protectionDisabledDuration),
+                            defaultValue: `Protection will resume in ${getRemaningTimeText(protectionDisabledDuration)}`,
+                        })}
+                    </div>
+                )}
+
                 <div className="dashboard-mobile-row dashboard-mobile-row--interval">
                     <div className="dashboard-interval-dropdown-wrap w-100" ref={mobileIntervalRef}>
                         <button
                             type="button"
-                            className="dashboard-mobile-interval-btn"
+                            className={classNames('dashboard-mobile-interval-btn', {
+                                'dashboard-mobile-interval-btn--open': isMobileIntervalOpen,
+                            })}
                             onClick={() => setIsMobileIntervalOpen((prev) => !prev)}
                             title={t('stats_config_title', 'Configure stats retention')}>
                             <span>{subtitle}</span>
@@ -490,7 +535,10 @@ const Dashboard = ({
                                 stroke="currentColor"
                                 strokeWidth="2.2"
                                 strokeLinecap="round"
-                                strokeLinejoin="round">
+                                strokeLinejoin="round"
+                                className={classNames('dashboard-interval-icon', {
+                                    'dashboard-interval-icon--open': isMobileIntervalOpen,
+                                })}>
                                 <polyline points="6 9 12 15 18 9" />
                             </svg>
                         </button>
@@ -502,11 +550,11 @@ const Dashboard = ({
                                         key={opt.value}
                                         type="button"
                                         className={classNames('dashboard-interval-menu-item', {
-                                            'dashboard-interval-menu-item--active': stats.interval === opt.value,
+                                            'dashboard-interval-menu-item--active': activeInterval === opt.value,
                                         })}
                                         onClick={() => handleSelectInterval(opt.value)}>
                                         <span className="dashboard-interval-menu-item__icon">
-                                            {stats.interval === opt.value ? (
+                                            {activeInterval === opt.value ? (
                                                 <span className="dashboard-interval-menu-item__check">✓</span>
                                             ) : (
                                                 <span className="dashboard-interval-menu-item__dot">•</span>

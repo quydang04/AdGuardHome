@@ -142,6 +142,15 @@ export const MENU_URLS = {
     systemOverview: '/system-overview',
 };
 
+export const DASHBOARD_STATS_URLS = {
+    topClients: '/stats/top-clients',
+    topQueriedDomains: '/stats/top-queried-domains',
+    topBlockedDomains: '/stats/top-blocked-domains',
+    topUpstreams: '/stats/top-upstreams',
+    upstreamAvgTime: '/stats/upstream-response-time',
+    blockedReasons: '/stats/blocked-reasons',
+} as const;
+
 export const SETTINGS_URLS = {
     encryption: '/encryption',
     dhcp: '/dhcp',
@@ -518,6 +527,8 @@ export const DISABLE_PROTECTION_TIMINGS = {
 export const LOCAL_TIMEZONE_VALUE = 'Local';
 
 export const TABLES_MIN_ROWS = 5;
+
+export const DASHBOARD_MOBILE_PREVIEW_LIMIT = 5;
 
 export const DASHBOARD_TABLES_DEFAULT_PAGE_SIZE = 100;
 

@@ -9,6 +9,7 @@ import Modal from './Modal';
 import Card from '../../ui/Card';
 
 import PageTitle from '../../ui/PageTitle';
+import { confirmDialog } from '../../ui/ConfirmModal';
 import { MODAL_TYPE } from '../../../helpers/constants';
 import { RewritesData } from '../../../initialState';
 
@@ -30,9 +31,14 @@ class Rewrites extends Component<RewritesProps> {
         this.props.getRewriteSettings();
     }
 
-    handleDelete = (values: any) => {
-        // eslint-disable-next-line no-alert
-        if (window.confirm(this.props.t('rewrite_confirm_delete', { key: values.domain }))) {
+    handleDelete = async (values: any) => {
+        const confirmed = await confirmDialog({
+            title: this.props.t('delete'),
+            message: this.props.t('rewrite_confirm_delete', { key: values.domain }),
+            confirmText: this.props.t('delete'),
+            variant: 'danger',
+        });
+        if (confirmed) {
             this.props.deleteRewrite(values);
         }
     };

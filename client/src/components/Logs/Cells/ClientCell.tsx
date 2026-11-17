@@ -18,6 +18,7 @@ import { toggleClientBlock } from '../../../actions/access';
 import { getBlockClientInfo } from './helpers';
 import { getStats } from '../../../actions/stats';
 import { updateLogs } from '../../../actions/queryLogs';
+import { confirmDialog } from '../../ui/ConfirmModal';
 import { RootState } from '../../../initialState';
 
 interface ClientCellProps {
@@ -126,7 +127,14 @@ const ClientCell = ({ client, client_id, client_info, domain, reason }: ClientCe
             {
                 name: blockingClientKey,
                 onClick: async () => {
-                    if (window.confirm(confirmMessage)) {
+                    const isDisallowed = Boolean(client_info?.disallowed);
+                    const confirmed = await confirmDialog({
+                        title: t(isDisallowed ? 'unblock_client' : 'block_client'),
+                        message: confirmMessage,
+                        confirmText: t(isDisallowed ? 'unblock_client' : 'block_client'),
+                        variant: isDisallowed ? 'success' : 'danger',
+                    });
+                    if (confirmed) {
                         await dispatch(
                             toggleClientBlock(
                                 client,

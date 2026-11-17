@@ -14,6 +14,7 @@ import { setUITheme } from '../helpers/helpers';
 import { THEMES } from '../helpers/constants';
 
 import { Setup } from './Setup';
+import ConfirmModalHost from '../components/ui/ConfirmModal';
 import { InstallState } from '../initialState';
 
 setUITheme();
@@ -23,6 +24,7 @@ const store = configureStore<InstallState>(reducers, {});
 ReactDOM.render(
     <Provider store={store}>
         <Setup />
+        <ConfirmModalHost />
     </Provider>,
     document.getElementById('root'),
 );

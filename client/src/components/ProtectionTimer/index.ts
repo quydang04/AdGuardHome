@@ -8,22 +8,29 @@ import { setProtectionTimerTime, toggleProtectionSuccess } from '../../actions';
 let interval: any = null;
 
 interface ProtectionTimerProps {
-    protectionDisabledDuration?: number;
+    protectionEnabled?: boolean;
+    protectionDisabledDuration?: number | null;
     toggleProtectionSuccess: (...args: unknown[]) => unknown;
     setProtectionTimerTime: (...args: unknown[]) => unknown;
 }
 
 const ProtectionTimer = ({
+    protectionEnabled,
     protectionDisabledDuration,
     toggleProtectionSuccess,
     setProtectionTimerTime,
 }: ProtectionTimerProps) => {
     useEffect(() => {
-        if (protectionDisabledDuration !== null && protectionDisabledDuration < ONE_SECOND_IN_MS) {
+        if (
+            !protectionEnabled
+            && protectionDisabledDuration !== null
+            && protectionDisabledDuration !== undefined
+            && protectionDisabledDuration < ONE_SECOND_IN_MS
+        ) {
             toggleProtectionSuccess({ disabledDuration: null });
         }
 
-        if (protectionDisabledDuration) {
+        if (protectionDisabledDuration && protectionDisabledDuration >= ONE_SECOND_IN_MS) {
             interval = setInterval(() => {
                 setProtectionTimerTime(protectionDisabledDuration - ONE_SECOND_IN_MS);
             }, ONE_SECOND_IN_MS);
@@ -32,7 +39,7 @@ const ProtectionTimer = ({
         return () => {
             clearInterval(interval);
         };
-    }, [protectionDisabledDuration]);
+    }, [protectionEnabled, protectionDisabledDuration]);
 
     return null;
 };

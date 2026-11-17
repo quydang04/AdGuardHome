@@ -40,6 +40,13 @@
     justify-content: flex-start;
 }
 
+.form__actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+}
+
 .btn-standard {
     padding-left: 20px;
     padding-right: 20px;

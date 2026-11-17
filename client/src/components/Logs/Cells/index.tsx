@@ -37,6 +37,7 @@ import ClientCell from './ClientCell';
 import { toggleClientBlock } from '../../../actions/access';
 import { getBlockClientInfo, BUTTON_PREFIX } from './helpers';
 import { updateLogs } from '../../../actions/queryLogs';
+import { confirmDialog } from '../../ui/ConfirmModal';
 
 import '../Logs.css';
 import { RootState } from '../../../initialState';
@@ -183,7 +184,14 @@ const Row = memo(
             };
 
             const onBlockingClientClick = async () => {
-                if (window.confirm(confirmMessage)) {
+                const isDisallowed = Boolean(client_info?.disallowed);
+                const confirmed = await confirmDialog({
+                    title: t(isDisallowed ? 'unblock_client' : 'block_client'),
+                    message: confirmMessage,
+                    confirmText: t(isDisallowed ? 'unblock_client' : 'block_client'),
+                    variant: isDisallowed ? 'success' : 'danger',
+                });
+                if (confirmed) {
                     await dispatch(
                         toggleClientBlock(client, client_info?.disallowed || false, client_info?.disallowed_rule || ''),
                     );

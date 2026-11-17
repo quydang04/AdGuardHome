@@ -615,10 +615,11 @@ class Api {
         RESET: { path: 'stats_reset', method: 'POST' },
     };
 
-    getStats() {
+    getStats(recent?: number | null) {
         const { path, method } = this.STATS.GET;
+        const url = recent ? `${path}?recent=${recent}` : path;
 
-        return this.makeRequest(path, method);
+        return this.makeRequest(url, method);
     }
 
     getStatsConfig() {

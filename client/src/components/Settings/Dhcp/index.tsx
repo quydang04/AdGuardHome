@@ -16,6 +16,7 @@ import Card from '../../ui/Card';
 import PageTitle from '../../ui/PageTitle';
 
 import Loading from '../../ui/Loading';
+import { confirmDialog } from '../../ui/ConfirmModal';
 import {
     findActiveDhcp,
     getDhcpInterfaces,
@@ -165,9 +166,14 @@ const Dhcp = () => {
         setIpv6Placeholders(v6placeholders);
     }, [interface_name]);
 
-    const clear = () => {
-        // eslint-disable-next-line no-alert
-        if (window.confirm(t('dhcp_reset'))) {
+    const clear = async () => {
+        const confirmed = await confirmDialog({
+            title: t('confirm_action', 'Confirm'),
+            message: t('dhcp_reset'),
+            confirmText: t('confirm_btn', 'Confirm'),
+            variant: 'danger',
+        });
+        if (confirmed) {
             reset({
                 v4: DEFAULT_V4_VALUES,
                 v6: DEFAULT_V6_VALUES,
@@ -187,8 +193,14 @@ const Dhcp = () => {
         );
     };
 
-    const handleReset = () => {
-        if (window.confirm(t('dhcp_reset_leases_confirm'))) {
+    const handleReset = async () => {
+        const confirmed = await confirmDialog({
+            title: t('confirm_action', 'Confirm'),
+            message: t('dhcp_reset_leases_confirm'),
+            confirmText: t('confirm_btn', 'Confirm'),
+            variant: 'danger',
+        });
+        if (confirmed) {
             dispatch(resetDhcpLeases());
         }
     };

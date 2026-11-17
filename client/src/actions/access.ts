@@ -37,7 +37,7 @@ export const setAccessList = (config: any) => async (dispatch: any) => {
         };
 
         await apiClient.setAccessList(values);
-        dispatch(setAccessListSuccess());
+        dispatch(setAccessListSuccess(values));
         dispatch(addSuccessToast('access_settings_saved'));
     } catch (error) {
         dispatch(addErrorToast({ error }));
@@ -59,13 +59,27 @@ export const toggleClientBlock = (ip: any, disallowed: any, disallowed_rule: any
 
         if (disallowed) {
             if (!disallowed_rule) {
-                allowed_clients = allowed_clients.concat(ip);
+                allowed_clients = allowed_clients.includes(ip) ? allowed_clients : allowed_clients.concat(ip);
             } else {
                 disallowed_clients = disallowed_clients.filter((client: any) => client !== disallowed_rule);
             }
         } else if (allowed_clients.length > 1) {
-            allowed_clients = allowed_clients.filter((client: any) => client !== disallowed_rule);
-        } else {
+            const ruleToRemove = disallowed_rule || ip;
+            allowed_clients = allowed_clients.filter((client: any) => client !== ruleToRemove);
+        } else if (
+            allowed_clients.length === 1
+            && allowed_clients[0] === (disallowed_rule || ip)
+        ) {
+            dispatch(
+                addErrorToast({
+                    error: new Error(
+                        i18next.t('last_rule_in_allowlist', { disallowed_rule: allowed_clients[0] }),
+                    ),
+                }),
+            );
+            dispatch(toggleClientBlockFailure());
+            return;
+        } else if (!disallowed_clients.includes(ip)) {
             disallowed_clients = disallowed_clients.concat(ip);
         }
         const values = {

@@ -21,7 +21,7 @@ import Icons from '../ui/Icons';
 import i18n from '../../i18n';
 
 import Loading from '../ui/Loading';
-import { FILTERS_URLS, MENU_URLS, SETTINGS_URLS, THEMES } from '../../helpers/constants';
+import { FILTERS_URLS, MENU_URLS, SETTINGS_URLS, DASHBOARD_STATS_URLS, THEMES } from '../../helpers/constants';
 
 import { getLogsUrlParams, setHtmlLangAttr, setUITheme } from '../../helpers/helpers';
 
@@ -31,6 +31,7 @@ import MobileHeader from '../Sidebar/MobileHeader';
 import { getDnsStatus, getTimerStatus } from '../../actions';
 
 import Dashboard from '../../containers/Dashboard';
+import TopStatsPage from '../Dashboard/TopStatsPage';
 import SetupGuide from '../../containers/SetupGuide';
 import SystemOverview from '../../containers/SystemOverview';
 import Settings from '../../containers/Settings';
@@ -49,12 +50,25 @@ import Services from '../Filters/Services';
 
 import Logs from '../Logs';
 import ProtectionTimer from '../ProtectionTimer';
+import ConfirmModalHost from '../ui/ConfirmModal';
 import { RootState } from '../../initialState';
 
 const ROUTES = [
     {
         path: MENU_URLS.root,
         component: Dashboard,
+        exact: true,
+    },
+    {
+        path: [
+            DASHBOARD_STATS_URLS.topClients,
+            DASHBOARD_STATS_URLS.topQueriedDomains,
+            DASHBOARD_STATS_URLS.topBlockedDomains,
+            DASHBOARD_STATS_URLS.topUpstreams,
+            DASHBOARD_STATS_URLS.upstreamAvgTime,
+            DASHBOARD_STATS_URLS.blockedReasons,
+        ],
+        component: TopStatsPage,
         exact: true,
     },
     {
@@ -241,6 +255,7 @@ const AppContent = () => {
                 <LoadingBar className="loading-bar" updateTime={1000} />
 
                 <ProtectionTimer />
+                <ConfirmModalHost />
 
                 <main className="app-content">
                     {processing && <Loading />}

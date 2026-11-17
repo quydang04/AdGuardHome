@@ -206,7 +206,7 @@ export const Form = ({ initialValues, processing, processingReset, onSubmit, onR
                 />
             </div>
 
-            <div className="mt-5">
+            <div className="mt-5 form__actions">
                 <button
                     type="submit"
                     data-testid="logs_config_save"
@@ -218,7 +218,7 @@ export const Form = ({ initialValues, processing, processingReset, onSubmit, onR
                 <button
                     type="button"
                     data-testid="logs_config_clear"
-                    className="btn btn-outline-secondary btn-standard form__button"
+                    className="btn btn-outline-secondary btn-standard"
                     onClick={onReset}
                     disabled={processingReset}>
                     <Trans>query_log_clear</Trans>

@@ -1,32 +1,31 @@
-import React, { useState } from 'react';
+import React from 'react';
 
 // @ts-ignore FIXME: update react-table
 import ReactTable from 'react-table';
+import { Link } from 'react-router-dom';
 import { Trans, useTranslation } from 'react-i18next';
-
-import { shallowEqual, useDispatch, useSelector } from 'react-redux';
+import { shallowEqual, useSelector } from 'react-redux';
 import classNames from 'classnames';
 
 import Card from '../ui/Card';
 import Cell from '../ui/Cell';
 import EmptyCardState from '../ui/EmptyCardState';
+import LogsSearchLink from '../ui/LogsSearchLink';
+import { WifiClientIcon, getClientSubtitleText } from './MobileStatsList';
+import { useClientBlock } from './useClientBlock';
 
-import { getPercent, sortIp } from '../../helpers/helpers';
+import { formatNumber, getPercent, sortIp } from '../../helpers/helpers';
 import {
-    BLOCK_ACTIONS,
+    DASHBOARD_MOBILE_PREVIEW_LIMIT,
+    DASHBOARD_STATS_URLS,
     DASHBOARD_TABLES_DEFAULT_PAGE_SIZE,
     STATUS_COLORS,
     TABLES_MIN_ROWS,
 } from '../../helpers/constants';
-import { toggleClientBlock } from '../../actions/access';
-
 import { renderFormattedClientCell } from '../../helpers/renderFormattedClientCell';
-import { getStats } from '../../actions/stats';
-
-import IconTooltip from '../Logs/Cells/IconTooltip';
 import { RootState } from '../../initialState';
 
-const getClientsPercentColor = (percent: any) => {
+const getClientsPercentColor = (percent: number) => {
     if (percent > 50) {
         return STATUS_COLORS.green;
     }
@@ -42,7 +41,7 @@ const CountCell = (row: any) => {
         original: { ip },
     } = row;
 
-    const numDnsQueries = useSelector<RootState>((state) => state.stats.numDnsQueries, shallowEqual);
+    const numDnsQueries = useSelector<RootState, number>((state) => state.stats.numDnsQueries, shallowEqual);
 
     const percent = getPercent(numDnsQueries, value);
     const percentColor = getClientsPercentColor(percent);
@@ -50,100 +49,77 @@ const CountCell = (row: any) => {
     return <Cell value={value} percent={percent} color={percentColor} search={ip} />;
 };
 
-const renderBlockingButton = (ip: any, disallowed: any, disallowed_rule: any) => {
-    const dispatch = useDispatch();
+interface ClientBlockActionProps {
+    ip: string;
+    disallowed: boolean;
+    disallowedRule?: string;
+    variant?: 'compact' | 'full';
+}
+
+export const ClientBlockActionButton = ({
+    ip,
+    disallowed,
+    disallowedRule = '',
+    variant = 'compact',
+}: ClientBlockActionProps) => {
     const { t } = useTranslation();
+    const { processingSet, isLastRuleInAllowlist, toggleClientStatus } = useClientBlock();
 
-    const processingSet = useSelector<RootState, RootState['access']['processingSet']>(
-        (state) => state.access.processingSet,
-    );
-
-    const allowedClients = useSelector<RootState, RootState['access']['allowed_clients']>(
-        (state) => state.access.allowed_clients,
-        shallowEqual,
-    );
-
-    const [isOptionsOpened, setOptionsOpened] = useState(false);
-
-    const toggleClientStatus = async (ip: any, disallowed: any, disallowed_rule: any) => {
-        let confirmMessage;
-
-        if (disallowed) {
-            confirmMessage = t('client_confirm_unblock', { ip: disallowed_rule || ip });
-        } else {
-            confirmMessage = `${t('adg_will_drop_dns_queries')} ${t('client_confirm_block', { ip })}`;
-            if (allowedClients.length > 0) {
-                confirmMessage = confirmMessage.concat(`\n\n${t('filter_allowlist', { disallowed_rule })}`);
-            }
-        }
-
-        if (window.confirm(confirmMessage)) {
-            await dispatch(toggleClientBlock(ip, disallowed, disallowed_rule));
-            await dispatch(getStats());
-        }
-    };
-
-    const onClick = () => {
-        toggleClientStatus(ip, disallowed, disallowed_rule);
-        setOptionsOpened(false);
-    };
-
-    const text = disallowed ? BLOCK_ACTIONS.UNBLOCK : BLOCK_ACTIONS.BLOCK;
-
-    const lastRuleInAllowlist = !disallowed && allowedClients === disallowed_rule;
+    const lastRuleInAllowlist = isLastRuleInAllowlist(disallowed, disallowedRule, ip);
     const disabled = processingSet || lastRuleInAllowlist;
+    const label = disallowed ? t('unblock_client', 'Unblock client') : t('block_client', 'Block client');
+
     return (
-        <div className="table__action">
-            <button type="button" className="btn btn-icon btn-sm px-0" onClick={() => setOptionsOpened(true)}>
-                <svg className="icon24 icon--lightgray button-action__icon">
-                    <use xlinkHref="#bullets" />
-                </svg>
-            </button>
-            {isOptionsOpened && (
-                <IconTooltip
-                    className="icon24"
-                    tooltipClass="button-action--arrow-option-container"
-                    xlinkHref="bullets"
-                    triggerClass="btn btn-icon btn-sm px-0 button-action__hidden-trigger"
-                    content={
-                        <button
-                            className={classNames(
-                                'button-action--arrow-option px-4 py-1',
-                                disallowed ? 'bg--green' : 'bg--danger',
-                            )}
-                            onClick={onClick}
-                            disabled={disabled}
-                            title={lastRuleInAllowlist ? t('last_rule_in_allowlist', { disallowed_rule }) : ''}>
-                            <Trans>{text}</Trans>
-                        </button>
-                    }
-                    placement="bottom-end"
-                    trigger="click"
-                    onVisibilityChange={setOptionsOpened}
-                    defaultTooltipShown={true}
-                    delayHide={0}
-                />
+        <button
+            type="button"
+            className={classNames(
+                variant === 'full' ? 'mobile-client-block-btn' : 'desktop-client-block-btn',
+                disallowed ? 'client-block-btn--unblock' : 'client-block-btn--block',
             )}
-        </div>
+            onClick={(e) => {
+                e.stopPropagation();
+                toggleClientStatus(ip, disallowed, disallowedRule);
+            }}
+            disabled={disabled}
+            title={lastRuleInAllowlist ? t('last_rule_in_allowlist', { disallowed_rule: disallowedRule || ip }) : label}>
+            {label}
+        </button>
     );
 };
 
 const ClientCell = (row: any) => {
+    const { t } = useTranslation();
     const {
         value,
-        original: {
-            info,
-            info: { disallowed, disallowed_rule },
-        },
+        original: { info },
     } = row;
 
+    const disallowed = Boolean(info?.disallowed);
+    const disallowedRule = info?.disallowed_rule || '';
+    const isExplicitlyAllowed = !disallowed && Boolean(disallowedRule);
+
     return (
-        <>
-            <div className="logs__row logs__row--overflow logs__row--column d-flex align-items-center">
-                {renderFormattedClientCell(value, info, true)}
-                {renderBlockingButton(value, disallowed, disallowed_rule)}
+        <div className="logs__row logs__row--overflow logs__row--column d-flex align-items-center">
+            {renderFormattedClientCell(value, info, true)}
+            <div className="table__action d-flex align-items-center gap-2">
+                {isExplicitlyAllowed && (
+                    <span className="client-status-badge client-status-badge--allowed" title={disallowedRule}>
+                        {t('client_status_allowed', 'Allowed')}
+                    </span>
+                )}
+                {disallowed && (
+                    <span className="client-status-badge client-status-badge--blocked" title={disallowedRule || value}>
+                        {t('client_status_blocked', 'Blocked')}
+                    </span>
+                )}
+                <ClientBlockActionButton
+                    ip={value}
+                    disallowed={disallowed}
+                    disallowedRule={disallowedRule}
+                    variant="compact"
+                />
             </div>
-        </>
+        </div>
     );
 };
 
@@ -160,53 +136,126 @@ const Clients = ({ refreshButton, subtitle }: ClientsProps) => {
         shallowEqual,
     );
 
+    const numDnsQueries = useSelector<RootState, number>((state) => state.stats.numDnsQueries, shallowEqual);
+
     const hasData = topClients && topClients.length > 0;
+    const previewClients = hasData ? topClients.slice(0, DASHBOARD_MOBILE_PREVIEW_LIMIT) : [];
 
     return (
         <Card title={t('top_clients')} subtitle={subtitle} bodyType="card-table" refresh={refreshButton}>
             {!hasData ? (
                 <EmptyCardState />
             ) : (
-                <ReactTable
-                    data={topClients.map(({ name: ip, count, info, blocked }: any) => ({
-                        ip,
-                        count,
-                        info,
-                        blocked,
-                    }))}
-                    columns={[
-                        {
-                            Header: <Trans>client_table_header</Trans>,
-                            accessor: 'ip',
-                            minWidth: 280,
-                            sortMethod: sortIp,
-                            Cell: ClientCell,
-                        },
-                        {
-                            Header: <Trans>requests_count</Trans>,
-                            accessor: 'count',
-                            minWidth: 210,
-                            maxWidth: 230,
-                            Cell: CountCell,
-                        },
-                    ]}
-                    showPagination={false}
-                    noDataText={t('no_clients_found')}
-                    minRows={TABLES_MIN_ROWS}
-                    defaultPageSize={DASHBOARD_TABLES_DEFAULT_PAGE_SIZE}
-                    className="-highlight card-table-overflow--limited clients__table"
-                    getTrProps={(_state: any, rowInfo: any) => {
-                        if (!rowInfo) {
-                            return {};
-                        }
+                <>
+                    <div className="dashboard-desktop-only">
+                        <ReactTable
+                            data={topClients.map(({ name: ip, count, info, blocked }: any) => ({
+                                ip,
+                                count,
+                                info,
+                                blocked,
+                            }))}
+                            columns={[
+                                {
+                                    Header: <Trans>client_table_header</Trans>,
+                                    accessor: 'ip',
+                                    minWidth: 280,
+                                    sortMethod: sortIp,
+                                    Cell: ClientCell,
+                                },
+                                {
+                                    Header: <Trans>requests_count</Trans>,
+                                    accessor: 'count',
+                                    minWidth: 210,
+                                    maxWidth: 230,
+                                    Cell: CountCell,
+                                },
+                            ]}
+                            showPagination={false}
+                            noDataText={t('no_clients_found')}
+                            minRows={TABLES_MIN_ROWS}
+                            defaultPageSize={DASHBOARD_TABLES_DEFAULT_PAGE_SIZE}
+                            className="-highlight card-table-overflow--limited clients__table"
+                            getTrProps={(_state: any, rowInfo: any) => {
+                                if (!rowInfo) {
+                                    return {};
+                                }
 
-                        const {
-                            info: { disallowed },
-                        } = rowInfo.original;
+                                const disallowed = Boolean(rowInfo.original?.info?.disallowed);
+                                return disallowed ? { className: 'logs__row--red' } : {};
+                            }}
+                        />
+                    </div>
 
-                        return disallowed ? { className: 'logs__row--red' } : {};
-                    }}
-                />
+                    <div className="dashboard-mobile-only">
+                        <div className="mobile-clients-list">
+                            {previewClients.map(({ name: ip, count, info }: any) => {
+                                const percent = getPercent(numDnsQueries, count);
+                                const disallowed = Boolean(info?.disallowed);
+                                const disallowedRule = info?.disallowed_rule || '';
+                                const subtitleText = getClientSubtitleText(info);
+
+                                return (
+                                    <div
+                                        key={ip}
+                                        className={classNames('mobile-client-card', {
+                                            'mobile-client-card--blocked': disallowed,
+                                        })}>
+                                        <div className="mobile-client-card__title-row">
+                                            <WifiClientIcon />
+                                            <Link
+                                                to={`logs?search="${encodeURIComponent(ip)}"`}
+                                                className="mobile-client-card__name">
+                                                {ip}
+                                            </Link>
+                                            {!disallowed && disallowedRule && (
+                                                <span className="client-status-badge client-status-badge--allowed ml-auto">
+                                                    {t('client_status_allowed', 'Allowed')}
+                                                </span>
+                                            )}
+                                            {disallowed && (
+                                                <span className="client-status-badge client-status-badge--blocked ml-auto">
+                                                    {t('client_status_blocked', 'Blocked')}
+                                                </span>
+                                            )}
+                                        </div>
+
+                                        <div className="mobile-client-card__subtitle">{subtitleText}</div>
+
+                                        <div className="mobile-client-card__stats">
+                                            <span className="mobile-client-card__count">
+                                                <LogsSearchLink search={ip}>{formatNumber(count)}</LogsSearchLink>{' '}
+                                                <span className="mobile-client-card__percent">({percent}%)</span>
+                                            </span>
+                                            <div className="mobile-client-card__bar-track">
+                                                <div
+                                                    className="mobile-client-card__bar-fill"
+                                                    style={{
+                                                        width: `${Math.min(Math.max(percent, 0), 100)}%`,
+                                                        backgroundColor: disallowed ? '#f97316' : '#94a3b8',
+                                                    }}
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <ClientBlockActionButton
+                                            ip={ip}
+                                            disallowed={disallowed}
+                                            disallowedRule={disallowedRule}
+                                            variant="full"
+                                        />
+                                    </div>
+                                );
+                            })}
+                        </div>
+
+                        {topClients.length > DASHBOARD_MOBILE_PREVIEW_LIMIT && (
+                            <Link to={DASHBOARD_STATS_URLS.topClients} className="dashboard-card-show-more">
+                                {t('show_more', 'Show more')}
+                            </Link>
+                        )}
+                    </div>
+                </>
             )}
         </Card>
     );
