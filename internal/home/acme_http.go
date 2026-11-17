@@ -259,7 +259,7 @@ func (m *tlsManager) runACMEIssueJob(
 	}
 
 	job.logKey("info", "acme_progress_applying", nil)
-	status, applyErr := m.applyIssuedCertificate(ctx, res)
+	status, restartConf, applyErr := m.applyIssuedCertificate(ctx, res)
 
 	config.Lock()
 	if config.ACME == nil {
@@ -294,6 +294,15 @@ func (m *tlsManager) runACMEIssueJob(
 		PrivateKey:       base64.StdEncoding.EncodeToString(res.PrivateKeyPEM),
 	})
 	m.notifyRenewalResult(ctx, cfgJSON.Domains, status.NotAfter, nil)
+
+	if restartConf != nil && m.web != nil {
+		go func(conf *tlsConfigSettings) {
+			// Give the SSE handler a brief moment to flush the final "done"
+			// event before restarting the HTTPS listener with the new cert.
+			time.Sleep(150 * time.Millisecond)
+			m.web.tlsConfigChanged(context.Background(), conf)
+		}(restartConf)
+	}
 }
 
 // handleACMEIssueStream is the handler for the GET
@@ -318,6 +327,9 @@ func (m *tlsManager) handleACMEIssueStream(w http.ResponseWriter, r *http.Reques
 	// whose outer layers don't implement [http.Flusher] themselves; the
 	// controller unwraps through them to find the underlying one.
 	rc := http.NewResponseController(w)
+	// Clear the server-wide WriteTimeout so long-running ACME issuances
+	// (up to 10 minutes) are not severed mid-stream.
+	_ = rc.SetWriteDeadline(time.Time{})
 
 	h := w.Header()
 	h.Set("Content-Type", "text/event-stream")
@@ -424,9 +436,11 @@ func pickServerName(dnsNames []string) (name string) {
 func (m *tlsManager) applyIssuedCertificate(
 	ctx context.Context,
 	res *acme.Result,
-) (status *tlsConfigStatus, err error) {
+) (status *tlsConfigStatus, restartConf *tlsConfigSettings, err error) {
 	var newConf *tlsConfigSettings
 	var restartHTTPS bool
+
+	webAPIAddr, webAPIPort, plainDNSPort := snapshotConfigPorts()
 
 	err = func() (innerErr error) {
 		m.mu.Lock()
@@ -450,7 +464,12 @@ func (m *tlsManager) applyIssuedCertificate(
 			newConf.ServerName = pickServerName(status.DNSNames)
 		}
 
-		innerErr = m.validateTLSSettings(tlsConfigSettingsExt{tlsConfigSettings: *newConf})
+		innerErr = m.validateTLSSettingsWithPorts(
+			tlsConfigSettingsExt{tlsConfigSettings: *newConf},
+			webAPIAddr,
+			webAPIPort,
+			plainDNSPort,
+		)
 		if innerErr != nil {
 			// Preserve the newly issued certificate and key in m.extTLSConf so
 			// the user doesn't lose them if a port is currently busy.
@@ -470,7 +489,7 @@ func (m *tlsManager) applyIssuedCertificate(
 		return nil
 	}()
 	if err != nil {
-		return status, err
+		return status, nil, err
 	}
 
 	if globalContext.dnsServer != nil {
@@ -479,19 +498,13 @@ func (m *tlsManager) applyIssuedCertificate(
 		}
 	}
 
-	if restartHTTPS && m.web != nil {
-		go func() {
-			// Give any active SSE stream on the current HTTPS server a brief
-			// window to flush its final "done" event before shutting down the
-			// listener to apply the new certificate.
-			time.Sleep(50 * time.Millisecond)
-			m.web.tlsConfigChanged(context.Background(), newConf)
-		}()
-	}
-
 	m.logger.InfoContext(ctx, "applied acme-issued certificate", "not_after", status.NotAfter)
 
-	return status, nil
+	if restartHTTPS {
+		restartConf = newConf
+	}
+
+	return status, restartConf, nil
 }
 
 // registerACMEWebHandlers registers HTTP handlers for the ACME/"SSL/TLS

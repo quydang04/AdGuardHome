@@ -37,9 +37,11 @@ export const setRules = (rules: any) => async (dispatch: any) => {
         await apiClient.setRules(normalizedRules);
         dispatch(addSuccessToast('updated_custom_filtering_toast'));
         dispatch(setRulesSuccess());
+        return true;
     } catch (error) {
         dispatch(addErrorToast({ error }));
         dispatch(setRulesFailure());
+        return false;
     }
 };
 

@@ -40,6 +40,11 @@ type DB interface {
 	// an error from the cryptographic randomness reader.  u must not be
 	// modified.
 	Create(ctx context.Context, u *User) (err error)
+
+	// UpdateLogin renames an existing user's login from oldLogin to newLogin.
+	// If newLogin is empty, it returns [errors.ErrEmptyValue].  If newLogin is
+	// already used by another user, it returns [errors.ErrDuplicated].
+	UpdateLogin(ctx context.Context, oldLogin, newLogin Login) (err error)
 }
 
 // DefaultDB is the default in-memory implementation of the [DB] interface.
@@ -144,6 +149,40 @@ func (db *DefaultDB) Create(ctx context.Context, u *User) (err error) {
 
 	db.userIDToUser[u.ID] = u
 	db.loginToUserID[u.Login] = u.ID
+
+	return nil
+}
+
+// UpdateLogin implements the [DB] interface for *DefaultDB.
+func (db *DefaultDB) UpdateLogin(ctx context.Context, oldLogin, newLogin Login) (err error) {
+	if newLogin == "" {
+		return fmt.Errorf("login: %w", errors.ErrEmptyValue)
+	}
+
+	db.mu.Lock()
+	defer db.mu.Unlock()
+
+	id, ok := db.loginToUserID[oldLogin]
+	if !ok {
+		return fmt.Errorf("user %q not found", oldLogin)
+	}
+
+	if newLogin == oldLogin {
+		return nil
+	}
+
+	if _, exists := db.loginToUserID[newLogin]; exists {
+		return fmt.Errorf("login: %w", errors.ErrDuplicated)
+	}
+
+	u, ok := db.userIDToUser[id]
+	if !ok {
+		panic(fmt.Errorf("no web user present with login %q", oldLogin))
+	}
+
+	u.Login = newLogin
+	delete(db.loginToUserID, oldLogin)
+	db.loginToUserID[newLogin] = id
 
 	return nil
 }

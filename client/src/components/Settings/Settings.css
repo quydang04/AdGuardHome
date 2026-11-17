@@ -260,15 +260,48 @@
     font-size: 0.9rem;
 }
 
-.settings__password-form .btn {
+.settings__password-input-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.settings__password-input-wrap .form-control {
+    padding-right: 2.75rem;
+}
+
+.settings__password-toggle {
+    position: absolute;
+    right: 0.65rem;
+    top: 50%;
+    transform: translateY(-50%);
+    background: transparent;
+    border: none;
+    padding: 0.25rem;
+    margin: 0 !important;
+    cursor: pointer;
+    color: var(--text-muted, #8e8e93);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    transition: color 0.15s ease, background-color 0.15s ease;
+}
+
+.settings__password-toggle:hover {
+    color: var(--text-primary, #ffffff);
+}
+
+.settings__password-form .btn:not(.settings__password-toggle) {
     margin-top: 0.5rem;
 }
 
 .settings__message {
     margin-top: 0.75rem;
     font-size: 0.85rem;
-    padding: 0.5rem 0.75rem;
-    border-radius: 6px;
+    padding: 0.55rem 0.85rem;
+    border-radius: 8px;
+    line-height: 1.4;
 }
 
 .settings__message--success {
@@ -283,7 +316,25 @@
     border: 1px solid #f5c6cb;
 }
 
+[data-theme='dark'] .settings__message--success {
+    color: #a3e6b4;
+    background-color: rgba(103, 178, 121, 0.14);
+    border: 1px solid rgba(103, 178, 121, 0.35);
+}
+
+[data-theme='dark'] .settings__message--error {
+    color: #ffb4a9;
+    background-color: rgba(233, 101, 58, 0.14);
+    border: 1px solid rgba(233, 101, 58, 0.38);
+}
+
 /* Import/Export */
+.settings__appearance-card {
+    overflow: visible !important;
+    position: relative;
+    z-index: 5;
+}
+
 .settings__import-export {
     max-width: 500px;
 }

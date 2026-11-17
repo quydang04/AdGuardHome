@@ -45,6 +45,7 @@ type testSessionStorage struct {
 		t aghuser.SessionToken,
 	) (s *aghuser.Session, err error)
 	onDeleteByToken func(ctx context.Context, t aghuser.SessionToken) (err error)
+	onUpdateLogin   func(ctx context.Context, oldLogin, newLogin aghuser.Login) (err error)
 	onClose         func() (err error)
 }
 
@@ -66,6 +67,9 @@ func newTestSessionStorage() (ts *testSessionStorage) {
 		},
 		onDeleteByToken: func(ctx context.Context, t aghuser.SessionToken) (_ error) {
 			panic(testutil.UnexpectedCall(ctx, t))
+		},
+		onUpdateLogin: func(ctx context.Context, oldLogin, newLogin aghuser.Login) (_ error) {
+			panic(testutil.UnexpectedCall(ctx, oldLogin, newLogin))
 		},
 		onClose: func() (_ error) {
 			panic(testutil.UnexpectedCall())
@@ -100,6 +104,16 @@ func (ts *testSessionStorage) DeleteByToken(
 	return ts.onDeleteByToken(ctx, t)
 }
 
+// UpdateLogin implements the [aghuser.SessionStorage] interface for
+// *testSessionStorage.
+func (ts *testSessionStorage) UpdateLogin(
+	ctx context.Context,
+	oldLogin aghuser.Login,
+	newLogin aghuser.Login,
+) (err error) {
+	return ts.onUpdateLogin(ctx, oldLogin, newLogin)
+}
+
 // Close implements the [aghuser.SessionStorage] interface for
 // *testSessionStorage.
 func (ts *testSessionStorage) Close() (err error) {
@@ -108,10 +122,11 @@ func (ts *testSessionStorage) Close() (err error) {
 
 // testUsersDB is the mock implementation of the [aghuser.DB] interface.
 type testUsersDB struct {
-	onAll     func(ctx context.Context) (users []*aghuser.User, err error)
-	onByLogin func(ctx context.Context, login aghuser.Login) (u *aghuser.User, err error)
-	onByUUID  func(ctx context.Context, id aghuser.UserID) (u *aghuser.User, err error)
-	onCreate  func(ctx context.Context, u *aghuser.User) (err error)
+	onAll         func(ctx context.Context) (users []*aghuser.User, err error)
+	onByLogin     func(ctx context.Context, login aghuser.Login) (u *aghuser.User, err error)
+	onByUUID      func(ctx context.Context, id aghuser.UserID) (u *aghuser.User, err error)
+	onCreate      func(ctx context.Context, u *aghuser.User) (err error)
+	onUpdateLogin func(ctx context.Context, oldLogin, newLogin aghuser.Login) (err error)
 }
 
 // newTestUsersDB returns a new *testUsersDB all methods of which panic.
@@ -128,6 +143,9 @@ func newTestUsersDB() (ts *testUsersDB) {
 		},
 		onCreate: func(ctx context.Context, u *aghuser.User) (_ error) {
 			panic(testutil.UnexpectedCall(ctx, u))
+		},
+		onUpdateLogin: func(ctx context.Context, oldLogin, newLogin aghuser.Login) (_ error) {
+			panic(testutil.UnexpectedCall(ctx, oldLogin, newLogin))
 		},
 	}
 }
@@ -156,6 +174,15 @@ func (db *testUsersDB) ByUUID(ctx context.Context, id aghuser.UserID) (u *aghuse
 // Create implements the [aghuser.DB] interface for *testUsersDB.
 func (db *testUsersDB) Create(ctx context.Context, u *aghuser.User) (err error) {
 	return db.onCreate(ctx, u)
+}
+
+// UpdateLogin implements the [aghuser.DB] interface for *testUsersDB.
+func (db *testUsersDB) UpdateLogin(
+	ctx context.Context,
+	oldLogin aghuser.Login,
+	newLogin aghuser.Login,
+) (err error) {
+	return db.onUpdateLogin(ctx, oldLogin, newLogin)
 }
 
 // testAuthHandler is a helper handler used for testing HTTP middleware.

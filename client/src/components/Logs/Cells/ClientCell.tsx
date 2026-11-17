@@ -54,7 +54,7 @@ const ClientCell = ({ client, client_id, client_info, domain, reason }: ClientCe
 
     const clients = useSelector((state: RootState) => state.dashboard.clients);
     const source = autoClient?.source;
-    const whoisAvailable = client_info && Object.keys(client_info.whois).length > 0;
+    const whoisAvailable = Boolean(client_info?.whois && Object.keys(client_info.whois).length > 0);
     const clientName = client_info?.name || client_id;
     const clientInfo = client_info && {
         ...client_info,
@@ -154,7 +154,7 @@ const ClientCell = ({ client, client_id, client_info, domain, reason }: ClientCe
             BUTTON_OPTIONS.push({
                 name: 'add_persistent_client',
                 onClick: () => {
-                    history.push(`/#clients?clientId=${client}`);
+                    history.push(`/clients?clientId=${encodeURIComponent(client)}`);
                 },
             });
         }

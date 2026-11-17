@@ -262,8 +262,8 @@ const Form = ({ processing, initialValues, onSubmit }: Props) => {
                             control={control}
                             rules={{
                                 validate: {
-                                    required: validateRequiredValue,
-                                    id: validateIp,
+                                    required: (v) => (!edns_cs_enabled ? true : validateRequiredValue(v)),
+                                    id: (v) => (!edns_cs_enabled ? true : validateIp(v)),
                                 },
                             }}
                             render={({ field, fieldState }) => (

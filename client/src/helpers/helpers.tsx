@@ -93,13 +93,15 @@ export const normalizeLogs = (logs: any) =>
                   })
                 : [];
 
-        let newRules = rules;
+        let newRules = Array.isArray(rules) ? rules : [];
         /* TODO 'filterId' and 'rule' are deprecated, will be removed in 0.106 */
-        if (rule !== undefined && filterId !== undefined && rules !== undefined && rules.length === 0) {
-            newRules = {
-                filter_list_id: filterId,
-                text: rule,
-            };
+        if (rule !== undefined && filterId !== undefined && newRules.length === 0) {
+            newRules = [
+                {
+                    filter_list_id: filterId,
+                    text: rule,
+                },
+            ];
         }
 
         return {

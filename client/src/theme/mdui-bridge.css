@@ -163,9 +163,8 @@ a:hover {
     border: 1px solid var(--card-border-color) !important;
     border-radius: var(--mdui-shape-medium) !important;
     box-shadow: var(--mdui-shadow-card-soft) !important;
-    contain: layout style;
     transition: box-shadow 0.25s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.25s cubic-bezier(0.4, 0, 0.2, 1), transform 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
-    overflow: hidden;
+    overflow: visible;
 }
 
 .card:hover {
@@ -420,6 +419,18 @@ button:focus-visible,
     transform: translateY(-1px);
 }
 
+[data-theme='light'] .btn-outline-secondary {
+    border: 1px solid #cbd5e1 !important;
+    color: #334155 !important;
+    background: transparent !important;
+}
+
+[data-theme='light'] .btn-outline-secondary:hover {
+    background: #f1f5f9 !important;
+    color: #0f172a !important;
+    border-color: #94a3b8 !important;
+}
+
 .btn-icon {
     border-radius: 8px !important;
     width: 2.25rem !important;
@@ -507,7 +518,7 @@ button:focus-visible,
 [data-theme='dark'] .ReactTable .form-control,
 [data-theme='dark'] .Select-control,
 [data-theme='dark'] .select__control {
-    background: #3d3d3d !important;
+    background-color: #3d3d3d !important;
     border: 1px solid #5b5b5b !important;
     color: #ffffff !important;
 }
@@ -516,9 +527,44 @@ button:focus-visible,
 [data-theme='light'] .ReactTable .form-control,
 [data-theme='light'] .Select-control,
 [data-theme='light'] .select__control {
-    background: #ffffff !important;
+    background-color: #ffffff !important;
     border: 1px solid #cbd5e1 !important;
     color: #0f172a !important;
+}
+
+select.form-control:not(.custom-select--logs),
+.custom-select:not(.custom-select--logs) {
+    appearance: none !important;
+    -webkit-appearance: none !important;
+    -moz-appearance: none !important;
+    height: auto !important;
+    min-height: 42px !important;
+    line-height: 1.4 !important;
+    padding: 0.6rem 2.5rem 0.6rem 1rem !important;
+    border-radius: 10px !important;
+    background-repeat: no-repeat !important;
+    background-position: right 14px center !important;
+    background-size: 14px 14px !important;
+}
+
+[data-theme='dark'] select.form-control:not(.custom-select--logs),
+[data-theme='dark'] .custom-select:not(.custom-select--logs) {
+    background-color: #3d3d3d !important;
+    background-image: url("data:image/svg+xml;charset=utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23cbd5e1' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") !important;
+    color: #ffffff !important;
+}
+
+[data-theme='light'] select.form-control:not(.custom-select--logs),
+[data-theme='light'] .custom-select:not(.custom-select--logs) {
+    background-color: #ffffff !important;
+    background-image: url("data:image/svg+xml;charset=utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") !important;
+    color: #0f172a !important;
+}
+
+select.form-control option,
+.custom-select option {
+    background-color: var(--card-bgcolor, #2d2d2d);
+    color: var(--black, #ffffff);
 }
 
 .form-control::placeholder,
@@ -533,7 +579,7 @@ button:focus-visible,
 [data-theme='dark'] .text-input:focus {
     border-color: #4e8c5d !important;
     box-shadow: none !important;
-    background: #3d3d3d !important;
+    background-color: #3d3d3d !important;
     color: #ffffff !important;
     outline: none !important;
 }
@@ -543,7 +589,7 @@ button:focus-visible,
 [data-theme='light'] .text-input:focus {
     border-color: #4e8c5d !important;
     box-shadow: none !important;
-    background: #ffffff !important;
+    background-color: #ffffff !important;
     color: #0f172a !important;
     outline: none !important;
 }
@@ -580,6 +626,17 @@ label,
 .form__description {
     color: #9ca3af !important;
     font-size: 13px !important;
+}
+
+[data-theme='light'] label,
+[data-theme='light'] .form__label,
+[data-theme='light'] .form-label {
+    color: #334155 !important;
+}
+
+[data-theme='light'] .form__desc,
+[data-theme='light'] .form__description {
+    color: #64748b !important;
 }
 
 /* Tables */
@@ -639,6 +696,33 @@ label,
     font-size: 13.5px !important;
     display: flex !important;
     align-items: center !important;
+}
+
+[data-theme='light'] .table,
+[data-theme='light'] .ReactTable {
+    border-color: #e2e8f0 !important;
+}
+
+[data-theme='light'] .table thead th,
+[data-theme='light'] .ReactTable .rt-thead .rt-th {
+    background: #f8fafc !important;
+    border-bottom: 1px solid #e2e8f0 !important;
+    color: #475569 !important;
+}
+
+[data-theme='light'] .table tbody tr,
+[data-theme='light'] .ReactTable .rt-tbody .rt-tr-group {
+    border-bottom: 1px solid #e2e8f0 !important;
+}
+
+[data-theme='light'] .table tbody tr:hover,
+[data-theme='light'] .ReactTable .rt-tr-group:hover {
+    background: rgba(15, 23, 42, 0.03) !important;
+}
+
+[data-theme='light'] .ReactTable .rt-tbody .rt-td,
+[data-theme='light'] .table td {
+    color: #0f172a !important;
 }
 
 /* ReactTable Modern Layout & Flex structure */
@@ -796,12 +880,28 @@ label,
     border-radius: 6px !important;
 }
 
+.custom-radio .custom-control-label::before {
+    border-radius: 50% !important;
+}
+
+[data-theme='light'] .checkbox__label:before,
+[data-theme='light'] .custom-control-label::before {
+    background-color: #ffffff !important;
+    border-color: #cbd5e1 !important;
+}
+
 .checkbox__input:checked + .checkbox__label:before,
 .custom-control-input:checked ~ .custom-control-label::before,
 .custom-checkbox .custom-control-input:checked ~ .custom-control-label::before {
     background-color: #67b279 !important;
     border-color: #67b279 !important;
     background-image: url("data:image/svg+xml;charset=utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12.3 9.2'%3E%3Cpath stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' fill='none' d='M11.3 1L4.8 8.2 1 4.4'/%3E%3C/svg%3E") !important;
+}
+
+.custom-radio .custom-control-input:checked ~ .custom-control-label::before {
+    background-color: #67b279 !important;
+    border-color: #67b279 !important;
+    background-image: none !important;
 }
 
 .checkbox__input:focus + .checkbox__label:before {
@@ -960,7 +1060,7 @@ label,
     box-shadow: 0 20px 40px rgba(0, 0, 0, 0.45) !important;
     background: #3d3d3d !important;
     color: #ffffff !important;
-    overflow: hidden;
+    overflow: visible;
 }
 
 .modal-header {
@@ -978,6 +1078,25 @@ label,
     font-family: var(--font-family-sans-serif);
     font-weight: 600 !important;
     color: #ffffff !important;
+}
+
+[data-theme='light'] .modal-content {
+    border-color: #e2e8f0 !important;
+    background: #ffffff !important;
+    color: #0f172a !important;
+    box-shadow: 0 20px 40px rgba(15, 23, 42, 0.18) !important;
+}
+
+[data-theme='light'] .modal-header {
+    border-bottom-color: #e2e8f0 !important;
+}
+
+[data-theme='light'] .modal-footer {
+    border-top-color: #e2e8f0 !important;
+}
+
+[data-theme='light'] .modal-title {
+    color: #0f172a !important;
 }
 
 .modal-header .close {
@@ -1211,6 +1330,15 @@ button:hover .icon {
     outline: none !important;
     box-shadow: none !important;
     color: #ffffff !important;
+}
+
+[data-theme='light'] .text-edit-container {
+    border-color: #cbd5e1 !important;
+    background: #ffffff !important;
+}
+
+[data-theme='light'] .text-input {
+    color: #0f172a !important;
 }
 
 .text-edit-container:focus-within {

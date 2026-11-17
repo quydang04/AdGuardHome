@@ -12,6 +12,7 @@ import (
 type protectionAdapter struct {
 	srv     *dnsforward.Server
 	filters *filtering.DNSFilter
+	web     *webAPI
 }
 
 func (a *protectionAdapter) IsProtectionEnabled() bool {
@@ -29,7 +30,10 @@ func (a *protectionAdapter) SetProtectionEnabled(enabled bool) error {
 		return nil
 	}
 
-	a.filters.SetProtectionEnabled(enabled)
+	a.filters.SetProtectionStatus(enabled, nil)
+	if a.web != nil && a.web.confModifier != nil {
+		a.web.confModifier.Apply(context.Background())
+	}
 
 	return nil
 }
@@ -106,7 +110,7 @@ func injectNotificationProviders(web *webAPI) {
 
 	var pp notifications.ProtectionProvider
 	if globalContext.dnsServer != nil {
-		pp = &protectionAdapter{srv: globalContext.dnsServer, filters: globalContext.filters}
+		pp = &protectionAdapter{srv: globalContext.dnsServer, filters: globalContext.filters, web: web}
 	}
 
 	n.SetProviders(sp, fp, pp)

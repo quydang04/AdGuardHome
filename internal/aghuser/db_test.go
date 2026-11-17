@@ -80,4 +80,30 @@ func TestDB(t *testing.T) {
 
 	assert.Len(t, users, 2)
 	assert.Equal(t, []*aghuser.User{userSecond, userWithID}, users)
+
+	require.True(t, t.Run("update_login", func(t *testing.T) {
+		err = db.UpdateLogin(ctx, userWithID.Login, "")
+		assert.ErrorIs(t, err, errors.ErrEmptyValue)
+
+		err = db.UpdateLogin(ctx, userWithID.Login, userSecond.Login)
+		assert.ErrorIs(t, err, errors.ErrDuplicated)
+
+		err = db.UpdateLogin(ctx, "unknown_login", "new_login")
+		assert.Error(t, err)
+
+		oldLogin := userWithID.Login
+		const renamedLogin aghuser.Login = "user_renamed"
+		err = db.UpdateLogin(ctx, oldLogin, renamedLogin)
+		require.NoError(t, err)
+
+		got, err = db.ByLogin(ctx, oldLogin)
+		require.NoError(t, err)
+		assert.Nil(t, got)
+
+		got, err = db.ByLogin(ctx, renamedLogin)
+		require.NoError(t, err)
+		require.NotNil(t, got)
+		assert.Equal(t, renamedLogin, got.Login)
+		assert.Equal(t, userWithID.ID, got.ID)
+	}))
 }

@@ -36,10 +36,14 @@ class Api {
                 if (error.response.status === 403 && shouldRedirect) {
                     const loginPageUrl = window.location.href.replace(R_PATH_LAST_PART, HTML_PAGES.LOGIN);
                     window.location.replace(loginPageUrl);
-                    return false;
+                    throw new Error(`${errorPath} | Unauthorized | 403`);
                 }
 
-                throw new Error(`${errorPath} | ${error.response.data} | ${error.response.status}`);
+                const respData =
+                    typeof error.response.data === 'object' && error.response.data !== null
+                        ? error.response.data.message || JSON.stringify(error.response.data)
+                        : error.response.data;
+                throw new Error(`${errorPath} | ${respData} | ${error.response.status}`);
             }
 
             throw new Error(`${errorPath} | ${error.message || error}`);

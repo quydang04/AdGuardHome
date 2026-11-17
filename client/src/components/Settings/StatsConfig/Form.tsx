@@ -51,6 +51,7 @@ export const Form = ({ initialValues, processing, processingReset, onSubmit, onR
         handleSubmit,
         watch,
         setValue,
+        reset,
         control,
         formState: { isSubmitting },
     } = useForm<FormValues>({
@@ -60,6 +61,13 @@ export const Form = ({ initialValues, processing, processingReset, onSubmit, onR
             ...initialValues,
         },
     });
+
+    useEffect(() => {
+        reset({
+            ...defaultFormValues,
+            ...initialValues,
+        });
+    }, [initialValues, reset]);
 
     const intervalValue = watch('interval');
     const customIntervalValue = watch('customInterval');
@@ -126,9 +134,29 @@ export const Form = ({ initialValues, processing, processingReset, onSubmit, onR
                             <Controller
                                 name="customInterval"
                                 control={control}
+                                rules={{
+                                    required: t('form_error_required'),
+                                    min: {
+                                        value: RETENTION_RANGE.MIN,
+                                        message: t('form_error_range', {
+                                            min: RETENTION_RANGE.MIN,
+                                            max: RETENTION_RANGE.MAX,
+                                        }),
+                                    },
+                                    max: {
+                                        value: RETENTION_RANGE.MAX,
+                                        message: t('form_error_range', {
+                                            min: RETENTION_RANGE.MIN,
+                                            max: RETENTION_RANGE.MAX,
+                                        }),
+                                    },
+                                    validate: (v) =>
+                                        Number.isInteger(Number(v)) || t('form_error_positive'),
+                                }}
                                 render={({ field, fieldState }) => (
                                     <Input
                                         {...field}
+                                        type="number"
                                         data-testid="stats_config_custom_interval"
                                         disabled={processing}
                                         error={fieldState.error?.message}

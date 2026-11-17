@@ -127,6 +127,11 @@ var containerFS = map[string]bool{
 	"aufs":    true,
 }
 
+// IsContainer reports whether the process is running inside a container.
+func IsContainer() bool {
+	return isContainer()
+}
+
 // Collect returns a snapshot of the host system metrics.  In case of errors,
 // it falls back to zero values for the affected fields while still returning
 // any other available information.
@@ -460,10 +465,10 @@ var (
 func lookupPublicIP() string {
 	publicIPMu.RLock()
 	val := publicIPValue
-	fresh := time.Since(publicIPFetched) < publicIPCacheTTL
+	fresh := !publicIPFetched.IsZero() && time.Since(publicIPFetched) < publicIPCacheTTL
 	publicIPMu.RUnlock()
 
-	if fresh && val != "" {
+	if fresh {
 		return val
 	}
 
@@ -472,13 +477,13 @@ func lookupPublicIP() string {
 		ip = fetchPublicIP(publicIPSecondaryURL)
 	}
 
-	if ip == "" {
-		return val
-	}
-
 	publicIPMu.Lock()
-	publicIPValue = ip
 	publicIPFetched = time.Now()
+	if ip != "" {
+		publicIPValue = ip
+	} else {
+		ip = publicIPValue
+	}
 	publicIPMu.Unlock()
 
 	return ip

@@ -47,7 +47,7 @@ const InfiniteTable = ({
         if (!loadingRef.current && loader.current && isScrolledIntoView(loader.current)) {
             dispatch(getLogs(currentQuery));
         }
-    }, []);
+    }, [currentQuery, dispatch]);
 
     useEffect(() => {
         loadingRef.current = processingGetLogs;
@@ -55,7 +55,7 @@ const InfiniteTable = ({
 
     useEffect(() => {
         listener();
-    }, [items.length < QUERY_LOGS_PAGE_LIMIT, isEntireLog]);
+    }, [items.length < QUERY_LOGS_PAGE_LIMIT, isEntireLog, listener]);
 
     useEffect(() => {
         const THROTTLE_TIME = 100;
@@ -64,8 +64,9 @@ const InfiniteTable = ({
         window.addEventListener('scroll', throttledListener);
         return () => {
             window.removeEventListener('scroll', throttledListener);
+            throttledListener.cancel?.();
         };
-    }, []);
+    }, [listener]);
 
     const renderRow = (row: any, idx: any) => (
         <Row

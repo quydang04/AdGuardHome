@@ -1,13 +1,19 @@
 package home
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
 	"net/netip"
+	"strings"
+	"time"
 
 	"github.com/AdguardTeam/AdGuardHome/internal/aghhttp"
 	"github.com/AdguardTeam/AdGuardHome/internal/aghuser"
+	"github.com/AdguardTeam/golibs/errors"
+	"github.com/AdguardTeam/golibs/logutil/slogutil"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -153,7 +159,7 @@ func (web *webAPI) handleChangePassword(w http.ResponseWriter, r *http.Request) 
 	l := web.logger
 
 	if web.auth.isUserless {
-		aghhttp.ErrorAndLog(ctx, l, r, w, http.StatusForbidden, "no users configured")
+		aghhttp.ErrorAndLog(ctx, l, r, w, http.StatusBadRequest, "no users configured")
 
 		return
 	}
@@ -180,13 +186,19 @@ func (web *webAPI) handleChangePassword(w http.ResponseWriter, r *http.Request) 
 	}
 
 	if !u.Password.Authenticate(ctx, req.CurrentPassword) {
-		aghhttp.ErrorAndLog(ctx, l, r, w, http.StatusForbidden, "current password is incorrect")
+		aghhttp.ErrorAndLog(ctx, l, r, w, http.StatusBadRequest, "current password is incorrect")
 
 		return
 	}
 
 	hash, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcrypt.DefaultCost)
 	if err != nil {
+		if errors.Is(err, bcrypt.ErrPasswordTooLong) {
+			aghhttp.ErrorAndLog(ctx, l, r, w, http.StatusBadRequest, "password must be at most 72 bytes")
+
+			return
+		}
+
 		aghhttp.ErrorAndLog(ctx, l, r, w, http.StatusInternalServerError, "generating hash: %s", err)
 
 		return
@@ -221,7 +233,7 @@ func (web *webAPI) handleChangeUsername(w http.ResponseWriter, r *http.Request) 
 	l := web.logger
 
 	if web.auth.isUserless {
-		aghhttp.ErrorAndLog(ctx, l, r, w, http.StatusForbidden, "no users configured")
+		aghhttp.ErrorAndLog(ctx, l, r, w, http.StatusBadRequest, "no users configured")
 
 		return
 	}
@@ -241,14 +253,41 @@ func (web *webAPI) handleChangeUsername(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	if req.NewUsername == "" {
+	newUsername := strings.TrimSpace(req.NewUsername)
+	if newUsername == "" {
 		aghhttp.ErrorAndLog(ctx, l, r, w, http.StatusBadRequest, "username must not be empty")
 
 		return
 	}
 
 	oldLogin := u.Login
-	u.Login = aghuser.Login(req.NewUsername)
+	newLogin := aghuser.Login(newUsername)
+	if newLogin == oldLogin {
+		aghhttp.OK(ctx, l, w)
+
+		return
+	}
+
+	err = web.auth.users.UpdateLogin(ctx, oldLogin, newLogin)
+	if err != nil {
+		if errors.Is(err, errors.ErrDuplicated) {
+			aghhttp.ErrorAndLog(ctx, l, r, w, http.StatusConflict, "username already exists")
+
+			return
+		}
+
+		aghhttp.ErrorAndLog(ctx, l, r, w, http.StatusInternalServerError, "updating username: %s", err)
+
+		return
+	}
+
+	err = web.auth.sessions.UpdateLogin(ctx, oldLogin, newLogin)
+	if err != nil {
+		_ = web.auth.users.UpdateLogin(ctx, newLogin, oldLogin)
+		aghhttp.ErrorAndLog(ctx, l, r, w, http.StatusInternalServerError, "updating sessions: %s", err)
+
+		return
+	}
 
 	func() {
 		config.Lock()
@@ -256,7 +295,7 @@ func (web *webAPI) handleChangeUsername(w http.ResponseWriter, r *http.Request) 
 
 		for i, wu := range config.Users {
 			if aghuser.Login(wu.Name) == oldLogin {
-				config.Users[i].Name = req.NewUsername
+				config.Users[i].Name = newUsername
 
 				break
 			}
@@ -265,7 +304,7 @@ func (web *webAPI) handleChangeUsername(w http.ResponseWriter, r *http.Request) 
 
 	web.confModifier.Apply(ctx)
 
-	l.InfoContext(ctx, "username changed", "old", oldLogin, "new", req.NewUsername)
+	l.InfoContext(ctx, "username changed", "old", oldLogin, "new", newUsername)
 
 	aghhttp.OK(ctx, l, w)
 }
@@ -289,17 +328,79 @@ func (web *webAPI) handleChangePort(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var (
+		oldAddr     netip.AddrPort
+		tlsEnabled  bool
+		tlsPortHTTP uint16
+	)
+	func() {
+		config.RLock()
+		defer config.RUnlock()
+
+		oldAddr = config.HTTPConfig.Address
+		tlsEnabled = config.TLS.Enabled
+		tlsPortHTTP = config.TLS.PortHTTPS
+	}()
+
+	if oldAddr.Port() == req.Port {
+		aghhttp.OK(ctx, l, w)
+
+		return
+	}
+
+	if tlsEnabled && tlsPortHTTP == req.Port {
+		aghhttp.ErrorAndLog(ctx, l, r, w, http.StatusBadRequest, "port conflicts with HTTPS port")
+
+		return
+	}
+
+	newAddr := netip.AddrPortFrom(oldAddr.Addr(), req.Port)
+	if newAddr.IsValid() {
+		var ln net.Listener
+		ln, err = net.Listen("tcp", newAddr.String())
+		if err != nil {
+			aghhttp.ErrorAndLog(ctx, l, r, w, http.StatusBadRequest, "port is unavailable: %s", err)
+
+			return
+		}
+		_ = ln.Close()
+	}
+
 	func() {
 		config.Lock()
 		defer config.Unlock()
 
-		addr := config.HTTPConfig.Address.Addr()
-		config.HTTPConfig.Address = netip.AddrPortFrom(addr, req.Port)
+		config.HTTPConfig.Address = newAddr
 	}()
+
+	if web.conf != nil {
+		web.conf.BindAddr = newAddr
+	}
 
 	web.confModifier.Apply(ctx)
 
 	l.InfoContext(ctx, "http port changed", "port", req.Port)
 
 	aghhttp.OK(ctx, l, w)
+
+	if web.httpServer == nil {
+		return
+	}
+
+	rc := http.NewResponseController(w)
+	err = rc.Flush()
+	if err != nil {
+		l.WarnContext(ctx, "flushing response", slogutil.KeyError, err)
+	}
+
+	// Shut down the HTTP server asynchronously so the accept loop in
+	// [webAPI.start] rebinds to the updated port without blocking this
+	// handler.
+	go func(timeout time.Duration, srv *http.Server) {
+		shutdownCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), timeout)
+		defer slogutil.RecoverAndLog(shutdownCtx, l)
+		defer cancel()
+
+		shutdownSrv(shutdownCtx, l, srv)
+	}(shutdownTimeout, web.httpServer)
 }

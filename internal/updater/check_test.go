@@ -162,3 +162,112 @@ func TestUpdater_VersionInfo_others(t *testing.T) {
 		assert.Equal(t, aghalg.NBTrue, info.CanAutoUpdate)
 	}
 }
+
+func TestUpdater_VersionInfo_semverCompare(t *testing.T) {
+	const jsonData = `{
+  "version": "1.0.36",
+  "announcement": "AdGuard Home 1.0.36 is now available!",
+  "announcement_url": "https://github.com/quydang04/AdGuardHome/releases/tag/v1.0.36",
+  "download_windows_amd64": "https://github.com/quydang04/AdGuardHome/releases/download/v1.0.36/AdGuardHome_windows_amd64.zip",
+  "download_linux_amd64": "https://github.com/quydang04/AdGuardHome/releases/download/v1.0.36/AdGuardHome_linux_amd64.tar.gz"
+}`
+
+	handler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		pt := testutil.NewPanicT(t)
+		_, err := w.Write([]byte(jsonData))
+		require.NoError(pt, err)
+	})
+
+	fakeClient, fakeURL := aghtest.StartHTTPServer(t, handler)
+	fakeURL = fakeURL.JoinPath("releases", "latest", "download", "version.json")
+
+	testCases := []struct {
+		name          string
+		currentVer    string
+		wantCanUpdate aghalg.NullBool
+	}{{
+		name:          "older_current_can_update",
+		currentVer:    "1.0.35",
+		wantCanUpdate: aghalg.NBTrue,
+	}, {
+		name:          "equal_without_v",
+		currentVer:    "1.0.36",
+		wantCanUpdate: aghalg.NBFalse,
+	}, {
+		name:          "equal_with_v",
+		currentVer:    "v1.0.36",
+		wantCanUpdate: aghalg.NBFalse,
+	}, {
+		name:          "newer_local_no_downgrade",
+		currentVer:    "v1.0.37",
+		wantCanUpdate: aghalg.NBFalse,
+	}}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			u := updater.NewUpdater(&updater.Config{
+				Client:             fakeClient,
+				Logger:             testLogger,
+				CommandConstructor: testCmdCons,
+				Version:            tc.currentVer,
+				Channel:            version.ChannelRelease,
+				GOOS:               "linux",
+				GOARCH:             "amd64",
+				VersionCheckURL:    fakeURL,
+			})
+
+			ctx := testutil.ContextWithTimeout(t, testTimeout)
+			info, err := u.VersionInfo(ctx, true)
+			require.NoError(t, err)
+			assert.Equal(t, tc.wantCanUpdate, info.CanAutoUpdate)
+		})
+	}
+}
+
+func TestUpdater_VersionInfo_dockerHub(t *testing.T) {
+	const dockerTagsJSON = `{
+  "count": 6,
+  "results": [
+    { "name": "latest", "last_updated": "2026-11-16T13:49:36.919263Z" },
+    { "name": "v1.0.35.1-demo", "last_updated": "2026-11-16T08:51:57.651309Z" },
+    { "name": "sha-f3a280f", "last_updated": "2026-11-15T07:24:25.664127Z" },
+    { "name": "v1.0.35.1", "last_updated": "2026-11-16T13:09:51.102969Z" },
+    { "name": "v1.0.36", "last_updated": "2026-11-16T13:09:53.399888Z" },
+    { "name": "v1.0.35", "last_updated": "2026-11-16T03:03:03.772155Z" }
+  ]
+}`
+
+	handler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		pt := testutil.NewPanicT(t)
+		_, err := w.Write([]byte(dockerTagsJSON))
+		require.NoError(pt, err)
+	})
+
+	fakeClient, fakeURL := aghtest.StartHTTPServer(t, handler)
+	fakeURL = fakeURL.JoinPath("v2", "repositories", "quydang04", "adguardhome", "tags")
+
+	u := updater.NewUpdater(&updater.Config{
+		Client:             fakeClient,
+		Logger:             testLogger,
+		CommandConstructor: testCmdCons,
+		Version:            "1.0.35.1",
+		Channel:            version.ChannelRelease,
+		GOOS:               "linux",
+		GOARCH:             "amd64",
+		VersionCheckURL:    fakeURL,
+		IsDocker:           true,
+		UseDockerHub:       true,
+		DockerRepo:         "quydang04/adguardhome",
+	})
+
+	ctx := testutil.ContextWithTimeout(t, testTimeout)
+	info, err := u.VersionInfo(ctx, true)
+	require.NoError(t, err)
+
+	assert.True(t, u.IsDocker())
+	assert.Equal(t, "1.0.36", info.NewVersion)
+	assert.Equal(t, "AdGuard Home v1.0.36 is now available on Docker Hub!", info.Announcement)
+	assert.Equal(t, "https://hub.docker.com/r/quydang04/adguardhome/tags", info.AnnouncementURL)
+	assert.Equal(t, aghalg.NBFalse, info.CanAutoUpdate)
+	assert.Empty(t, u.NewVersion())
+}

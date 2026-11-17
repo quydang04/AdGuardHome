@@ -22,7 +22,7 @@ import {
     MANUAL_UPDATE_LINK,
     DISABLE_PROTECTION_TIMINGS,
 } from '../helpers/constants';
-import { areEqualVersions } from '../helpers/version';
+import { isNewerVersion } from '../helpers/version';
 import { getTlsStatus } from './encryption';
 import apiClient from '../api/Api';
 import { addErrorToast, addNoticeToast, addSuccessToast } from './toasts';
@@ -178,11 +178,11 @@ export const getVersion =
             const data = await apiClient.getGlobalVersion({ recheck_now: recheck });
             dispatch(getVersionSuccess(data));
 
-            if (recheck) {
+            if (recheck && !data?.disabled) {
                 const { dnsVersion } = getState().dashboard;
-                const currentVersion = dnsVersion === 'undefined' ? 0 : dnsVersion;
+                const currentVersion = dnsVersion === 'undefined' ? '' : dnsVersion;
 
-                if (data && !areEqualVersions(currentVersion, data.new_version)) {
+                if (data && isNewerVersion(currentVersion, data.new_version)) {
                     dispatch(addSuccessToast('updates_checked'));
                 } else {
                     dispatch(addSuccessToast('updates_version_equal'));
@@ -741,10 +741,16 @@ export const toggleBlocking =
         const matchPreparedUnblockingRule = userRules.match(preparedUnblockingRule);
 
         if (matchPreparedBlockingRule) {
-            await dispatch(setRules(userRules.replace(`${blockingRule}`, '')));
+            const ok = await dispatch(setRules(userRules.replace(`${blockingRule}`, '')));
+            if (!ok) {
+                return;
+            }
             dispatch(addSuccessToast(i18next.t('rule_removed_from_custom_filtering_toast', { rule: blockingRule })));
         } else if (!matchPreparedUnblockingRule) {
-            await dispatch(setRules(`${userRules}${lineEnding}${unblockingRule}\n`));
+            const ok = await dispatch(setRules(`${userRules}${lineEnding}${unblockingRule}\n`));
+            if (!ok) {
+                return;
+            }
             dispatch(addSuccessToast(i18next.t('rule_added_to_custom_filtering_toast', { rule: unblockingRule })));
         } else if (matchPreparedUnblockingRule) {
             dispatch(addSuccessToast(i18next.t('rule_added_to_custom_filtering_toast', { rule: unblockingRule })));

@@ -228,7 +228,7 @@ func TestTLSManager_ApplyIssuedCertificate_NoDeadlock(t *testing.T) {
 	var applyErr error
 	go func() {
 		defer close(doneCh)
-		status, applyErr = m.applyIssuedCertificate(ctx, &acme.Result{
+		status, _, applyErr = m.applyIssuedCertificate(ctx, &acme.Result{
 			CertificatePEM: certPEM,
 			PrivateKeyPEM:  keyPEM,
 			NotAfter:       notAfter,

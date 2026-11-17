@@ -70,24 +70,29 @@ func (s *StatsCtx) handleStats(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	l := s.logger
 
-	var limit time.Duration
+	recent := r.URL.Query().Get(queryKeyRecent)
+
+	var resp *StatsResp
+	var ok bool
+	var parseErr error
 	func() {
 		s.confMu.RLock()
 		defer s.confMu.RUnlock()
 
-		limit = s.limit
+		var limit time.Duration
+		limit, parseErr = parseRecent(recent, s.limit)
+		if parseErr != nil {
+			return
+		}
+
+		resp, ok = s.getData(uint32(limit.Hours()))
 	}()
 
-	recent := r.URL.Query().Get(queryKeyRecent)
-
-	limit, err := parseRecent(recent, limit)
-	if err != nil {
-		aghhttp.ErrorAndLog(ctx, l, r, w, http.StatusBadRequest, "%s", err)
+	if parseErr != nil {
+		aghhttp.ErrorAndLog(ctx, l, r, w, http.StatusBadRequest, "%s", parseErr)
 
 		return
 	}
-
-	resp, ok := s.getData(uint32(limit.Hours()))
 
 	l.DebugContext(ctx, "prepared data", "elapsed", time.Since(start))
 

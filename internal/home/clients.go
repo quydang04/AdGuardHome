@@ -277,6 +277,10 @@ func (clients *clientsContainer) forConfig() (objs []*clientObject) {
 	clients.lock.Lock()
 	defer clients.lock.Unlock()
 
+	if clients.storage == nil {
+		return nil
+	}
+
 	objs = make([]*clientObject, 0, clients.storage.Size())
 	clients.storage.RangeByName(func(cli *client.Persistent) (cont bool) {
 		objs = append(objs, &clientObject{

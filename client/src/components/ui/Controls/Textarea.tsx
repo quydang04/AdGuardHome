@@ -12,15 +12,17 @@ type Props = ComponentProps<'textarea'> & {
 };
 
 export const Textarea = forwardRef<HTMLTextAreaElement, Props>(
-    ({ name, label, desc, className, wrapperClassName, error, trimOnBlur, onBlur, ...rest }, ref) => (
+    ({ id, name, label, desc, className, wrapperClassName, error, trimOnBlur, onBlur, ...rest }, ref) => (
         <div className={clsx('form-group', wrapperClassName, { 'has-error': !!error })}>
             {label && (
-                <label className={clsx('form__label', { 'form__label--with-desc': !!desc })} htmlFor={name}>
+                <label className={clsx('form__label', { 'form__label--with-desc': !!desc })} htmlFor={id || name}>
                     {label}
                 </label>
             )}
             {desc && <div className="form__desc form__desc--top">{desc}</div>}
             <textarea
+                id={id || name}
+                name={name}
                 className={clsx(
                     'form-control form-control--textarea form-control--textarea-small font-monospace',
                     className,

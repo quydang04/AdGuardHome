@@ -37,11 +37,25 @@ type Props = {
 export const FiltersConfig = ({ initialValues, setFiltersConfig, processing }: Props) => {
     const { t } = useTranslation();
     const prevFormValuesRef = useRef<FormValues>(initialValues);
+    const wasProcessingRef = useRef<boolean>(processing);
 
-    const { watch, control } = useForm({
+    const { watch, control, reset } = useForm({
         mode: 'onBlur',
         defaultValues: initialValues,
     });
+
+    useEffect(() => {
+        prevFormValuesRef.current = initialValues;
+        reset(initialValues);
+    }, [initialValues, reset]);
+
+    useEffect(() => {
+        if (wasProcessingRef.current && !processing) {
+            prevFormValuesRef.current = initialValues;
+            reset(initialValues);
+        }
+        wasProcessingRef.current = processing;
+    }, [processing, initialValues, reset]);
 
     const formValues = watch();
 

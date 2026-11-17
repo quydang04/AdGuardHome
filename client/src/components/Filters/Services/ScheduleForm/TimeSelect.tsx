@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 
 import { getTimeFromMs, convertTimeToMs } from './helpers';
 
@@ -12,6 +12,12 @@ export const TimeSelect = ({ value, onChange }: TimeSelectProps) => {
 
     const [hours, setHours] = useState(initialHours);
     const [minutes, setMinutes] = useState(initialMinutes);
+
+    useEffect(() => {
+        const { hours: nextHours, minutes: nextMinutes } = getTimeFromMs(value);
+        setHours(nextHours);
+        setMinutes(nextMinutes);
+    }, [value]);
 
     const hourOptions = Array.from({ length: 24 }, (_, i) => i.toString().padStart(2, '0'));
 

@@ -123,6 +123,19 @@ func (web *webAPI) handleUpdate(w http.ResponseWriter, r *http.Request) {
 	l := web.logger
 
 	updater := web.conf.updater
+	if updater.IsDocker() {
+		aghhttp.ErrorAndLog(
+			ctx,
+			l,
+			r,
+			w,
+			http.StatusBadRequest,
+			"auto-update is not supported in Docker container; pull the latest image instead",
+		)
+
+		return
+	}
+
 	if updater.NewVersion() == "" {
 		aghhttp.ErrorAndLog(
 			ctx,

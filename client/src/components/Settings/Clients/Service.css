@@ -60,6 +60,14 @@
     fill: #495057;
 }
 
+[data-theme='dark'] .service__icon {
+    color: #d1d5db;
+}
+
+[data-theme='dark'] .service__icon svg {
+    fill: #d1d5db;
+}
+
 .service--global .service__icon {
     display: none;
 }

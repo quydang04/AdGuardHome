@@ -370,7 +370,7 @@ func (d *DNSFilter) setFilters(
 	allowFilters []Filter,
 	async bool,
 ) (err error) {
-	if async {
+	if async && d.filtersInitializerChan != nil {
 		params := filtersInitializerParams{
 			allowFilters: allowFilters,
 			blockFilters: blockFilters,

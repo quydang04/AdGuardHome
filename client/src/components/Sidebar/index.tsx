@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink, Link, useLocation } from 'react-router-dom';
 import { useTranslation, Trans } from 'react-i18next';
+import { shallowEqual, useDispatch, useSelector } from 'react-redux';
 import ReactModal from 'react-modal';
 import cn from 'clsx';
 
+import { getVersion } from '../../actions';
+import { RootState } from '../../initialState';
 import { SETTINGS_URLS, FILTERS_URLS, MENU_URLS } from '../../helpers/constants';
 import './Sidebar.css';
 
@@ -192,6 +195,17 @@ export const Sidebar = ({ isMobileOpen, closeMobile }: SidebarProps) => {
         window.location.href = 'control/logout';
     };
 
+    const dispatch = useDispatch();
+    const { dnsVersion, processingVersion, checkUpdateFlag } = useSelector(
+        (state: RootState) => state?.dashboard || ({} as any),
+        shallowEqual,
+    );
+    const installVersion = useSelector((state: RootState) => state?.install?.dnsVersion);
+    const rawVersion = dnsVersion || installVersion;
+    const formattedVersion = rawVersion ? `v${String(rawVersion).replace(/^v/i, '')}` : '';
+
+    const effectiveCollapsed = isCollapsed && !isMobileOpen;
+
     return (
         <>
             <div
@@ -204,7 +218,7 @@ export const Sidebar = ({ isMobileOpen, closeMobile }: SidebarProps) => {
             <aside
                 className={cn('app-sidebar', {
                     'app-sidebar--mobile-open': isMobileOpen,
-                    'app-sidebar--collapsed': isCollapsed,
+                    'app-sidebar--collapsed': effectiveCollapsed,
                 })}>
                 <div>
                     {/* Header with Brand Logo & Desktop Collapse Button directly beside it */}
@@ -214,16 +228,16 @@ export const Sidebar = ({ isMobileOpen, closeMobile }: SidebarProps) => {
                                 <div className="app-sidebar__brand-logo">
                                     <ShieldLogoIcon />
                                 </div>
-                                {!isCollapsed && <span className="app-sidebar__brand-text">adguard home</span>}
+                                {!effectiveCollapsed && <span className="app-sidebar__brand-text">adguard home</span>}
                             </Link>
 
                             <button
                                 type="button"
                                 className="app-sidebar__collapse-btn"
                                 onClick={toggleCollapse}
-                                title={isCollapsed ? t('expand_menu', 'Mở rộng menu') : t('collapse_menu', 'Thu gọn menu')}
+                                title={effectiveCollapsed ? t('expand_menu', 'Mở rộng menu') : t('collapse_menu', 'Thu gọn menu')}
                                 aria-label="Toggle sidebar">
-                                <CollapseSidebarIcon isCollapsed={isCollapsed} />
+                                <CollapseSidebarIcon isCollapsed={effectiveCollapsed} />
                             </button>
                         </div>
                     </div>
@@ -272,7 +286,7 @@ export const Sidebar = ({ isMobileOpen, closeMobile }: SidebarProps) => {
                                     'app-sidebar__link--active': isSettingsPath,
                                 })}
                                 onClick={() => {
-                                    if (isCollapsed) {
+                                    if (effectiveCollapsed) {
                                         toggleCollapse();
                                         setIsSettingsOpen(true);
                                     } else {
@@ -286,11 +300,11 @@ export const Sidebar = ({ isMobileOpen, closeMobile }: SidebarProps) => {
                                     </span>
                                     <span><Trans>settings</Trans></span>
                                 </div>
-                                {!isCollapsed && <ChevronDownIcon isOpen={isSettingsOpen} />}
+                                {!effectiveCollapsed && <ChevronDownIcon isOpen={isSettingsOpen} />}
                             </button>
 
                             {/* Collapsed Flyout */}
-                            {isCollapsed ? (
+                            {effectiveCollapsed ? (
                                 <div className="app-sidebar__flyout">
                                     <div className="app-sidebar__flyout-title"><Trans>settings</Trans></div>
                                     <NavLink to={SETTINGS_URLS.settings} className="app-sidebar__sublink" activeClassName="app-sidebar__sublink--active" onClick={handleLinkClick}><Trans>general_settings</Trans></NavLink>
@@ -320,7 +334,7 @@ export const Sidebar = ({ isMobileOpen, closeMobile }: SidebarProps) => {
                                     'app-sidebar__link--active': isFiltersPath,
                                 })}
                                 onClick={() => {
-                                    if (isCollapsed) {
+                                    if (effectiveCollapsed) {
                                         toggleCollapse();
                                         setIsFiltersOpen(true);
                                     } else {
@@ -334,11 +348,11 @@ export const Sidebar = ({ isMobileOpen, closeMobile }: SidebarProps) => {
                                     </span>
                                     <span><Trans>filters</Trans></span>
                                 </div>
-                                {!isCollapsed && <ChevronDownIcon isOpen={isFiltersOpen} />}
+                                {!effectiveCollapsed && <ChevronDownIcon isOpen={isFiltersOpen} />}
                             </button>
 
                             {/* Collapsed Flyout */}
-                            {isCollapsed ? (
+                            {effectiveCollapsed ? (
                                 <div className="app-sidebar__flyout">
                                     <div className="app-sidebar__flyout-title"><Trans>filters</Trans></div>
                                     <NavLink to={FILTERS_URLS.dns_blocklists} className="app-sidebar__sublink" activeClassName="app-sidebar__sublink--active" onClick={handleLinkClick}><Trans>dns_blocklists</Trans></NavLink>
@@ -394,8 +408,70 @@ export const Sidebar = ({ isMobileOpen, closeMobile }: SidebarProps) => {
                     </nav>
                 </div>
 
-                {/* Bottom Sign Out with Confirmation Modal */}
+                {/* Bottom Version & Sign Out with Confirmation Modal */}
                 <div className="app-sidebar__bottom">
+                    {formattedVersion && (
+                        <div
+                            className={cn('app-sidebar__version', {
+                                'app-sidebar__version--collapsed': effectiveCollapsed,
+                            })}
+                            title={`AdGuard Home ${formattedVersion}`}>
+                            {effectiveCollapsed ? (
+                                checkUpdateFlag ? (
+                                    <button
+                                        type="button"
+                                        className="app-sidebar__version-badge app-sidebar__version-badge--compact app-sidebar__version-badge--clickable"
+                                        onClick={() => dispatch(getVersion(true) as any)}
+                                        disabled={processingVersion}
+                                        aria-label={t('check_updates_now', 'Check for updates now')}
+                                        title={`${formattedVersion} · ${t('check_updates_now', 'Check for updates now')}`}>
+                                        {formattedVersion}
+                                    </button>
+                                ) : (
+                                    <span className="app-sidebar__version-badge app-sidebar__version-badge--compact">
+                                        {formattedVersion}
+                                    </span>
+                                )
+                            ) : (
+                                <>
+                                    <div className="app-sidebar__version-left">
+                                        <span className="app-sidebar__version-dot" aria-hidden="true" />
+                                        <span className="app-sidebar__version-label">
+                                            {t('sidebar_version_label', 'Phiên bản')}
+                                        </span>
+                                    </div>
+                                    <div className="app-sidebar__version-right">
+                                        <span className="app-sidebar__version-badge">{formattedVersion}</span>
+                                        {checkUpdateFlag && (
+                                            <button
+                                                type="button"
+                                                className="app-sidebar__version-refresh"
+                                                onClick={() => dispatch(getVersion(true) as any)}
+                                                disabled={processingVersion}
+                                                aria-label={t('check_updates_now', 'Check for updates now')}
+                                                title={t('check_updates_now', 'Check for updates now')}>
+                                                <svg
+                                                    width="13"
+                                                    height="13"
+                                                    viewBox="0 0 24 24"
+                                                    fill="none"
+                                                    stroke="currentColor"
+                                                    strokeWidth="2.3"
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                    className={processingVersion ? 'app-sidebar__version-spin' : ''}>
+                                                    <polyline points="23 4 23 10 17 10" />
+                                                    <polyline points="1 20 1 14 7 14" />
+                                                    <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+                                                </svg>
+                                            </button>
+                                        )}
+                                    </div>
+                                </>
+                            )}
+                        </div>
+                    )}
+
                     <button
                         type="button"
                         className="app-sidebar__logout"

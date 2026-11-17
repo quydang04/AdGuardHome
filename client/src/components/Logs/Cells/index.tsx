@@ -152,11 +152,13 @@ const Row = memo(
                 reason === FILTERED_STATUS.FILTERED_BLACK_LIST || reason === FILTERED_STATUS.FILTERED_BLOCKED_SERVICE;
 
             const buttonType = isFiltered ? BLOCK_ACTIONS.UNBLOCK : BLOCK_ACTIONS.BLOCK;
-            const onToggleBlock = () => {
-                dispatch(toggleBlocking(buttonType, domain));
+            const onToggleBlock = async () => {
+                await dispatch(toggleBlocking(buttonType, domain));
+                await dispatch(updateLogs());
+                setModalOpened(false);
             };
 
-            const isBlockedByResponse = originalResponse.length > 0 && isBlocked;
+            const isBlockedByResponse = Boolean(originalResponse?.length) && isBlocked;
             const requestStatus = t(
                 isBlockedByResponse ? 'blocked_by_cname_or_ip' : FILTERED_STATUS_TO_META_MAP[reason]?.LABEL || reason,
             );
@@ -179,8 +181,10 @@ const Row = memo(
             const blockingForClientKey = isFiltered ? 'unblock_for_this_client_only' : 'block_for_this_client_only';
             const clientNameBlockingFor = getBlockingClientName(clients, client);
 
-            const onBlockingForClientClick = () => {
-                dispatch(toggleBlockingForClient(buttonType, domain, clientNameBlockingFor));
+            const onBlockingForClientClick = async () => {
+                await dispatch(toggleBlockingForClient(buttonType, domain, clientNameBlockingFor));
+                await dispatch(updateLogs());
+                setModalOpened(false);
             };
 
             const onBlockingClientClick = async () => {
@@ -208,7 +212,7 @@ const Row = memo(
                         type="button"
                         className={classNames(
                             'button-action--arrow-option mb-1',
-                            { 'bg--danger': !isBlocked },
+                            { 'bg--danger': !isFiltered },
                             { 'bg--green': isFiltered },
                         )}
                         onClick={onToggleBlock}>
@@ -263,7 +267,7 @@ const Row = memo(
                     ),
                 }),
                 elapsed: formattedElapsedMs,
-                ...(rules.length > 0 && { rule_label: getRulesToFilterList(rules, filters, whitelistFilters) }),
+                ...(rules?.length > 0 && { rule_label: getRulesToFilterList(rules, filters, whitelistFilters) }),
                 response_table_header: response?.join('\n'),
                 response_code: status,
                 client_details: 'title',

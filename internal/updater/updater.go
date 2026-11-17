@@ -47,6 +47,9 @@ type Updater struct {
 	confName        string
 	execPath        string
 	versionCheckURL string
+	isDocker        bool
+	useDockerHub    bool
+	dockerRepo      string
 
 	// mu protects all fields below.
 	mu *sync.RWMutex
@@ -70,6 +73,10 @@ type Updater struct {
 	prevCheckResult VersionInfo
 }
 
+// DefaultDockerHubRepo is the default Docker Hub repository checked when
+// AdGuard Home runs inside a container.
+const DefaultDockerHubRepo = "quydang04/adguardhome"
+
 // DefaultVersionURL returns the default URL for the version announcement.
 //
 // This fork publishes its releases as GitHub Releases under
@@ -81,6 +88,22 @@ func DefaultVersionURL() *url.URL {
 		Scheme: urlutil.SchemeHTTPS,
 		Host:   "github.com",
 		Path:   path.Join("quydang04", "AdGuardHome", "releases", "latest", "download", "version.json"),
+	}
+}
+
+// DefaultDockerVersionURL returns the Docker Hub tags API URL for repo.  If
+// repo is empty, [DefaultDockerHubRepo] is used.
+func DefaultDockerVersionURL(repo string) *url.URL {
+	repo = strings.Trim(strings.TrimSpace(repo), "/")
+	if repo == "" {
+		repo = DefaultDockerHubRepo
+	}
+
+	return &url.URL{
+		Scheme:   urlutil.SchemeHTTPS,
+		Host:     "hub.docker.com",
+		Path:     path.Join("v2", "repositories", repo, "tags"),
+		RawQuery: "page_size=50",
 	}
 }
 
@@ -132,10 +155,26 @@ type Config struct {
 
 	// ExecPath is path to the executable file.  It must not be empty.
 	ExecPath string
+
+	// IsDocker indicates that AdGuard Home is running inside a container.
+	IsDocker bool
+
+	// UseDockerHub makes [Updater.VersionInfo] parse Docker Hub tags API
+	// responses from DockerRepo instead of version.json.
+	UseDockerHub bool
+
+	// DockerRepo is the Docker Hub repository name in "<owner>/<image>" form.
+	// Defaults to [DefaultDockerHubRepo].
+	DockerRepo string
 }
 
 // NewUpdater creates a new Updater.  conf must not be nil.
 func NewUpdater(conf *Config) *Updater {
+	dockerRepo := strings.Trim(strings.TrimSpace(conf.DockerRepo), "/")
+	if dockerRepo == "" {
+		dockerRepo = DefaultDockerHubRepo
+	}
+
 	return &Updater{
 		client: conf.Client,
 		logger: conf.Logger,
@@ -153,9 +192,17 @@ func NewUpdater(conf *Config) *Updater {
 		workDir:         conf.WorkDir,
 		execPath:        conf.ExecPath,
 		versionCheckURL: conf.VersionCheckURL.String(),
+		isDocker:        conf.IsDocker,
+		useDockerHub:    conf.UseDockerHub,
+		dockerRepo:      dockerRepo,
 
 		mu: &sync.RWMutex{},
 	}
+}
+
+// IsDocker reports whether this updater runs inside a container.
+func (u *Updater) IsDocker() bool {
+	return u.isDocker
 }
 
 // Update performs the auto-update.  It returns an error if the update fails.
@@ -411,6 +458,15 @@ func (u *Updater) downloadPackageFile(ctx context.Context) (err error) {
 		return fmt.Errorf("requesting package: %w", err)
 	}
 	defer func() { err = errors.WithDeferred(err, resp.Body.Close()) }()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf(
+			"requesting package %s: got status code %d, want %d",
+			u.packageURL,
+			resp.StatusCode,
+			http.StatusOK,
+		)
+	}
 
 	r := ioutil.LimitReader(resp.Body, MaxPackageFileSize)
 

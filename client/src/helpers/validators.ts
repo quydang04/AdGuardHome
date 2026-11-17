@@ -491,7 +491,7 @@ export const validateIpv4InCidr = (valueIp: any, allValues: any) => {
  * @param value {string}
  * @returns {number}
  */
-const utf8StringLength = (value: any) => {
+export const utf8StringLength = (value: any) => {
     const encoder = new TextEncoder();
     const view = encoder.encode(value);
 

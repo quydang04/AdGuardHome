@@ -5,9 +5,12 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
+	"net/netip"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -230,4 +233,179 @@ func newProfileUpdateRequest(method string, body []byte, setCT bool) (req *http.
 	}
 
 	return req
+}
+
+func TestWeb_HandleChangeAccountAndPort(t *testing.T) {
+	storeGlobals(t)
+
+	const (
+		userName     = "admin"
+		newUserName  = "new_admin"
+		userPassword = "password123"
+		newPassword  = "newpassword123"
+	)
+
+	passwordHash, err := bcrypt.GenerateFromPassword([]byte(userPassword), bcrypt.MinCost)
+	require.NoError(t, err)
+
+	ctx := testutil.ContextWithTimeout(t, testTimeout)
+	baseMux := http.NewServeMux()
+	mw := &webMw{}
+	httpReg := aghhttp.NewDefaultRegistrar(baseMux, mw.wrap)
+
+	auth, err := newAuth(ctx, &authConfig{
+		baseLogger:     testLogger,
+		mux:            baseMux,
+		rateLimiter:    emptyRateLimiter{},
+		trustedProxies: testTrustedProxies,
+		dbFilename:     filepath.Join(t.TempDir(), "sessions.db"),
+		users:          []webUser{{Name: userName, PasswordHash: string(passwordHash)}},
+		sessionTTL:     60 * time.Second,
+	})
+	require.NoError(t, err)
+	t.Cleanup(func() { auth.close(ctx) })
+
+	tlsMgr, err := newTLSManager(ctx, &tlsManagerConfig{
+		logger:       testLogger,
+		confModifier: agh.EmptyConfigModifier{},
+		manager:      aghtls.EmptyManager{},
+	})
+	require.NoError(t, err)
+
+	config.HTTPConfig.Address = netip.MustParseAddrPort("127.0.0.1:3000")
+
+	web := newTestWeb(t, &webConfig{
+		tlsManager:     tlsMgr,
+		auth:           auth,
+		mux:            baseMux,
+		httpReg:        httpReg,
+		configModifier: agh.EmptyConfigModifier{},
+	})
+	web.conf.BindAddr = config.HTTPConfig.Address
+	mw.set(web)
+
+	mux := auth.middleware().Wrap(baseMux)
+
+	loginCookie := generateAuthCookie(t, mux, userName, userPassword)
+
+	t.Run("change_username_keeps_session_and_updates_login", func(t *testing.T) {
+		body, err := json.Marshal(changeUsernameJSON{NewUsername: "  " + newUserName + "  "})
+		require.NoError(t, err)
+
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodPost, "/control/profile/username", bytes.NewReader(body))
+		r.Header.Set(httphdr.ContentType, aghhttp.HdrValApplicationJSON)
+		r.AddCookie(loginCookie)
+
+		mux.ServeHTTP(w, r)
+		require.Equal(t, http.StatusOK, w.Code)
+
+		// Existing session cookie must stay valid and reflect the new username.
+		w = httptest.NewRecorder()
+		r = httptest.NewRequest(http.MethodGet, "/control/profile", nil)
+		r.AddCookie(loginCookie)
+		mux.ServeHTTP(w, r)
+		require.Equal(t, http.StatusOK, w.Code)
+
+		var prof profileJSON
+		require.NoError(t, json.NewDecoder(w.Body).Decode(&prof))
+		assert.Equal(t, newUserName, prof.Name)
+
+		// Logging in with the new username must succeed.
+		newCookie := generateAuthCookie(t, mux, newUserName, userPassword)
+		require.NotNil(t, newCookie)
+	})
+
+	t.Run("change_password_validation_and_update", func(t *testing.T) {
+		// Wrong current password returns 400 Bad Request so the SPA does not treat
+		// it as an expired session (403).
+		wrongBody, err := json.Marshal(changePasswordJSON{
+			CurrentPassword: "wrongpassword",
+			NewPassword:     newPassword,
+		})
+		require.NoError(t, err)
+
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodPost, "/control/profile/password", bytes.NewReader(wrongBody))
+		r.Header.Set(httphdr.ContentType, aghhttp.HdrValApplicationJSON)
+		r.AddCookie(loginCookie)
+		mux.ServeHTTP(w, r)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+
+		// Too long (> 72 bytes) returns 400 Bad Request, not 500.
+		longBody, err := json.Marshal(changePasswordJSON{
+			CurrentPassword: userPassword,
+			NewPassword:     strings.Repeat("a", 73),
+		})
+		require.NoError(t, err)
+
+		w = httptest.NewRecorder()
+		r = httptest.NewRequest(http.MethodPost, "/control/profile/password", bytes.NewReader(longBody))
+		r.Header.Set(httphdr.ContentType, aghhttp.HdrValApplicationJSON)
+		r.AddCookie(loginCookie)
+		mux.ServeHTTP(w, r)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+
+		// Valid password change updates password for future logins.
+		validBody, err := json.Marshal(changePasswordJSON{
+			CurrentPassword: userPassword,
+			NewPassword:     newPassword,
+		})
+		require.NoError(t, err)
+
+		w = httptest.NewRecorder()
+		r = httptest.NewRequest(http.MethodPost, "/control/profile/password", bytes.NewReader(validBody))
+		r.Header.Set(httphdr.ContentType, aghhttp.HdrValApplicationJSON)
+		r.AddCookie(loginCookie)
+		mux.ServeHTTP(w, r)
+		require.Equal(t, http.StatusOK, w.Code)
+
+		newCookie := generateAuthCookie(t, mux, newUserName, newPassword)
+		require.NotNil(t, newCookie)
+	})
+
+	t.Run("change_port", func(t *testing.T) {
+		// Zero port is rejected.
+		zeroBody, err := json.Marshal(changePortJSON{Port: 0})
+		require.NoError(t, err)
+		w := httptest.NewRecorder()
+		r := httptest.NewRequest(http.MethodPost, "/control/change_port", bytes.NewReader(zeroBody))
+		r.Header.Set(httphdr.ContentType, aghhttp.HdrValApplicationJSON)
+		r.AddCookie(loginCookie)
+		mux.ServeHTTP(w, r)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+
+		// Port already occupied by another listener is rejected.
+		occupiedLn, err := net.Listen("tcp", "127.0.0.1:0")
+		require.NoError(t, err)
+		t.Cleanup(func() { _ = occupiedLn.Close() })
+		occupiedPort := uint16(occupiedLn.Addr().(*net.TCPAddr).Port)
+
+		occBody, err := json.Marshal(changePortJSON{Port: occupiedPort})
+		require.NoError(t, err)
+		w = httptest.NewRecorder()
+		r = httptest.NewRequest(http.MethodPost, "/control/change_port", bytes.NewReader(occBody))
+		r.Header.Set(httphdr.ContentType, aghhttp.HdrValApplicationJSON)
+		r.AddCookie(loginCookie)
+		mux.ServeHTTP(w, r)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+
+		// Find an ephemeral free port, release it, then switch to it.
+		freeLn, err := net.Listen("tcp", "127.0.0.1:0")
+		require.NoError(t, err)
+		freePort := uint16(freeLn.Addr().(*net.TCPAddr).Port)
+		require.NoError(t, freeLn.Close())
+
+		okBody, err := json.Marshal(changePortJSON{Port: freePort})
+		require.NoError(t, err)
+		w = httptest.NewRecorder()
+		r = httptest.NewRequest(http.MethodPost, "/control/change_port", bytes.NewReader(okBody))
+		r.Header.Set(httphdr.ContentType, aghhttp.HdrValApplicationJSON)
+		r.AddCookie(loginCookie)
+		mux.ServeHTTP(w, r)
+		require.Equal(t, http.StatusOK, w.Code)
+
+		assert.Equal(t, freePort, config.HTTPConfig.Address.Port())
+		assert.Equal(t, freePort, web.conf.BindAddr.Port())
+	})
 }

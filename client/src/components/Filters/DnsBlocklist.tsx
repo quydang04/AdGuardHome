@@ -259,8 +259,13 @@ class DnsBlocklist extends Component<DnsBlocklistProps> {
                                 type="button"
                                 className="btn btn-danger"
                                 onClick={() => {
-                                    this.props.removeFilter(this.state.deleteUrl);
-                                    this.setState({ isConfirmOpen: false, deleteUrl: '' });
+                                    const urlToDelete = this.state.deleteUrl;
+                                    this.props.removeFilter(urlToDelete);
+                                    this.setState((prev: any) => {
+                                        const selectedUrls = new Set(prev.selectedUrls);
+                                        selectedUrls.delete(urlToDelete);
+                                        return { isConfirmOpen: false, deleteUrl: '', selectedUrls };
+                                    });
                                 }}>
                                 {t('delete_table_action')}
                             </button>

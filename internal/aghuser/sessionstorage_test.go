@@ -159,4 +159,54 @@ func TestDefaultSessionStorage(t *testing.T) {
 
 		assert.Nil(t, got)
 	}))
+
+	require.True(t, t.Run("update_login", func(t *testing.T) {
+		const renamedLogin aghuser.Login = "user_one_renamed"
+
+		dbFileUpdate, err := os.CreateTemp(t.TempDir(), "sessions_update.db")
+		require.NoError(t, err)
+		testutil.CleanupAndRequireSuccess(t, dbFileUpdate.Close)
+
+		uDB := aghuser.NewDefaultDB()
+		require.NoError(t, uDB.Create(ctx, &aghuser.User{
+			Login: userLoginFirst,
+			ID:    aghuser.MustNewUserID(),
+		}))
+
+		storage, err := aghuser.NewDefaultSessionStorage(ctx, &aghuser.DefaultSessionStorageConfig{
+			Clock:      clock,
+			UserDB:     uDB,
+			Logger:     logger,
+			DBPath:     dbFileUpdate.Name(),
+			SessionTTL: sessionTTL,
+		})
+		require.NoError(t, err)
+
+		sess := addSession(t, ctx, storage, userLoginFirst)
+
+		require.NoError(t, uDB.UpdateLogin(ctx, userLoginFirst, renamedLogin))
+		require.NoError(t, storage.UpdateLogin(ctx, userLoginFirst, renamedLogin))
+
+		got, err := storage.FindByToken(ctx, sess.Token)
+		require.NoError(t, err)
+		require.NotNil(t, got)
+		assert.Equal(t, renamedLogin, got.UserLogin)
+
+		require.NoError(t, storage.Close())
+
+		storage, err = aghuser.NewDefaultSessionStorage(ctx, &aghuser.DefaultSessionStorageConfig{
+			Clock:      clock,
+			UserDB:     uDB,
+			Logger:     logger,
+			DBPath:     dbFileUpdate.Name(),
+			SessionTTL: sessionTTL,
+		})
+		require.NoError(t, err)
+		testutil.CleanupAndRequireSuccess(t, storage.Close)
+
+		got, err = storage.FindByToken(ctx, sess.Token)
+		require.NoError(t, err)
+		require.NotNil(t, got)
+		assert.Equal(t, renamedLogin, got.UserLogin)
+	}))
 }

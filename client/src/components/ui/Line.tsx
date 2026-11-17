@@ -44,7 +44,7 @@ const DEMO_WAVES: Record<string, number[]> = {
 const Line = React.memo(({ data, color = 'black', variant = 'queries' }: LineProps) => {
     const { interval, timeUnits } = useSelector(
         (state: RootState) => ({
-            interval: state.stats.interval,
+            interval: state.stats.viewInterval || state.stats.interval,
             timeUnits: state.stats.timeUnits,
         }),
         shallowEqual,

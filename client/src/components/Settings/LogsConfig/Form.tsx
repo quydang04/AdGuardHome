@@ -47,6 +47,7 @@ export const Form = ({ initialValues, processing, processingReset, onSubmit, onR
         handleSubmit,
         watch,
         setValue,
+        reset,
         control,
         formState: { isSubmitting },
     } = useForm<FormValues>({
@@ -59,6 +60,16 @@ export const Form = ({ initialValues, processing, processingReset, onSubmit, onR
             ignored: initialValues.ignored || '',
         },
     });
+
+    useEffect(() => {
+        reset({
+            enabled: initialValues.enabled || false,
+            anonymize_client_ip: initialValues.anonymize_client_ip || false,
+            interval: initialValues.interval || DAY,
+            customInterval: initialValues.customInterval || null,
+            ignored: initialValues.ignored || '',
+        });
+    }, [initialValues, reset]);
 
     const intervalValue = watch('interval');
     const customIntervalValue = watch('customInterval');
@@ -142,9 +153,29 @@ export const Form = ({ initialValues, processing, processingReset, onSubmit, onR
                             <Controller
                                 name="customInterval"
                                 control={control}
+                                rules={{
+                                    required: t('form_error_required'),
+                                    min: {
+                                        value: RETENTION_RANGE.MIN,
+                                        message: t('form_error_range', {
+                                            min: RETENTION_RANGE.MIN,
+                                            max: RETENTION_RANGE.MAX,
+                                        }),
+                                    },
+                                    max: {
+                                        value: RETENTION_RANGE.MAX,
+                                        message: t('form_error_range', {
+                                            min: RETENTION_RANGE.MIN,
+                                            max: RETENTION_RANGE.MAX,
+                                        }),
+                                    },
+                                    validate: (v) =>
+                                        Number.isInteger(Number(v)) || t('form_error_positive'),
+                                }}
                                 render={({ field, fieldState }) => (
                                     <Input
                                         {...field}
+                                        type="number"
                                         data-testid="logs_config_custom_interval"
                                         disabled={processing}
                                         error={fieldState.error?.message}

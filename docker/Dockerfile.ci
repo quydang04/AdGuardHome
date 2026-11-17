@@ -100,6 +100,7 @@ FROM alpine:3.21
 ARG BUILD_DATE
 ARG VERSION
 ARG VCS_REF
+ARG DOCKER_REPO=quydang04/adguardhome
 
 LABEL \
     maintainer="quydang04" \
@@ -154,12 +155,14 @@ VOLUME ["/opt/adguardhome/conf", "/opt/adguardhome/work"]
 # Or pass it as an environment variable:
 #   -e HOST_HOSTNAME=$(hostname)
 
+ENV ADGUARD_HOME_DOCKER=1 \
+    ADGUARD_HOME_DOCKER_REPO=${DOCKER_REPO}
+
 WORKDIR /opt/adguardhome/work
 
 ENTRYPOINT ["/opt/adguardhome/AdGuardHome"]
 
 CMD [ \
-    "--no-check-update", \
     "-c", "/opt/adguardhome/conf/AdGuardHome.yaml", \
     "-w", "/opt/adguardhome/work" \
 ]

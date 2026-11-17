@@ -241,6 +241,44 @@
     box-shadow: 0 0 0 2px rgba(103, 178, 121, 0.25) !important;
 }
 
+[data-theme='light'] .ReactTable .-pagination {
+    background: #f8fafc !important;
+    border-top: 1px solid #e2e8f0 !important;
+}
+
+[data-theme='light'] .ReactTable .-pagination .-btn {
+    border-color: #cbd5e1 !important;
+    background: #ffffff !important;
+    color: #334155 !important;
+}
+
+[data-theme='light'] .ReactTable .-pagination .-btn:not([disabled]):hover {
+    background: #f1f5f9 !important;
+    border-color: #10b981 !important;
+    color: #059669 !important;
+}
+
+[data-theme='light'] .ReactTable .-pagination .-btn[disabled] {
+    background: #f1f5f9 !important;
+    border-color: #e2e8f0 !important;
+    color: #94a3b8 !important;
+}
+
+[data-theme='light'] .ReactTable .-pagination .-pageInfo {
+    color: #475569 !important;
+}
+
+[data-theme='light'] .ReactTable .-pagination .-pageJump input,
+[data-theme='light'] .ReactTable .-pagination .-pageSizeOptions select {
+    background: #ffffff !important;
+    border-color: #cbd5e1 !important;
+    color: #0f172a !important;
+}
+
+[data-theme='light'] .ReactTable .-pagination .-totalPages {
+    color: #0f172a !important;
+}
+
 .rt-tr-group.logs__row--red {
     background-color: rgba(223, 56, 18, 0.05);
 }

@@ -575,6 +575,8 @@ func (m *tlsManager) handleTLSValidate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	webAPIAddr, webAPIPort, plainDNSPort := snapshotConfigPorts()
+
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -582,7 +584,7 @@ func (m *tlsManager) handleTLSValidate(w http.ResponseWriter, r *http.Request) {
 		setts.PrivateKey = m.extTLSConf.PrivateKey
 	}
 
-	if err = m.validateTLSSettings(setts); err != nil {
+	if err = m.validateTLSSettingsWithPorts(setts, webAPIAddr, webAPIPort, plainDNSPort); err != nil {
 		m.logger.InfoContext(ctx, "validating tls settings", slogutil.KeyError, err)
 
 		aghhttp.ErrorAndLog(ctx, m.logger, r, w, http.StatusBadRequest, "%s", err)
@@ -669,12 +671,17 @@ func (m *tlsManager) handleTLSConfigure(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	var restartHTTPS bool
+	var (
+		restartHTTPS bool
+		shouldSave   bool
+	)
 	defer func() {
-		if restartHTTPS {
+		if shouldSave {
 			m.confModifier.Apply(ctx)
 		}
 	}()
+
+	webAPIAddr, webAPIPort, plainDNSPort := snapshotConfigPorts()
 
 	status := &tlsConfigStatus{}
 	var handled bool
@@ -688,7 +695,7 @@ func (m *tlsManager) handleTLSConfigure(w http.ResponseWriter, r *http.Request) 
 
 		req.StrictSNICheck = m.extTLSConf.StrictSNICheck
 
-		if err = m.validateTLSSettings(req); err != nil {
+		if err = m.validateTLSSettingsWithPorts(req, webAPIAddr, webAPIPort, plainDNSPort); err != nil {
 			aghhttp.ErrorAndLog(ctx, m.logger, r, w, http.StatusBadRequest, "%s", err)
 			handled = true
 
@@ -708,6 +715,7 @@ func (m *tlsManager) handleTLSConfigure(w http.ResponseWriter, r *http.Request) 
 			return
 		}
 
+		prevServePlain := m.servePlainDNS
 		restartHTTPS, err = m.setConfig(ctx, req.tlsConfigSettings, status, req.ServePlainDNS)
 		if err != nil {
 			aghhttp.ErrorAndLog(ctx, m.logger, r, w, http.StatusInternalServerError, "%s", err)
@@ -715,6 +723,8 @@ func (m *tlsManager) handleTLSConfigure(w http.ResponseWriter, r *http.Request) 
 
 			return
 		}
+
+		shouldSave = restartHTTPS || (req.ServePlainDNS != aghalg.NBNull && m.servePlainDNS != prevServePlain)
 
 		m.setCertFileTime(ctx)
 	}()
@@ -761,8 +771,32 @@ func (m *tlsManager) handleTLSConfigure(w http.ResponseWriter, r *http.Request) 
 	}
 }
 
+// snapshotConfigPorts returns HTTP address, HTTP port, and plain DNS port
+// under config.RLock so callers do not acquire config's lock while holding
+// tlsManager.mu.
+func snapshotConfigPorts() (webAPIAddr netip.Addr, webAPIPort, plainDNSPort uint16) {
+	config.RLock()
+	defer config.RUnlock()
+
+	return config.HTTPConfig.Address.Addr(), config.HTTPConfig.Address.Port(), config.DNS.Port
+}
+
 // validateTLSSettings returns error if the setts are not valid.
 func (m *tlsManager) validateTLSSettings(setts tlsConfigSettingsExt) (err error) {
+	webAPIAddr, webAPIPort, plainDNSPort := snapshotConfigPorts()
+
+	return m.validateTLSSettingsWithPorts(setts, webAPIAddr, webAPIPort, plainDNSPort)
+}
+
+// validateTLSSettingsWithPorts validates setts against pre-snapshotted HTTP and
+// DNS ports.  m.mu is expected to be locked; config's lock must not be acquired
+// here to prevent AB-BA lock inversion with configuration.write.
+func (m *tlsManager) validateTLSSettingsWithPorts(
+	setts tlsConfigSettingsExt,
+	webAPIAddr netip.Addr,
+	webAPIPort uint16,
+	plainDNSPort uint16,
+) (err error) {
 	if !setts.Enabled {
 		if setts.ServePlainDNS == aghalg.NBFalse {
 			// TODO(a.garipov): Support full disabling of all DNS.
@@ -772,25 +806,10 @@ func (m *tlsManager) validateTLSSettings(setts tlsConfigSettingsExt) (err error)
 		return nil
 	}
 
-	var (
-		tlsConf      tlsConfigSettings
-		webAPIAddr   netip.Addr
-		webAPIPort   uint16
-		plainDNSPort uint16
-	)
-
+	var tlsConf tlsConfigSettings
 	if m.extTLSConf != nil {
 		tlsConf = *m.extTLSConf
 	}
-
-	func() {
-		config.Lock()
-		defer config.Unlock()
-
-		webAPIAddr = config.HTTPConfig.Address.Addr()
-		webAPIPort = config.HTTPConfig.Address.Port()
-		plainDNSPort = config.DNS.Port
-	}()
 
 	err = validatePorts(
 		tcpPort(webAPIPort),

@@ -183,6 +183,7 @@ jobs:
             VERSION=${{ steps.version.outputs.VERSION }}
             CHANNEL=release
             VCS_REF=${{ github.sha }}
+            DOCKER_REPO=${{ env.DOCKERHUB_IMAGE }}
             NPM_CONFIG_LEGACY_PEER_DEPS=${{ env.NPM_CONFIG_LEGACY_PEER_DEPS }}
           provenance: false
           sbom: false

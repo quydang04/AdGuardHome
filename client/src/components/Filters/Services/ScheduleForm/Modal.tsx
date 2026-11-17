@@ -79,7 +79,7 @@ export const Modal = ({ isOpen, currentDay, schedule, onClose, onSubmit }: Modal
     const onFormSubmit = (e: any) => {
         e.preventDefault();
 
-        const newSchedule = schedule;
+        const newSchedule = { ...schedule };
 
         Array.from(days).forEach((day) => {
             newSchedule[day] = {
@@ -88,9 +88,7 @@ export const Modal = ({ isOpen, currentDay, schedule, onClose, onSubmit }: Modal
             };
         });
 
-        if (timezone !== intialTimezone) {
-            newSchedule.time_zone = timezone;
-        }
+        newSchedule.time_zone = timezone;
 
         onSubmit(newSchedule);
     };

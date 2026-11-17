@@ -15,6 +15,9 @@ const UpdateTopline = () => {
     );
     const dispatch = useDispatch();
 
+    const manualUpdateHref =
+        announcementUrl && announcementUrl.includes('hub.docker.com') ? announcementUrl : MANUAL_UPDATE_LINK;
+
     const handleUpdate = () => {
         dispatch(getUpdate());
     };
@@ -44,7 +47,7 @@ const UpdateTopline = () => {
                     <Trans
                         components={{
                             a: (
-                                <a href={MANUAL_UPDATE_LINK} target="_blank" rel="noopener noreferrer" key="0">
+                                <a href={manualUpdateHref} target="_blank" rel="noopener noreferrer" key="0">
                                     Link
                                 </a>
                             ),

@@ -66,6 +66,14 @@ export const Form = ({ className, setIsLoading }: Props) => {
 
     const onInputClear = async () => {
         setIsLoading(true);
+        setValue('search', DEFAULT_LOGS_FILTER.search);
+        setDebouncedSearch(DEFAULT_LOGS_FILTER.search);
+        dispatch(
+            setLogsFilter({
+                response_status: responseStatusValue,
+                search: DEFAULT_LOGS_FILTER.search,
+            }),
+        );
         history.push(getLogsUrlParams(DEFAULT_LOGS_FILTER.search, responseStatusValue));
         setIsLoading(false);
     };

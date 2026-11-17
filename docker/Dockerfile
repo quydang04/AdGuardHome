@@ -55,12 +55,13 @@ EXPOSE 53/tcp 53/udp \
 	5443/tcp 5443/udp \
 	6060/tcp
 
+ENV ADGUARD_HOME_DOCKER=1
+
 WORKDIR /opt/adguardhome/work
 
 ENTRYPOINT ["/opt/adguardhome/AdGuardHome"]
 
 CMD [ \
-	"--no-check-update", \
 	"-c", "/opt/adguardhome/conf/AdGuardHome.yaml", \
 	"-w", "/opt/adguardhome/work" \
 ]

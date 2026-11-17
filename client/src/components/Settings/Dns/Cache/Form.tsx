@@ -68,13 +68,15 @@ const Form = ({ initialValues, onSubmit }: CacheFormProps) => {
         },
     });
 
+    const processingClearCache = useSelector((state: RootState) => state.dnsConfig.processingClearCache);
     const cache_enabled = watch('cache_enabled');
     const cache_size = watch('cache_size');
     const cache_ttl_min = watch('cache_ttl_min');
     const cache_ttl_max = watch('cache_ttl_max');
 
     const minExceedsMax = cache_ttl_min > 0 && cache_ttl_max > 0 && cache_ttl_min > cache_ttl_max;
-    const cacheSizeZeroWhenEnabled = cache_enabled && cache_size === 0;
+    const cacheSizeZeroWhenEnabled =
+        cache_enabled && (cache_size === 0 || (cache_size as unknown) === '' || Number.isNaN(cache_size));
 
     const handleClearCache = async () => {
         const confirmed = await confirmDialog({
@@ -178,6 +180,7 @@ const Form = ({ initialValues, onSubmit }: CacheFormProps) => {
                     type="button"
                     data-testid="dns_clear"
                     className="btn btn-outline-secondary btn-standard"
+                    disabled={processingClearCache}
                     onClick={handleClearCache}>
                     {t('clear_cache')}
                 </button>

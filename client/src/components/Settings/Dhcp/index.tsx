@@ -101,6 +101,7 @@ const Dhcp = () => {
         v6,
         interface_name: interfaceName,
         enabled,
+        processingResetLeases,
         dhcp_available,
         interfaces,
         modalType,
@@ -179,7 +180,7 @@ const Dhcp = () => {
                 v6: DEFAULT_V6_VALUES,
                 interface_name: '',
             });
-            dispatch(resetDhcp());
+            await dispatch(resetDhcp());
             dispatch(getDhcpStatus());
         }
     };
@@ -215,7 +216,9 @@ const Dhcp = () => {
     const enteredSomeValue = enteredSomeV4Value || enteredSomeV6Value || interfaceName;
 
     const getToggleDhcpButton = () => {
-        const filledConfig = interface_name && (Object.values(v4).every(Boolean) || Object.values(v6).every(Boolean));
+        const hasV4Config = Object.values(v4 || {}).every(Boolean);
+        const hasV6Config = Boolean(v6?.range_start && v6?.lease_duration);
+        const filledConfig = Boolean(interface_name && (hasV4Config || hasV6Config));
 
         const className = classNames('btn btn-sm', {
             'btn-gray': enabled,
@@ -377,6 +380,7 @@ const Dhcp = () => {
                                     <button
                                         type="button"
                                         className="btn btn-secondary btn-standard mt-3"
+                                        disabled={processingResetLeases}
                                         onClick={handleReset}>
                                         <Trans>dhcp_reset_leases</Trans>
                                     </button>

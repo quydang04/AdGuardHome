@@ -143,13 +143,14 @@ export const AcmeForm = ({
                             return true;
                         },
                     }}
-                    render={({ field }) => (
+                    render={({ field, fieldState }) => (
                         <Textarea
                             {...field}
                             data-testid="acme_domains"
                             placeholder={t('acme_domains_placeholder')}
                             label={t('acme_domains')}
                             disabled={processing}
+                            error={fieldState.error?.message}
                             trimOnBlur
                         />
                     )}
@@ -253,6 +254,7 @@ export const AcmeForm = ({
                     name="renewBeforeDays"
                     control={control}
                     rules={{
+                        required: t('acme_renew_before_days_min_max'),
                         min: { value: MIN_RENEW_BEFORE_DAYS, message: t('acme_renew_before_days_min_max') },
                         max: { value: MAX_RENEW_BEFORE_DAYS, message: t('acme_renew_before_days_min_max') },
                     }}

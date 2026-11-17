@@ -1,7 +1,7 @@
 import { handleActions } from 'redux-actions';
 
 import * as actions from '../actions';
-import { areEqualVersions } from '../helpers/version';
+import { isNewerVersion } from '../helpers/version';
 import { STANDARD_DNS_PORT, STANDARD_WEB_PORT } from '../helpers/constants';
 
 const dashboard = handleActions(
@@ -66,9 +66,9 @@ const dashboard = handleActions(
             processingVersion: false,
         }),
         [actions.getVersionSuccess.toString()]: (state: any, { payload }: any) => {
-            const currentVersion = state.dnsVersion === 'undefined' ? 0 : state.dnsVersion;
+            const currentVersion = state.dnsVersion === 'undefined' ? '' : state.dnsVersion;
 
-            if (!payload.disabled && !areEqualVersions(currentVersion, payload.new_version)) {
+            if (!payload.disabled && isNewerVersion(currentVersion, payload.new_version)) {
                 const {
                     announcement_url: announcementUrl,
                     new_version: newVersion,
@@ -89,6 +89,7 @@ const dashboard = handleActions(
 
             return {
                 ...state,
+                isUpdateAvailable: false,
                 processingVersion: false,
                 checkUpdateFlag: !payload.disabled,
             };

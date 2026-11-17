@@ -8,6 +8,8 @@ import (
 	"maps"
 	"net/http"
 	"slices"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/AdguardTeam/AdGuardHome/internal/aghalg"
@@ -15,6 +17,7 @@ import (
 	"github.com/AdguardTeam/golibs/ioutil"
 	"github.com/AdguardTeam/golibs/validate"
 	"github.com/c2h5oh/datasize"
+	"golang.org/x/mod/semver"
 )
 
 // TODO(a.garipov): Make configurable.
@@ -33,6 +36,10 @@ type VersionInfo struct {
 // maxVersionRespSize is the maximum length in bytes for version information
 // response.
 const maxVersionRespSize datasize.ByteSize = 64 * datasize.KB
+
+// maxDockerVersionRespSize is the maximum length in bytes for Docker Hub tags
+// API responses, which embed per-architecture image digests for each tag.
+const maxDockerVersionRespSize datasize.ByteSize = 512 * datasize.KB
 
 // VersionInfo downloads the latest version information.  If forceRecheck is
 // false and there are cached results, those results are returned.
@@ -53,6 +60,7 @@ func (u *Updater) VersionInfo(ctx context.Context, forceRecheck bool) (vi Versio
 	if err != nil {
 		return VersionInfo{}, fmt.Errorf("constructing request to %s: %w", vcu, err)
 	}
+	req.Header.Set("Accept", "application/json")
 
 	u.logger.DebugContext(ctx, "requesting version data", "url", vcu)
 
@@ -70,7 +78,12 @@ func (u *Updater) VersionInfo(ctx context.Context, forceRecheck bool) (vi Versio
 		)
 	}
 
-	r := ioutil.LimitReader(resp.Body, maxVersionRespSize.Bytes())
+	respLimit := maxVersionRespSize.Bytes()
+	if u.useDockerHub {
+		respLimit = maxDockerVersionRespSize.Bytes()
+	}
+
+	r := ioutil.LimitReader(resp.Body, respLimit)
 
 	// This use of ReadAll is safe, because we just limited the appropriate
 	// ReadCloser.
@@ -80,7 +93,11 @@ func (u *Updater) VersionInfo(ctx context.Context, forceRecheck bool) (vi Versio
 	}
 
 	u.prevCheckTime = now
-	u.prevCheckResult, u.prevCheckError = u.parseVersionResponse(ctx, body)
+	if u.useDockerHub {
+		u.prevCheckResult, u.prevCheckError = u.parseDockerTagsResponse(ctx, body)
+	} else {
+		u.prevCheckResult, u.prevCheckError = u.parseVersionResponse(ctx, body)
+	}
 
 	return u.prevCheckResult, u.prevCheckError
 }
@@ -120,7 +137,7 @@ func (u *Updater) parseVersionResponse(
 		return info, fmt.Errorf("version.json: bad key %q: %w", key, errors.ErrNoValue)
 	}
 
-	isNewVersion := info.NewVersion != u.version
+	isNewVersion := isNewerVersion(u.version, info.NewVersion)
 	if isNewVersion {
 		u.logger.InfoContext(
 			ctx,
@@ -136,10 +153,87 @@ func (u *Updater) parseVersionResponse(
 		)
 	}
 
-	info.CanAutoUpdate = aghalg.BoolToNullBool(isNewVersion)
+	info.CanAutoUpdate = aghalg.BoolToNullBool(isNewVersion && !u.isDocker)
 
-	u.newVersion = info.NewVersion
-	u.packageURL = packageURL
+	if !u.isDocker {
+		u.newVersion = info.NewVersion
+		u.packageURL = packageURL
+	}
+
+	return info, nil
+}
+
+// dockerHubTagsResponse represents the subset of Docker Hub v2 tags API used
+// for container update checks.
+type dockerHubTagsResponse struct {
+	Results []struct {
+		Name string `json:"name"`
+	} `json:"results"`
+}
+
+// parseDockerTagsResponse parses Docker Hub tags JSON and extracts the highest
+// stable release tag for the configured Docker repository.
+func (u *Updater) parseDockerTagsResponse(
+	ctx context.Context,
+	data []byte,
+) (vi VersionInfo, err error) {
+	info := VersionInfo{
+		CanAutoUpdate: aghalg.NBFalse,
+	}
+
+	var parsed dockerHubTagsResponse
+	err = json.Unmarshal(data, &parsed)
+	if err != nil {
+		return info, fmt.Errorf("docker hub tags: %w", err)
+	}
+
+	var bestTag string
+	var bestParts [4]int
+	hasBest := false
+
+	for _, r := range parsed.Results {
+		parts, ok := parseReleaseTagParts(r.Name)
+		if !ok {
+			continue
+		}
+
+		if !hasBest || compareVersionParts(parts, bestParts) > 0 {
+			bestTag = r.Name
+			bestParts = parts
+			hasBest = true
+		}
+	}
+
+	if !hasBest {
+		return info, fmt.Errorf("docker hub tags: no release version tag found")
+	}
+
+	normalizedVer := strings.TrimPrefix(strings.TrimSpace(bestTag), "v")
+	info.NewVersion = normalizedVer
+	info.Announcement = fmt.Sprintf("AdGuard Home v%s is now available on Docker Hub!", normalizedVer)
+	info.AnnouncementURL = fmt.Sprintf("https://hub.docker.com/r/%s/tags", u.dockerRepo)
+
+	if isNewerVersion(u.version, info.NewVersion) {
+		u.logger.InfoContext(
+			ctx,
+			"a new docker image version is available",
+			"current_version", u.version,
+			"new_version", info.NewVersion,
+			"repo", u.dockerRepo,
+		)
+	} else {
+		u.logger.DebugContext(
+			ctx,
+			"the current docker image version is up-to-date",
+			"current_version", u.version,
+			"repo", u.dockerRepo,
+		)
+	}
+
+	// Self-update inside a container is intentionally disabled; users update by
+	// pulling the newer image from Docker Hub.
+	u.newVersion = ""
+	u.packageURL = ""
 
 	return info, nil
 }
@@ -183,4 +277,95 @@ func isMIPS(arch string) (ok bool) {
 	default:
 		return false
 	}
+}
+
+// isNewerVersion reports whether candidate represents a newer release than
+// current.  When both strings are valid semantic versions or 4-part dotted
+// versions (with or without a leading "v"), it compares them numerically so an
+// older published release never triggers a downgrade prompt.  For non-semver
+// build strings, it falls back to inequality ignoring an optional leading "v".
+func isNewerVersion(current, candidate string) (newer bool) {
+	curV, curOK := normalizeSemver(current)
+	candV, candOK := normalizeSemver(candidate)
+	if curOK && candOK {
+		return semver.Compare(candV, curV) > 0
+	}
+
+	curParts, curPartsOK := parseReleaseTagParts(current)
+	candParts, candPartsOK := parseReleaseTagParts(candidate)
+	if curPartsOK && candPartsOK {
+		return compareVersionParts(candParts, curParts) > 0
+	}
+
+	curTrimmed := strings.TrimPrefix(strings.TrimSpace(current), "v")
+	candTrimmed := strings.TrimPrefix(strings.TrimSpace(candidate), "v")
+
+	return candTrimmed != "" && candTrimmed != curTrimmed
+}
+
+// parseReleaseTagParts parses a 3-part or 4-part numeric release tag such as
+// "v1.0.36" or "v1.0.35.1", rejecting prerelease/branch tags like
+// "v1.0.35.1-demo", "latest", or "sha-abc123".
+func parseReleaseTagParts(raw string) (parts [4]int, ok bool) {
+	s := strings.TrimSpace(raw)
+	s = strings.TrimPrefix(s, "v")
+	if s == "" {
+		return parts, false
+	}
+
+	segs := strings.Split(s, ".")
+	if len(segs) != 3 && len(segs) != 4 {
+		return parts, false
+	}
+
+	for i, seg := range segs {
+		if seg == "" {
+			return parts, false
+		}
+		for j := 0; j < len(seg); j++ {
+			if seg[j] < '0' || seg[j] > '9' {
+				return parts, false
+			}
+		}
+
+		n, err := strconv.Atoi(seg)
+		if err != nil {
+			return parts, false
+		}
+		parts[i] = n
+	}
+
+	return parts, true
+}
+
+func compareVersionParts(a, b [4]int) int {
+	for i := range a {
+		if a[i] > b[i] {
+			return 1
+		}
+		if a[i] < b[i] {
+			return -1
+		}
+	}
+
+	return 0
+}
+
+// normalizeSemver trims whitespace, adds an optional "v" prefix expected by
+// [semver], and validates the resulting semantic version string.
+func normalizeSemver(raw string) (v string, ok bool) {
+	v = strings.TrimSpace(raw)
+	if v == "" {
+		return "", false
+	}
+
+	if !strings.HasPrefix(v, "v") {
+		v = "v" + v
+	}
+
+	if !semver.IsValid(v) {
+		return "", false
+	}
+
+	return v, true
 }

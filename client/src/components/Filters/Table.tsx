@@ -69,7 +69,7 @@ class Table extends Component<TableProps> {
     };
 
     renderSelectHeader = () => {
-        const { filters, selectedUrls, onSelectAll, onDeselectAll } = this.props;
+        const { filters, selectedUrls, onSelectAll, onDeselectAll, t } = this.props;
         const total = filters.length;
         const selected = selectedUrls ? selectedUrls.size : 0;
         const allSelected = total > 0 && selected === total;
@@ -78,7 +78,7 @@ class Table extends Component<TableProps> {
         return (
             <label
                 className="checkbox checkbox--single"
-                title={allSelected ? 'Deselect all' : 'Select all'}
+                title={t(allSelected ? 'deselect_all' : 'select_all') as string}
                 style={{ margin: 0 }}>
                 <input
                     type="checkbox"

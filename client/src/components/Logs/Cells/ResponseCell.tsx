@@ -49,7 +49,7 @@ const ResponseCell = ({
     const isBlocked =
         reason === FILTERED_STATUS.FILTERED_BLACK_LIST || reason === FILTERED_STATUS.FILTERED_BLOCKED_SERVICE;
 
-    const isBlockedByResponse = originalResponse.length > 0 && isBlocked;
+    const isBlockedByResponse = Boolean(originalResponse?.length) && isBlocked;
 
     const statusLabel = t(
         isBlockedByResponse ? 'blocked_by_cname_or_ip' : FILTERED_STATUS_TO_META_MAP[reason]?.LABEL || reason,
@@ -89,13 +89,13 @@ const ResponseCell = ({
         response_code: status,
         ...(service_name &&
             services.allServices && { service_name: getServiceName(services.allServices, service_name) }),
-        ...(rules.length > 0 && { rule_label: getRulesToFilterList(rules, filters, whitelistFilters) }),
+        ...(rules?.length > 0 && { rule_label: getRulesToFilterList(rules, filters, whitelistFilters) }),
         response_table_header: renderResponses(response),
         original_response: renderResponses(originalResponse),
     };
 
     const content =
-        rules.length > 0
+        rules?.length > 0
             ? Object.entries(COMMON_CONTENT)
             : Object.entries({
                   ...COMMON_CONTENT,

@@ -57,10 +57,23 @@ const dnsConfig = handleActions(
             ...payload,
             processingSetConfig: false,
         }),
+        [actions.clearDnsCacheRequest.toString()]: (state: any) => ({
+            ...state,
+            processingClearCache: true,
+        }),
+        [actions.clearDnsCacheFailure.toString()]: (state: any) => ({
+            ...state,
+            processingClearCache: false,
+        }),
+        [actions.clearDnsCacheSuccess.toString()]: (state: any) => ({
+            ...state,
+            processingClearCache: false,
+        }),
     },
     {
         processingGetConfig: false,
         processingSetConfig: false,
+        processingClearCache: false,
         blocking_mode: BLOCKING_MODES.default,
         ratelimit: 20,
         blocking_ipv4: DEFAULT_BLOCKING_IPV4,

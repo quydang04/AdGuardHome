@@ -13,6 +13,7 @@ import { ClientForm } from './types';
 import { BlockedServices, ClientIds, MainSettings, ScheduleServices, UpstreamDns } from './components';
 
 import '../Service.css';
+import '../../../ui/Select.css';
 
 const defaultFormValues: ClientForm = {
     ids: [{ name: '' }],

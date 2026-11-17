@@ -78,7 +78,7 @@ export const resetStatsFailure = createAction('RESET_STATS_FAILURE');
 export const resetStatsSuccess = createAction('RESET_STATS_SUCCESS');
 
 export const resetStats = () => async (dispatch: any) => {
-    dispatch(getStatsRequest());
+    dispatch(resetStatsRequest());
     try {
         await apiClient.resetStats();
         dispatch(addSuccessToast('statistics_cleared'));

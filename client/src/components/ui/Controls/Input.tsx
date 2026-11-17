@@ -11,10 +11,10 @@ type Props = ComponentProps<'input'> & {
 };
 
 export const Input = forwardRef<HTMLInputElement, Props>(
-    ({ name, label, desc, className, leftAddon, rightAddon, error, trimOnBlur, onBlur, ...rest }, ref) => (
+    ({ id, name, label, desc, className, leftAddon, rightAddon, error, trimOnBlur, onBlur, ...rest }, ref) => (
         <div className={clsx('form-group', { 'has-error': !!error })}>
             {label && (
-                <label className={clsx('form__label', { 'form__label--with-desc': !!desc })} htmlFor={name}>
+                <label className={clsx('form__label', { 'form__label--with-desc': !!desc })} htmlFor={id || name}>
                     {label}
                 </label>
             )}
@@ -22,6 +22,8 @@ export const Input = forwardRef<HTMLInputElement, Props>(
             <div className="input-group">
                 {leftAddon && <div>{leftAddon}</div>}
                 <input
+                    id={id || name}
+                    name={name}
                     className={clsx('form-control', { 'is-invalid': !!error }, className)}
                     ref={ref}
                     onBlur={(e) => {

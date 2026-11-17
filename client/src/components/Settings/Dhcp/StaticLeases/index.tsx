@@ -158,7 +158,7 @@ const StaticLeases = ({
                 isModalOpen={isModalOpen}
                 modalType={modalType}
                 handleSubmit={handleSubmit}
-                processingAdding={processingAdding}
+                processingAdding={processingAdding || processingUpdating}
                 cidr={cidr}
                 gatewayIp={gatewayIp}
             />

@@ -7,15 +7,15 @@ type SelectProps = ComponentProps<'select'> & {
 };
 
 export const Select = forwardRef<HTMLSelectElement, SelectProps>(
-    ({ name, label, className, error, children, ...rest }, ref) => (
+    ({ id, name, label, className, error, children, ...rest }, ref) => (
         <div className={clsx('form-group', { 'has-error': !!error })}>
             {label && (
-                <label className="form__label" htmlFor={name}>
+                <label className="form__label" htmlFor={id || name}>
                     {label}
                 </label>
             )}
             <div className="input-group">
-                <select className={clsx('form-control custom-select', className)} ref={ref} {...rest}>
+                <select id={id || name} name={name} className={clsx('form-control custom-select', className)} ref={ref} {...rest}>
                     {children}
                 </select>
             </div>

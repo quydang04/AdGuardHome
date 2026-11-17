@@ -89,7 +89,7 @@ func (m *tlsManager) checkCertExpiry(ctx context.Context) {
 		return
 	}
 
-	status, err := m.applyIssuedCertificate(ctx, res)
+	status, restartConf, err := m.applyIssuedCertificate(ctx, res)
 
 	config.Lock()
 	if config.ACME == nil {
@@ -112,6 +112,10 @@ func (m *tlsManager) checkCertExpiry(ctx context.Context) {
 		m.notifyRenewalResult(ctx, acmeCfg.Domains, time.Time{}, err)
 
 		return
+	}
+
+	if restartConf != nil && m.web != nil {
+		go m.web.tlsConfigChanged(context.Background(), restartConf)
 	}
 
 	m.notifyRenewalResult(ctx, acmeCfg.Domains, status.NotAfter, nil)

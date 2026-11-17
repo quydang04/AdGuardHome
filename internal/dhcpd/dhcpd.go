@@ -85,6 +85,10 @@ type Interface interface {
 	IPByHost(host string) (ip netip.Addr)
 
 	WriteDiskConfig(c *ServerConfig)
+
+	// ApplyConfig updates the running DHCP server configuration from an imported
+	// [ServerConfig].
+	ApplyConfig(ctx context.Context, conf *ServerConfig) (err error)
 }
 
 // server is the DHCP service that handles DHCPv4, DHCPv6, and HTTP API.
@@ -245,6 +249,63 @@ func (s *server) WriteDiskConfig(c *ServerConfig) {
 
 	s.srv4.WriteDiskConfig4(&c.Conf4)
 	s.srv6.WriteDiskConfig6(&c.Conf6)
+}
+
+// ApplyConfig implements the [Interface] interface for *server.
+func (s *server) ApplyConfig(ctx context.Context, conf *ServerConfig) (err error) {
+	if conf == nil {
+		return nil
+	}
+
+	oldEnabled := s.conf.Enabled
+	oldIface := s.conf.InterfaceName
+	oldDomain := s.conf.LocalDomainName
+	oldConf4 := s.conf.Conf4
+	oldConf6 := s.conf.Conf6
+	oldSrv4 := s.srv4
+	oldSrv6 := s.srv6
+
+	if err = s.Stop(); err != nil {
+		return fmt.Errorf("stopping dhcp: %w", err)
+	}
+
+	s.conf.Enabled = conf.Enabled
+	s.conf.InterfaceName = conf.InterfaceName
+	s.conf.LocalDomainName = conf.LocalDomainName
+
+	v4Enabled, v6Enabled, err := s.setServers(ctx, conf)
+	if err != nil || (s.conf.Enabled && !v4Enabled && !v6Enabled) {
+		s.conf.Enabled = oldEnabled
+		s.conf.InterfaceName = oldIface
+		s.conf.LocalDomainName = oldDomain
+		s.conf.Conf4 = oldConf4
+		s.conf.Conf6 = oldConf6
+		s.srv4 = oldSrv4
+		s.srv6 = oldSrv6
+		if oldEnabled {
+			_ = s.Start(ctx)
+		}
+		if err != nil {
+			return err
+		}
+
+		return fmt.Errorf("neither dhcpv4 nor dhcpv6 srv is configured")
+	}
+
+	s.conf.Conf4 = conf.Conf4
+	s.conf.Conf6 = conf.Conf6
+
+	if err = s.dbLoad(); err != nil {
+		return fmt.Errorf("loading db: %w", err)
+	}
+
+	if s.conf.Enabled {
+		if err = s.Start(ctx); err != nil {
+			return fmt.Errorf("starting dhcp: %w", err)
+		}
+	}
+
+	return nil
 }
 
 // Start will listen on port 67 and serve DHCP requests.

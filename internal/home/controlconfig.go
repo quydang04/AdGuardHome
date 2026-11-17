@@ -3,8 +3,9 @@ package home
 import (
 	"io"
 	"log/slog"
-	"net/netip"
 	"net/http"
+	"net/netip"
+	"slices"
 	"time"
 
 	"github.com/AdguardTeam/AdGuardHome/internal/aghhttp"
@@ -12,6 +13,7 @@ import (
 	"github.com/AdguardTeam/AdGuardHome/internal/dnsforward"
 	"github.com/AdguardTeam/AdGuardHome/internal/filtering"
 	"github.com/AdguardTeam/AdGuardHome/internal/querylog"
+	"github.com/AdguardTeam/AdGuardHome/internal/schedule"
 	"github.com/AdguardTeam/AdGuardHome/internal/stats"
 	"github.com/AdguardTeam/golibs/netutil"
 	"github.com/AdguardTeam/golibs/timeutil"
@@ -30,8 +32,8 @@ type exportConfig struct {
 	Statistics    *exportStatsConfig          `json:"statistics,omitempty"`
 	Clients       *exportClientsConfig        `json:"clients,omitempty"`
 	TLS           *tlsConfigSettings          `json:"tls,omitempty"`
-	SafeBrowsing  *bool                       `json:"safebrowsing_enabled,omitempty"`
-	Parental      *bool                       `json:"parental_enabled,omitempty"`
+	SafeBrowsing  *bool                       `json:"safebrowsing_enabled"`
+	Parental      *bool                       `json:"parental_enabled"`
 	SafeSearch    *filtering.SafeSearchConfig `json:"safesearch,omitempty"`
 	Notifications *exportNotificationsConfig  `json:"notifications,omitempty"`
 	General       *exportGeneralConfig        `json:"general,omitempty"`
@@ -267,7 +269,7 @@ func buildExportConfig() (export *exportConfig) {
 	export.DNS = dnsConf
 
 	// Filtering config.
-	if globalContext.filters != nil {
+	if config.Filtering != nil {
 		fltConf := config.Filtering
 		expFlt := &exportFilteringConfig{
 			Enabled:          fltConf.ProtectionEnabled,
@@ -312,14 +314,10 @@ func buildExportConfig() (export *exportConfig) {
 
 		export.Filtering = expFlt
 
-		if fltConf.SafeBrowsingEnabled {
-			t := true
-			export.SafeBrowsing = &t
-		}
-		if fltConf.ParentalEnabled {
-			t := true
-			export.Parental = &t
-		}
+		sb := fltConf.SafeBrowsingEnabled
+		export.SafeBrowsing = &sb
+		pr := fltConf.ParentalEnabled
+		export.Parental = &pr
 		ssConf := fltConf.SafeSearchConf
 		export.SafeSearch = &ssConf
 	}
@@ -436,9 +434,21 @@ func (web *webAPI) handleImportSettings(w http.ResponseWriter, r *http.Request) 
 
 	l.InfoContext(ctx, "importing settings")
 
+	var (
+		prevDNS           dnsConfig
+		prevClientSources clientSourcesConfig
+		prevTLS           tlsConfigSettings
+	)
 	func() {
 		config.Lock()
 		defer config.Unlock()
+
+		prevDNS = config.DNS
+		prevDNS.BindHosts = slices.Clone(config.DNS.BindHosts)
+		if config.Clients.Sources != nil {
+			prevClientSources = *config.Clients.Sources
+		}
+		prevTLS = config.TLS
 
 		err = applyImportedSettings(l, imp)
 	}()
@@ -456,7 +466,7 @@ func (web *webAPI) handleImportSettings(w http.ResponseWriter, r *http.Request) 
 	// before confModifier.Apply, because config.write reads the live state of
 	// the services back into config, which would otherwise overwrite the
 	// imported values with the old ones.
-	warnings = append(warnings, web.applyImportedRuntime(ctx, imp)...)
+	warnings = append(warnings, web.applyImportedRuntime(ctx, imp, prevDNS, prevClientSources, prevTLS)...)
 
 	web.confModifier.Apply(ctx)
 
@@ -495,16 +505,22 @@ func applyImportedSettings(_ *slog.Logger, imp *exportConfig) (err error) {
 		applyFilteringImport(imp.Filtering)
 	}
 
-	if imp.SafeBrowsing != nil && config.Filtering != nil {
-		config.Filtering.SafeBrowsingEnabled = *imp.SafeBrowsing
-	}
+	if config.Filtering != nil {
+		if imp.SafeBrowsing != nil {
+			config.Filtering.SafeBrowsingEnabled = *imp.SafeBrowsing
+		} else if imp.Version >= 2 {
+			config.Filtering.SafeBrowsingEnabled = false
+		}
 
-	if imp.Parental != nil && config.Filtering != nil {
-		config.Filtering.ParentalEnabled = *imp.Parental
-	}
+		if imp.Parental != nil {
+			config.Filtering.ParentalEnabled = *imp.Parental
+		} else if imp.Version >= 2 {
+			config.Filtering.ParentalEnabled = false
+		}
 
-	if imp.SafeSearch != nil && config.Filtering != nil {
-		config.Filtering.SafeSearchConf = *imp.SafeSearch
+		if imp.SafeSearch != nil {
+			config.Filtering.SafeSearchConf = *imp.SafeSearch
+		}
 	}
 
 	if imp.QueryLog != nil {
@@ -677,6 +693,9 @@ func applyFilteringImport(flt *exportFilteringConfig) {
 		config.Filtering.BlockingIPv6 = *flt.BlockingIPv6
 	}
 	if flt.BlockedServices != nil {
+		if flt.BlockedServices.Schedule == nil {
+			flt.BlockedServices.Schedule = schedule.EmptyWeekly()
+		}
 		config.Filtering.BlockedServices = flt.BlockedServices
 	}
 	if flt.ParentalBlockHost != "" {
@@ -768,7 +787,9 @@ func applyClientsImport(cl *exportClientsConfig) {
 // private key if not provided in the import.
 func applyTLSImport(tls *tlsConfigSettings) {
 	existingKey := config.TLS.PrivateKey
+	existingStrictSNI := config.TLS.StrictSNICheck
 	config.TLS = *tls
+	config.TLS.StrictSNICheck = existingStrictSNI
 	if tls.PrivateKey == "" {
 		config.TLS.PrivateKey = existingKey
 	}

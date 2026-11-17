@@ -570,6 +570,7 @@ func (web *webAPI) finalizeInstall(
 	web.conf.firstRun = false
 	web.conf.BindAddr = netip.AddrPortFrom(req.Web.IP, req.Web.Port)
 
+	injectNotificationProviders(web)
 	web.registerControlHandlers()
 
 	aghhttp.OK(ctx, l, w)

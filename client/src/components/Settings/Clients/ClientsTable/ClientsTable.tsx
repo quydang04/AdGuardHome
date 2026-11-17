@@ -130,7 +130,7 @@ const ClientsTable = ({
         }
 
         if (clientId) {
-            history.push('/#clients');
+            history.push('/clients');
         }
     };
 
@@ -166,9 +166,9 @@ const ClientsTable = ({
 
     const handleDelete = async (data: any) => {
         const confirmed = await confirmDialog({
-            title: t('delete'),
+            title: t('delete_table_action'),
             message: t('client_confirm_delete', { key: data.name }),
-            confirmText: t('delete'),
+            confirmText: t('delete_table_action'),
             variant: 'danger',
         });
         if (confirmed) {
@@ -181,7 +181,7 @@ const ClientsTable = ({
         toggleClientModal();
 
         if (clientId) {
-            history.push('/#clients');
+            history.push('/clients');
         }
     };
 

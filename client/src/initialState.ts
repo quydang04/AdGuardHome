@@ -326,6 +326,7 @@ export type DhcpData = {
     processingAdding: boolean;
     processingDeleting: boolean;
     processingUpdating: boolean;
+    processingResetLeases?: boolean;
     enabled: boolean;
     interface_name: string;
     check?: {
@@ -373,6 +374,7 @@ export type DhcpData = {
 export type DnsConfigData = {
     processingGetConfig: boolean;
     processingSetConfig: boolean;
+    processingClearCache?: boolean;
     blocking_mode: string;
     ratelimit: number;
     blocking_ipv4: string;

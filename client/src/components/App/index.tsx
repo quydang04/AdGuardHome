@@ -215,16 +215,18 @@ const AppContent = () => {
         const colorSchemeMedia = window.matchMedia('(prefers-color-scheme: dark)');
         setUITheme(theme);
 
+        const onSchemeChange = (e: MediaQueryListEvent) => {
+            handleAutoTheme(e, theme);
+        };
+
         if (colorSchemeMedia.addEventListener !== undefined) {
-            colorSchemeMedia.addEventListener('change', (e) => {
-                handleAutoTheme(e, theme);
-            });
-        } else {
-            // Deprecated addListener for older versions of Safari.
-            colorSchemeMedia.addListener((e) => {
-                handleAutoTheme(e, theme);
-            });
+            colorSchemeMedia.addEventListener('change', onSchemeChange);
+            return () => colorSchemeMedia.removeEventListener('change', onSchemeChange);
         }
+
+        // Deprecated addListener for older versions of Safari.
+        colorSchemeMedia.addListener(onSchemeChange);
+        return () => colorSchemeMedia.removeListener(onSchemeChange);
     }, [theme]);
 
     const reloadPage = () => {

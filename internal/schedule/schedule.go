@@ -67,6 +67,10 @@ func (w *Weekly) Clone() (c *Weekly) {
 // Contains returns true if t is within the corresponding day range of the
 // schedule in the schedule's time zone.
 func (w *Weekly) Contains(t time.Time) (ok bool) {
+	if w == nil || w.location == nil {
+		return false
+	}
+
 	t = t.In(w.location)
 	wd := t.Weekday()
 	dr := w.days[wd]

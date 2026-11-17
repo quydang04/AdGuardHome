@@ -150,6 +150,7 @@ export const Form = ({ initialValues, processing, processingTest, onSubmit, onTe
                     name="cpuThreshold"
                     control={control}
                     rules={{
+                        required: t('telegram_threshold_min_max'),
                         min: { value: MIN_THRESHOLD, message: t('telegram_threshold_min_max') },
                         max: { value: MAX_THRESHOLD, message: t('telegram_threshold_min_max') },
                     }}
@@ -171,6 +172,7 @@ export const Form = ({ initialValues, processing, processingTest, onSubmit, onTe
                     name="memoryThreshold"
                     control={control}
                     rules={{
+                        required: t('telegram_threshold_min_max'),
                         min: { value: MIN_THRESHOLD, message: t('telegram_threshold_min_max') },
                         max: { value: MAX_THRESHOLD, message: t('telegram_threshold_min_max') },
                     }}
@@ -192,6 +194,7 @@ export const Form = ({ initialValues, processing, processingTest, onSubmit, onTe
                     name="diskThreshold"
                     control={control}
                     rules={{
+                        required: t('telegram_threshold_min_max'),
                         min: { value: MIN_THRESHOLD, message: t('telegram_threshold_min_max') },
                         max: { value: MAX_THRESHOLD, message: t('telegram_threshold_min_max') },
                     }}
@@ -219,6 +222,7 @@ export const Form = ({ initialValues, processing, processingTest, onSubmit, onTe
                     name="checkInterval"
                     control={control}
                     rules={{
+                        required: t('telegram_interval_min_max'),
                         min: { value: MIN_MINUTES, message: t('telegram_interval_min_max') },
                         max: { value: MAX_MINUTES, message: t('telegram_interval_min_max') },
                     }}
@@ -240,6 +244,7 @@ export const Form = ({ initialValues, processing, processingTest, onSubmit, onTe
                     name="cooldown"
                     control={control}
                     rules={{
+                        required: t('telegram_interval_min_max'),
                         min: { value: MIN_MINUTES, message: t('telegram_interval_min_max') },
                         max: { value: MAX_MINUTES, message: t('telegram_interval_min_max') },
                     }}

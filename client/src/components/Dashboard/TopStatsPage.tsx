@@ -9,11 +9,12 @@ import Loading from '../ui/Loading';
 import EmptyCardState from '../ui/EmptyCardState';
 import LogsSearchLink from '../ui/LogsSearchLink';
 import Tooltip from '../ui/Tooltip';
+import CustomDropdownSelect from '../ui/CustomDropdownSelect';
 import { ClientBlockActionButton } from './Clients';
 import { TrackerBadge, WifiClientIcon, getClientSubtitleText } from './MobileStatsList';
 import { getTotalUpstreamRequests } from './UpstreamResponses';
 
-import { getStats } from '../../actions/stats';
+import { getStats, getStatsConfig } from '../../actions/stats';
 import { getAccessList } from '../../actions/access';
 import { getFilteringStatus } from '../../actions/filtering';
 import { DASHBOARD_STATS_URLS, MENU_URLS, STATUS_COLORS } from '../../helpers/constants';
@@ -71,6 +72,7 @@ const TopStatsPage = () => {
     );
 
     const fetchPageData = useCallback(() => {
+        dispatch(getStatsConfig() as any);
         dispatch(getStats() as any);
         dispatch(getAccessList() as any);
         if (category === 'blocked-reasons') {
@@ -383,24 +385,12 @@ const TopStatsPage = () => {
                     <label htmlFor="top-stats-sort-select" className="top-stats-sort__label">
                         {t('sort_by', 'Sort by')}
                     </label>
-                    <div className="top-stats-sort__select-wrap">
-                        <select
-                            id="top-stats-sort-select"
-                            className="top-stats-sort__select"
-                            value={sortOrder}
-                            onChange={(e) => setSortOrder(e.target.value as SortOrder)}>
-                            {sortOptions.map((opt) => (
-                                <option key={opt.value} value={opt.value}>
-                                    {opt.label}
-                                </option>
-                            ))}
-                        </select>
-                        <span className="top-stats-sort__chevron" aria-hidden="true">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                                <polyline points="6 9 12 15 18 9" />
-                            </svg>
-                        </span>
-                    </div>
+                    <CustomDropdownSelect<SortOrder>
+                        id="top-stats-sort-select"
+                        value={sortOrder}
+                        options={sortOptions as { value: SortOrder; label: string }[]}
+                        onChange={(val) => setSortOrder(val)}
+                    />
                 </div>
             </div>
 
@@ -446,7 +436,7 @@ const TopStatsPage = () => {
                                     {category === 'clients' ? (
                                         <>
                                             <Link
-                                                to={`logs?search="${encodeURIComponent(item.title)}"`}
+                                                to={`/logs?search="${encodeURIComponent(item.title)}"`}
                                                 className="top-stats-item-card__title top-stats-item-card__title--link">
                                                 {item.title}
                                             </Link>

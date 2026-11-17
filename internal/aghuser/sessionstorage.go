@@ -34,6 +34,10 @@ type SessionStorage interface {
 	// DeleteByToken removes a stored web user session by the provided token.
 	DeleteByToken(ctx context.Context, t SessionToken) (err error)
 
+	// UpdateLogin updates the stored user login for all active sessions matching
+	// oldLogin to newLogin.
+	UpdateLogin(ctx context.Context, oldLogin, newLogin Login) (err error)
+
 	// Close releases the web user sessions database resources.
 	Close() (err error)
 }
@@ -407,6 +411,96 @@ func (ds *DefaultSessionStorage) DeleteByToken(ctx context.Context, t SessionTok
 
 	// Don't wrap the error because it's informative enough as is.
 	return ds.deleteByToken(ctx, t)
+}
+
+// UpdateLogin implements the [SessionStorage] interface for
+// *DefaultSessionStorage.
+func (ds *DefaultSessionStorage) UpdateLogin(
+	ctx context.Context,
+	oldLogin Login,
+	newLogin Login,
+) (err error) {
+	if newLogin == "" {
+		return fmt.Errorf("login: %w", errors.ErrEmptyValue)
+	}
+
+	if oldLogin == newLogin {
+		return nil
+	}
+
+	ds.mu.Lock()
+	defer ds.mu.Unlock()
+
+	var updated []*Session
+	for _, s := range ds.sessions {
+		if s.UserLogin == oldLogin {
+			updated = append(updated, s)
+		}
+	}
+
+	if len(updated) == 0 {
+		return nil
+	}
+
+	err = ds.updateSessionsLogin(updated, newLogin)
+	if err != nil {
+		return fmt.Errorf("updating sessions in db: %w", err)
+	}
+
+	for _, s := range updated {
+		s.UserLogin = newLogin
+	}
+
+	ds.logger.DebugContext(
+		ctx,
+		"updated login for active sessions",
+		"count", len(updated),
+		"old", oldLogin,
+		"new", newLogin,
+	)
+
+	return nil
+}
+
+// updateSessionsLogin persists the new login for the given sessions in the
+// bbolt database.  ds.mu is expected to be locked.
+func (ds *DefaultSessionStorage) updateSessionsLogin(
+	sessions []*Session,
+	newLogin Login,
+) (err error) {
+	tx, err := ds.db.Begin(true)
+	if err != nil {
+		return fmt.Errorf("starting transaction: %w", err)
+	}
+
+	needRollback := true
+	defer func() {
+		if needRollback {
+			err = errors.WithDeferred(err, tx.Rollback())
+		}
+	}()
+
+	bkt := tx.Bucket([]byte(bboltBucketSessions))
+	if bkt == nil {
+		return nil
+	}
+
+	for _, s := range sessions {
+		copySess := *s
+		copySess.UserLogin = newLogin
+		err = bkt.Put(copySess.Token[:], bboltEncode(&copySess))
+		if err != nil {
+			return fmt.Errorf("putting data: %w", err)
+		}
+	}
+
+	needRollback = false
+	err = tx.Commit()
+	if err != nil {
+		return fmt.Errorf("committing transaction: %w", err)
+	}
+
+	return nil
 }
 
 // deleteByToken removes stored session by token.  ds.mu is expected to be

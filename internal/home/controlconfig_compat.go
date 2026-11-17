@@ -1,9 +1,11 @@
 package home
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -49,13 +51,21 @@ var legacySectionAliases = map[string]string{
 // parsed are skipped and reported in warnings, so that one broken section
 // doesn't prevent the rest of the file from being imported.
 func decodeImport(body []byte) (imp *exportConfig, warnings []string, err error) {
+	// Strip UTF-8 BOM and surrounding whitespace so files saved by Windows
+	// tools parse cleanly.
+	body = bytes.TrimPrefix(body, []byte{0xEF, 0xBB, 0xBF})
+	body = bytes.TrimSpace(body)
+	if len(body) == 0 {
+		return nil, nil, fmt.Errorf("file is empty")
+	}
+
 	var root map[string]any
 	err = json.Unmarshal(body, &root)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	if root == nil {
+	if len(root) == 0 {
 		return nil, nil, fmt.Errorf("file is empty")
 	}
 
@@ -156,8 +166,9 @@ func normalizeImport(root map[string]any) {
 		}
 
 		for _, k := range []string{
-			"allowed_clients", "disallowed_clients", "blocked_hosts", "bogus_nxdomain",
-			"ipset", "ratelimit_whitelist", "dns64_prefixes",
+			"bind_hosts", "allowed_clients", "disallowed_clients", "blocked_hosts",
+			"bogus_nxdomain", "ipset", "ratelimit_whitelist", "dns64_prefixes",
+			"trusted_proxies", "private_networks",
 		} {
 			dns[k] = toStringList(dns[k], "\n,; ")
 		}
@@ -171,7 +182,23 @@ func normalizeImport(root map[string]any) {
 		// The legacy API used milliseconds for this one.
 		dns["fastest_timeout"] = toDuration(dns["fastest_timeout"], time.Millisecond)
 		dns["port"] = toNumber(dns["port"])
+
+		if ecs, ecsOK := dns["edns_client_subnet"].(map[string]any); ecsOK {
+			mapAlias(ecs, "enabled", "Enabled")
+			mapAlias(ecs, "use_custom", "UseCustom")
+			mapAlias(ecs, "custom_ip", "CustomIP")
+		}
+
 		dropNil(dns)
+	}
+
+	if dhcpMap, ok := root["dhcp"].(map[string]any); ok {
+		mapAlias(dhcpMap, "enabled", "Enabled")
+		mapAlias(dhcpMap, "interface_name", "InterfaceName")
+		mapAlias(dhcpMap, "local_domain_name", "LocalDomainName")
+		mapAlias(dhcpMap, "v4", "Conf4")
+		mapAlias(dhcpMap, "v6", "Conf6")
+		dropNil(dhcpMap)
 	}
 
 	for _, sec := range []string{"querylog", "statistics"} {
@@ -185,6 +212,18 @@ func normalizeImport(root map[string]any) {
 	if flt, ok := root["filtering"].(map[string]any); ok {
 		flt["user_rules"] = toStringList(flt["user_rules"], "\n")
 		flt["interval"] = toNumber(flt["interval"])
+		for _, listKey := range []string{"filters", "whitelist_filters"} {
+			if rawList, listOK := flt[listKey].([]any); listOK {
+				for _, item := range rawList {
+					if m, mOK := item.(map[string]any); mOK {
+						mapAlias(m, "enabled", "Enabled")
+						mapAlias(m, "url", "URL")
+						mapAlias(m, "name", "Name")
+						mapAlias(m, "id", "ID")
+					}
+				}
+			}
+		}
 		dropNil(flt)
 	}
 
@@ -201,6 +240,15 @@ func normalizeImport(root map[string]any) {
 			}
 
 			dropNil(tg)
+		}
+	}
+}
+
+// mapAlias copies m[from] to m[to] if m[to] is not already set.
+func mapAlias(m map[string]any, from, to string) {
+	if v, ok := m[from]; ok {
+		if _, exists := m[to]; !exists {
+			m[to] = v
 		}
 	}
 }
@@ -299,10 +347,19 @@ func toHours(v any) (res any) {
 // applyImportedRuntime pushes the imported settings into the running
 // services, since config.write reads the live state of those back into config.
 // It returns warnings for the parts that couldn't be applied.
-func (web *webAPI) applyImportedRuntime(ctx context.Context, imp *exportConfig) (warnings []string) {
+func (web *webAPI) applyImportedRuntime(
+	ctx context.Context,
+	imp *exportConfig,
+	prevDNS dnsConfig,
+	prevClientSources clientSourcesConfig,
+	prevTLS tlsConfigSettings,
+) (warnings []string) {
 	if imp.TLS != nil && web.tlsManager != nil {
 		if w := web.applyImportedTLS(ctx, imp.TLS); w != "" {
 			warnings = append(warnings, w)
+			config.Lock()
+			config.TLS = prevTLS
+			config.Unlock()
 		}
 	}
 
@@ -358,12 +415,64 @@ func (web *webAPI) applyImportedRuntime(ctx context.Context, imp *exportConfig) 
 		warnings = append(warnings, applyImportedClients(ctx, imp.Clients.Persistent)...)
 	}
 
-	if imp.DNS != nil && globalContext.dnsServer != nil && web.tlsManager != nil {
+	if imp.DHCP != nil && globalContext.dhcpServer != nil {
+		config.RLock()
+		dhcpConf := config.DHCP
+		config.RUnlock()
+
+		if err := globalContext.dhcpServer.ApplyConfig(ctx, dhcpConf); err != nil {
+			warnings = append(warnings, fmt.Sprintf("DHCP settings not applied: %s", err))
+		}
+	}
+
+	dnsNeedsReconfig := imp.DNS != nil || (imp.Clients != nil && imp.Clients.Sources != nil)
+	if dnsNeedsReconfig && globalContext.dnsServer != nil && web.tlsManager != nil {
+		if !web.tlsManager.extendedTLSConfig().Enabled {
+			config.Lock()
+			if !config.DNS.ServePlainDNS {
+				config.DNS.ServePlainDNS = true
+				warnings = append(warnings, "kept plain DNS enabled because TLS is not active")
+			}
+			config.Unlock()
+		}
+
 		config.RLock()
 		err := web.tlsManager.reconfigureDNSServer(ctx)
 		config.RUnlock()
 		if err != nil {
-			warnings = append(warnings, fmt.Sprintf("DNS server not reconfigured: %s", err))
+			config.RLock()
+			addrChanged := config.DNS.Port != prevDNS.Port || !slices.Equal(config.DNS.BindHosts, prevDNS.BindHosts)
+			config.RUnlock()
+
+			appliedFallback := false
+			if addrChanged {
+				config.Lock()
+				config.DNS.BindHosts = slices.Clone(prevDNS.BindHosts)
+				config.DNS.Port = prevDNS.Port
+				config.Unlock()
+
+				config.RLock()
+				retryErr := web.tlsManager.reconfigureDNSServer(ctx)
+				config.RUnlock()
+				if retryErr == nil {
+					appliedFallback = true
+					warnings = append(warnings, fmt.Sprintf(
+						"kept local DNS listen address/port because imported address failed (%s)",
+						err,
+					))
+				}
+			}
+
+			if !appliedFallback {
+				config.Lock()
+				config.DNS = prevDNS
+				if config.Clients.Sources != nil {
+					*config.Clients.Sources = prevClientSources
+				}
+				config.Unlock()
+
+				warnings = append(warnings, fmt.Sprintf("DNS settings reverted because reconfiguration failed: %s", err))
+			}
 		}
 	}
 
@@ -382,25 +491,35 @@ func (web *webAPI) applyImportedTLS(ctx context.Context, imp *tlsConfigSettings)
 		conf.PrivateKey = m.extendedTLSConfig().PrivateKey
 	}
 
-	req := tlsConfigSettingsExt{
-		tlsConfigSettings: conf,
-		ServePlainDNS:     aghalg.NBNull,
-	}
-	status := &tlsConfigStatus{}
+	webAPIAddr, webAPIPort, plainDNSPort := snapshotConfigPorts()
 
 	var restart bool
 	var err error
+	var req tlsConfigSettingsExt
+	status := &tlsConfigStatus{}
 	func() {
 		m.mu.Lock()
 		defer m.mu.Unlock()
 
-		err = m.validateTLSSettings(req)
+		conf.StrictSNICheck = m.extTLSConf.StrictSNICheck
+		req = tlsConfigSettingsExt{
+			tlsConfigSettings: conf,
+			ServePlainDNS:     aghalg.NBNull,
+		}
+
+		err = m.validateTLSSettingsWithPorts(req, webAPIAddr, webAPIPort, plainDNSPort)
 		if err != nil {
 			return
 		}
 
 		err = m.loadTLSConfig(ctx, &req.tlsConfigSettings, status)
 		if err != nil {
+			return
+		}
+
+		if req.Enabled && (!status.ValidCert || !status.ValidKey || !status.ValidPair) {
+			err = fmt.Errorf("missing or mismatched certificate/private key")
+
 			return
 		}
 
@@ -413,7 +532,7 @@ func (web *webAPI) applyImportedTLS(ctx context.Context, imp *tlsConfigSettings)
 		return fmt.Sprintf("TLS settings not applied (the private key is not part of exports): %s", err)
 	}
 
-	if restart {
+	if restart && m.web != nil {
 		go m.web.tlsConfigChanged(context.Background(), &req.tlsConfigSettings)
 	}
 

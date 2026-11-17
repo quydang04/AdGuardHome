@@ -213,10 +213,132 @@
     font-weight: 600;
 }
 
-/* Bottom Logout section */
+/* Bottom Version & Logout section */
 .app-sidebar__bottom {
-    padding-top: 16px;
+    padding-top: 14px;
     border-top: 1px solid rgba(255, 255, 255, 0.06);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.app-sidebar__version {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 8px 12px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.035);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.app-sidebar__version--collapsed {
+    justify-content: center;
+    padding: 6px 4px;
+    background: transparent;
+    border-color: transparent;
+}
+
+.app-sidebar__version-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+
+.app-sidebar__version-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #67b279;
+    box-shadow: 0 0 0 3px rgba(103, 178, 121, 0.16);
+    flex-shrink: 0;
+}
+
+.app-sidebar__version-label {
+    font-size: 12px;
+    font-weight: 500;
+    color: #94a3b8;
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+}
+
+.app-sidebar__version-right {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.app-sidebar__version-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-family: var(--font-family-monospace, monospace);
+    font-size: 11.5px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    color: #86efac;
+    background: rgba(103, 178, 121, 0.14);
+    border: 1px solid rgba(103, 178, 121, 0.28);
+    line-height: 1.4;
+    white-space: nowrap;
+}
+
+.app-sidebar__version-badge--compact {
+    font-size: 10.5px;
+    padding: 2px 6px;
+}
+
+.app-sidebar__version-badge--clickable {
+    cursor: pointer;
+    transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.app-sidebar__version-badge--clickable:hover:not(:disabled) {
+    background: rgba(103, 178, 121, 0.24);
+    border-color: rgba(103, 178, 121, 0.45);
+}
+
+.app-sidebar__version-refresh {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    border: 1px solid rgba(103, 178, 121, 0.24);
+    border-radius: 7px;
+    background: rgba(103, 178, 121, 0.08);
+    color: #86efac;
+    cursor: pointer;
+    transition: background-color 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
+}
+
+.app-sidebar__version-refresh:hover:not(:disabled) {
+    background: rgba(103, 178, 121, 0.2);
+    border-color: rgba(103, 178, 121, 0.45);
+}
+
+.app-sidebar__version-refresh:disabled {
+    opacity: 0.55;
+    cursor: default;
+}
+
+.app-sidebar__version-spin {
+    animation: app-sidebar-version-spin 0.9s linear infinite;
+}
+
+@keyframes app-sidebar-version-spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 .app-sidebar__logout {
@@ -314,7 +436,8 @@
     .app-sidebar--collapsed .app-sidebar__flyout {
         display: none;
         position: absolute;
-        left: calc(100% + 10px);
+        left: 100%;
+        margin-left: 10px;
         top: 0;
         min-width: 210px;
         background: #252525;
@@ -326,6 +449,16 @@
         flex-direction: column;
         gap: 2px;
         animation: flyoutFadeIn 0.15s ease-out;
+    }
+
+    /* Bridge the 10px gap between icon and flyout so :hover is not lost */
+    .app-sidebar--collapsed .app-sidebar__flyout::before {
+        content: '';
+        position: absolute;
+        left: -12px;
+        top: 0;
+        bottom: 0;
+        width: 12px;
     }
 
     .app-sidebar--collapsed .app-sidebar__item-wrap--dropdown:hover .app-sidebar__flyout {
@@ -525,6 +658,37 @@
 
 [data-theme='light'] .app-sidebar__bottom {
     border-top: 1px solid #e2e8f0;
+}
+
+[data-theme='light'] .app-sidebar__version {
+    background: #f8fafc;
+    border-color: #e2e8f0;
+}
+
+[data-theme='light'] .app-sidebar__version--collapsed {
+    background: transparent;
+    border-color: transparent;
+}
+
+[data-theme='light'] .app-sidebar__version-label {
+    color: #64748b;
+}
+
+[data-theme='light'] .app-sidebar__version-badge {
+    color: #15803d;
+    background: rgba(22, 163, 74, 0.1);
+    border-color: rgba(22, 163, 74, 0.25);
+}
+
+[data-theme='light'] .app-sidebar__version-refresh {
+    color: #15803d;
+    background: rgba(22, 163, 74, 0.08);
+    border-color: rgba(22, 163, 74, 0.25);
+}
+
+[data-theme='light'] .app-sidebar__version-refresh:hover:not(:disabled) {
+    background: rgba(22, 163, 74, 0.16);
+    border-color: rgba(22, 163, 74, 0.45);
 }
 
 [data-theme='light'] .app-sidebar__logout {

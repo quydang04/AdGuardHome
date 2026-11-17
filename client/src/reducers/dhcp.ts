@@ -120,8 +120,17 @@ const dhcp = handleActions(
             v6: {},
             interface_name: '',
         }),
+        [actions.resetDhcpLeasesRequest.toString()]: (state: any) => ({
+            ...state,
+            processingResetLeases: true,
+        }),
+        [actions.resetDhcpLeasesFailure.toString()]: (state: any) => ({
+            ...state,
+            processingResetLeases: false,
+        }),
         [actions.resetDhcpLeasesSuccess.toString()]: (state: any) => ({
             ...state,
+            processingResetLeases: false,
             leases: [],
             staticLeases: [],
         }),

@@ -33,9 +33,9 @@ class Rewrites extends Component<RewritesProps> {
 
     handleDelete = async (values: any) => {
         const confirmed = await confirmDialog({
-            title: this.props.t('delete'),
+            title: this.props.t('delete_table_action'),
             message: this.props.t('rewrite_confirm_delete', { key: values.domain }),
-            confirmText: this.props.t('delete'),
+            confirmText: this.props.t('delete_table_action'),
             variant: 'danger',
         });
         if (confirmed) {

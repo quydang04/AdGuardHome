@@ -102,7 +102,7 @@ export const getLogs = (currentQuery?: string) => async (dispatch: any, getState
 
         if (isFiltered) {
             const additionalData = await shortPollQueryLogs(data, filter, dispatch, currentQuery);
-            const updatedData = additionalData.logs ? { ...data, ...additionalData } : data;
+            const updatedData = additionalData?.logs ? { ...data, ...additionalData } : data;
             dispatch(getLogsSuccess(updatedData));
         } else {
             dispatch(getLogsSuccess(data));
@@ -139,7 +139,7 @@ export const setFilteredLogs = (filter?: SearchFormValues) => async (dispatch: a
         const currentQuery = filter?.search;
 
         const additionalData = await shortPollQueryLogs(data, filter, dispatch, currentQuery);
-        const updatedData = additionalData.logs ? { ...data, ...additionalData } : data;
+        const updatedData = additionalData?.logs ? { ...data, ...additionalData } : data;
 
         dispatch(
             setFilteredLogsSuccess({

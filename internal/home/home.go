@@ -15,6 +15,7 @@ import (
 	"runtime"
 	"slices"
 	"strconv"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -37,6 +38,7 @@ import (
 	"github.com/AdguardTeam/AdGuardHome/internal/permcheck"
 	"github.com/AdguardTeam/AdGuardHome/internal/querylog"
 	"github.com/AdguardTeam/AdGuardHome/internal/stats"
+	"github.com/AdguardTeam/AdGuardHome/internal/systeminfo"
 	"github.com/AdguardTeam/AdGuardHome/internal/updater"
 	"github.com/AdguardTeam/AdGuardHome/internal/version"
 	"github.com/AdguardTeam/dnsproxy/upstream"
@@ -1100,14 +1102,24 @@ func newUpdater(
 		versionURL, _ = url.Parse(customURLStr)
 	}
 
+	isDocker := systeminfo.IsContainer()
+	dockerRepo := strings.TrimSpace(os.Getenv("ADGUARD_HOME_DOCKER_REPO"))
+	if dockerRepo == "" {
+		dockerRepo = updater.DefaultDockerHubRepo
+	}
+
 	err := urlutil.ValidateHTTPURL(versionURL)
 	if isCustomURL = err == nil; !isCustomURL {
 		l.DebugContext(ctx, "parsing custom version url", slogutil.KeyError, err)
 
-		versionURL = updater.DefaultVersionURL()
+		if isDocker {
+			versionURL = updater.DefaultDockerVersionURL(dockerRepo)
+		} else {
+			versionURL = updater.DefaultVersionURL()
+		}
 	}
 
-	l.DebugContext(ctx, "creating updater", "config_path", confPath)
+	l.DebugContext(ctx, "creating updater", "config_path", confPath, "is_docker", isDocker)
 
 	return updater.NewUpdater(&updater.Config{
 		Client:             conf.Filtering.HTTPClient,
@@ -1123,6 +1135,9 @@ func newUpdater(
 		ConfName:           confPath,
 		ExecPath:           execPath,
 		VersionCheckURL:    versionURL,
+		IsDocker:           isDocker,
+		UseDockerHub:       isDocker && !isCustomURL,
+		DockerRepo:         dockerRepo,
 	}), isCustomURL
 }
 

@@ -858,6 +858,9 @@ func (s *Server) Reconfigure(ctx context.Context, conf *ServerConfig) error {
 	s.logger.InfoContext(ctx, "starting reconfiguring server")
 	defer s.logger.InfoContext(ctx, "finished reconfiguring server")
 
+	prevConf := s.conf
+	wasRunning := s.isRunning
+
 	s.stopLocked(ctx)
 
 	// It seems that net.Listener.Close() doesn't close file descriptors right
@@ -875,15 +878,31 @@ func (s *Server) Reconfigure(ctx context.Context, conf *ServerConfig) error {
 		conf = &s.conf
 	}
 
-	// TODO(e.burkov):  It seems an error here brings the server down, which is
-	// not reliable enough.
+	rollback := func() {
+		s.stopLocked(ctx)
+		if prepErr := s.Prepare(ctx, &prevConf); prepErr != nil {
+			s.logger.ErrorContext(ctx, "rolling back dns server config", slogutil.KeyError, prepErr)
+
+			return
+		}
+		if wasRunning {
+			if startErr := s.startLocked(ctx); startErr != nil {
+				s.logger.ErrorContext(ctx, "restarting dns server after rollback", slogutil.KeyError, startErr)
+			}
+		}
+	}
+
 	err := s.Prepare(ctx, conf)
 	if err != nil {
+		rollback()
+
 		return fmt.Errorf("could not reconfigure the server: %w", err)
 	}
 
 	err = s.startLocked(ctx)
 	if err != nil {
+		rollback()
+
 		return fmt.Errorf("could not reconfigure the server: %w", err)
 	}
 
