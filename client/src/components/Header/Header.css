@@ -353,8 +353,9 @@
         position: fixed !important;
         top: 56px !important;
         left: 0 !important;
+        bottom: 0 !important;
         width: 260px !important;
-        height: calc(100vh - 56px) !important;
+        height: auto !important;
         margin-left: 0 !important;
         background: var(--card-bgcolor, #ffffff) !important;
         border-right: 1px solid var(--border-color, rgba(0, 40, 100, 0.12)) !important;

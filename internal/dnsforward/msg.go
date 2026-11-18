@@ -72,6 +72,17 @@ func (s *Server) genDNSFilterMessage(
 		return s.NewMsgNODATA(req)
 	}
 
+	if mode, _, _ := s.dnsFilter.BlockingMode(); mode == filtering.BlockingModeBlockPage &&
+		res.Reason != filtering.FilteredSafeSearch {
+		if hasCustomRedirectIP(res.Rules) {
+			return s.genCustomRedirectMessage(ctx, req, res.Rules)
+		}
+
+		s.recordBlockPageHit(req.Question[0].Name, res)
+
+		return s.makeResponseBlockPage(ctx, req, dctx)
+	}
+
 	switch res.Reason {
 	case filtering.FilteredSafeBrowsing:
 		return s.genBlockedHost(ctx, l, req, s.dnsFilter.SafeBrowsingBlockHost(), dctx)
@@ -148,6 +159,12 @@ func (s *Server) genForBlockingMode(
 		return s.NewMsgNXDOMAIN(req)
 	case filtering.BlockingModeREFUSED:
 		return s.makeResponseREFUSED(req)
+	case filtering.BlockingModeBlockPage:
+		if hasCustomRedirectAddr(ips) {
+			return s.genResponseWithIPs(ctx, req, ips)
+		}
+
+		return s.makeResponseBlockPage(ctx, req, nil)
 	default:
 		s.logger.ErrorContext(ctx, "invalid blocking mode", "mode", mode)
 

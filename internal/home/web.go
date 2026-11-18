@@ -271,6 +271,7 @@ func newWebAPI(ctx context.Context, conf *webAPIConfig) (w *webAPI) {
 	clientFS := http.FileServer(http.FS(conf.clientFS))
 
 	mux := conf.mux
+	mux.HandleFunc(http.MethodGet+" /block-page-preview", w.serveBlockPagePreview)
 	// if not configured, redirect / to /install.html, otherwise redirect /install.html to /
 	mux.Handle("/", withMiddlewares(clientFS, gziphandler.GzipHandler, w.postInstallHandler))
 
@@ -361,6 +362,7 @@ func (web *webAPI) start(ctx context.Context) {
 		hdlr = logMw.Wrap(hdlr)
 
 		hdlr = web.auth.middleware().Wrap(hdlr)
+		hdlr = web.blockPageMiddleware(hdlr)
 
 		// Enable unencrypted HTTP/2, e.g. for proxies, using prior-knowledge
 		// negotiation rather than the HTTP/1.1 upgrade mechanism, which is
@@ -467,7 +469,7 @@ func (web *webAPI) serveTLS(ctx context.Context) (next bool) {
 
 	web.httpsServer.server = &http.Server{
 		Addr:    addr,
-		Handler: web.auth.middleware().Wrap(hdlr),
+		Handler: web.blockPageMiddleware(web.auth.middleware().Wrap(hdlr)),
 		// TODO(m.kazantsev):  Do not create TLS config manually, but use
 		// [aghtls.TLSConfigProvider].
 		TLSConfig: &tls.Config{
@@ -513,7 +515,7 @@ func (web *webAPI) mustStartHTTP3(ctx context.Context, address string) {
 			CipherSuites: web.tlsManager.customCipherIDs,
 			MinVersion:   tls.VersionTLS12,
 		},
-		Handler: web.auth.middleware().Wrap(withMiddlewares(web.conf.mux, limitRequestBody)),
+		Handler: web.blockPageMiddleware(web.auth.middleware().Wrap(withMiddlewares(web.conf.mux, limitRequestBody))),
 	}
 
 	web.logger.DebugContext(ctx, "starting http/3 server")

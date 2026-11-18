@@ -2,6 +2,7 @@
 .app-sidebar {
     width: 240px;
     height: 100vh;
+    height: 100dvh;
     position: sticky;
     top: 0;
     left: 0;
@@ -13,9 +14,16 @@
     justify-content: space-between;
     padding: 20px 14px 18px 14px;
     z-index: 100;
-    overflow-y: auto;
+    overflow-y: hidden;
     overflow-x: hidden;
     transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1), padding 0.25s ease, transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.app-sidebar__top {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
 }
 
 /* Header with Brand Logo & Desktop Collapse Button */
@@ -26,6 +34,7 @@
     margin-bottom: 6px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.06);
     transition: padding 0.2s ease;
+    flex-shrink: 0;
 }
 
 .app-sidebar__brand-row {
@@ -112,6 +121,18 @@
     flex-direction: column;
     gap: 4px;
     flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+.app-sidebar__update-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #67b279;
+    box-shadow: 0 0 0 3px rgba(103, 178, 121, 0.2);
+    flex-shrink: 0;
 }
 
 .app-sidebar__item-wrap {
@@ -220,6 +241,7 @@
     display: flex;
     flex-direction: column;
     gap: 8px;
+    flex-shrink: 0;
 }
 
 .app-sidebar__version {
@@ -371,6 +393,11 @@
     .app-sidebar--collapsed {
         width: 76px;
         padding: 20px 8px 18px 8px;
+        overflow: visible !important;
+    }
+
+    .app-sidebar--collapsed .app-sidebar__top,
+    .app-sidebar--collapsed .app-sidebar__nav {
         overflow: visible !important;
     }
 
@@ -538,10 +565,15 @@
         top: 0;
         left: 0;
         bottom: 0;
+        height: auto;
+        max-height: none;
         width: 270px;
+        max-width: 85vw;
+        padding-bottom: calc(18px + env(safe-area-inset-bottom, 0px));
         z-index: 1050;
         transform: translateX(-100%);
         box-shadow: none;
+        overscroll-behavior: contain;
     }
 
     .app-sidebar__collapse-btn {

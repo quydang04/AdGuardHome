@@ -15,13 +15,12 @@ func composeAlertMessage(cfg TelegramConfig, metric string, value, threshold flo
 		lines = append(lines, "")
 	}
 
-	lines = append(lines, fmt.Sprintf("🚨 <b>ALERT: %s</b>", alertHeadline(metric)))
+	lines = append(lines, fmt.Sprintf("🚨 <b>CẢNH BÁO · %s</b>", alertHeadline(metric)))
 	lines = append(lines, divider())
 	lines = append(lines, "")
-	lines = append(lines, sectionHeader("📈", "Metrics"))
-	lines = append(lines, fmt.Sprintf("  ▸ <b>Metric:</b>    %s", metricDisplayName(metric)))
-	lines = append(lines, fmt.Sprintf("  ▸ <b>Current:</b>   %s", usageBar(value)))
-	lines = append(lines, fmt.Sprintf("  ▸ <b>Threshold:</b> <code>%s</code>", formatPercentage(threshold)))
+	lines = append(lines, fmt.Sprintf("   ├ Chỉ số:     %s", metricDisplayName(metric)))
+	lines = append(lines, fmt.Sprintf("   ├ Hiện tại:   %s", usageBar(value)))
+	lines = append(lines, fmt.Sprintf("   └ Ngưỡng:     <code>%s</code>", formatPercentage(threshold)))
 	lines = append(lines, "")
 	lines = append(lines, systemOverviewLines(info)...)
 	lines = append(lines, "")
@@ -39,20 +38,19 @@ func composeRecoveryMessage(cfg TelegramConfig, metric string, currentValue, thr
 		lines = append(lines, "")
 	}
 
-	lines = append(lines, fmt.Sprintf("✅ <b>RECOVERY: %s</b>", recoveryHeadline(metric)))
+	lines = append(lines, fmt.Sprintf("✅ <b>PHỤC HỒI · %s</b>", recoveryHeadline(metric)))
 	lines = append(lines, divider())
 	lines = append(lines, "")
 
-	lines = append(lines, sectionHeader("📈", "Metrics"))
-	lines = append(lines, fmt.Sprintf("  ▸ <b>Metric:</b>         %s", metricDisplayName(metric)))
+	lines = append(lines, fmt.Sprintf("   ├ Chỉ số:      %s", metricDisplayName(metric)))
 	if metric != "protection" {
-		lines = append(lines, fmt.Sprintf("  ▸ <b>Current:</b>        %s", usageBar(currentValue)))
+		lines = append(lines, fmt.Sprintf("   ├ Hiện tại:    %s", usageBar(currentValue)))
 		if threshold > 0 {
-			lines = append(lines, fmt.Sprintf("  ▸ <b>Threshold:</b>      <code>%s</code>", formatPercentage(threshold)))
+			lines = append(lines, fmt.Sprintf("   ├ Ngưỡng:      <code>%s</code>", formatPercentage(threshold)))
 		}
 	}
 
-	lines = append(lines, fmt.Sprintf("  ▸ <b>Alert Duration:</b> <code>%s</code>", duration.String()))
+	lines = append(lines, fmt.Sprintf("   └ Thời gian:   <code>%s</code>", duration.String()))
 	lines = append(lines, "")
 
 	if info.Hostname != "" {
@@ -67,7 +65,7 @@ func composeRecoveryMessage(cfg TelegramConfig, metric string, currentValue, thr
 }
 
 func recoveryHeadline(metric string) string {
-	return fmt.Sprintf("%s back to normal", metricDisplayName(metric))
+	return fmt.Sprintf("%s đã trở lại bình thường", metricDisplayName(metric))
 }
 
 func composeProtectionAlertMessage(cfg TelegramConfig, info systeminfo.Info) string {
@@ -77,11 +75,11 @@ func composeProtectionAlertMessage(cfg TelegramConfig, info systeminfo.Info) str
 		lines = append(lines, "")
 	}
 
-	lines = append(lines, "🚨 <b>ALERT: DNS Protection is DISABLED!</b>")
+	lines = append(lines, "🚨 <b>CẢNH BÁO · Bảo vệ DNS đã bị TẮT!</b>")
 	lines = append(lines, divider())
 	lines = append(lines, "")
-	lines = append(lines, "🔴 DNS filtering is currently <b>turned off</b>.")
-	lines = append(lines, "<i>All queries pass through unfiltered.</i>")
+	lines = append(lines, "   🔴 Lọc DNS đang <b>tắt</b>.")
+	lines = append(lines, "   <i>Mọi truy vấn sẽ đi thẳng không qua bộ lọc.</i>")
 	lines = append(lines, "")
 
 	if info.Hostname != "" {
@@ -98,40 +96,51 @@ func composeProtectionAlertMessage(cfg TelegramConfig, info systeminfo.Info) str
 // composeCertStatusMessage formats the current "SSL/TLS issue" (ACME) status
 // for the bot menu.
 func composeCertStatusMessage(status CertStatus) string {
-	statusIcon, statusText := "🔴", "DISABLED"
+	statusIcon := statusDot(status.Enabled)
+	statusText := "TẮT"
 	if status.Enabled {
-		statusIcon, statusText = "🟢", "ENABLED"
+		statusText = "BẬT"
 	}
 
-	autoRenewIcon, autoRenewText := "🔴", "OFF"
+	autoRenewIcon := statusDot(status.AutoRenew)
+	autoRenewText := "TẮT"
 	if status.AutoRenew {
-		autoRenewIcon, autoRenewText = "🟢", "ON"
+		autoRenewText = "BẬT"
 	}
 
 	lines := []string{
-		"🔒 <b>SSL/TLS Issue</b>",
+		"🔐 <b>Chứng chỉ SSL/TLS</b>",
 		divider(),
 		"",
-		fmt.Sprintf("  %s <b>Status:</b>      %s", statusIcon, statusText),
-		fmt.Sprintf("  ▸ <b>Domains:</b>     %s", fallbackString(strings.Join(status.Domains, ", "))),
-		fmt.Sprintf("  ▸ <b>Challenge:</b>   %s", fallbackString(status.Challenge)),
-		fmt.Sprintf("  %s <b>Auto-renew:</b>  %s", autoRenewIcon, autoRenewText),
+		fmt.Sprintf("   %s Trạng thái:    <b>%s</b>", statusIcon, statusText),
+		fmt.Sprintf("   ├ Tên miền:      %s", fallbackString(strings.Join(status.Domains, ", "))),
+		fmt.Sprintf("   ├ Thử thách:     %s", fallbackString(status.Challenge)),
+		fmt.Sprintf("   %s Tự động gia hạn: <b>%s</b>", autoRenewIcon, autoRenewText),
 	}
 
 	if !status.NotAfter.IsZero() {
-		lines = append(lines, fmt.Sprintf("  ▸ <b>Expires:</b>     <code>%s</code>", status.NotAfter.Format(time.RFC1123)))
+		daysLeft := int(time.Until(status.NotAfter).Hours() / 24)
+		expiryStr := fmt.Sprintf("<code>%s</code>", status.NotAfter.Format("02/01/2006 15:04"))
+		if daysLeft > 0 {
+			expiryStr += fmt.Sprintf(" · <i>còn %d ngày</i>", daysLeft)
+		} else if daysLeft == 0 {
+			expiryStr += " · <b>⚠️ hết hạn hôm nay</b>"
+		} else {
+			expiryStr += " · <b>🚨 ĐÃ HẾT HẠN</b>"
+		}
+		lines = append(lines, fmt.Sprintf("   ├ Hết hạn:       %s", expiryStr))
 	}
 
 	if !status.LastIssuedAt.IsZero() {
 		lines = append(lines, fmt.Sprintf(
-			"  ▸ <b>Last issued:</b> <code>%s</code>",
-			toLocal(status.LastIssuedAt).Format("15:04:05 02/01/2006"),
+			"   └ Cấp phát:      <code>%s</code>",
+			toLocal(status.LastIssuedAt).Format("02/01/2006 15:04"),
 		))
 	}
 
 	if status.LastError != "" {
 		lines = append(lines, "")
-		lines = append(lines, fmt.Sprintf("  ⚠️ <b>Last error:</b> <code>%s</code>", status.LastError))
+		lines = append(lines, fmt.Sprintf("   ⚠️ Lỗi: <code>%s</code>", status.LastError))
 	}
 
 	lines = append(lines, "")
@@ -152,32 +161,30 @@ func composeFilterUpdateMessage(cfg TelegramConfig, update FilterUpdate, info sy
 	lines = append(lines, fmt.Sprintf("🔄 <b>%s</b>", head))
 	lines = append(lines, divider())
 	lines = append(lines, "")
-	lines = append(lines, sectionHeader("📋", "List Details"))
-	lines = append(lines, fmt.Sprintf("  ▸ <b>Name:</b>   %s", fallbackString(update.Name)))
+	lines = append(lines, fmt.Sprintf("   ├ Tên:      %s", fallbackString(update.Name)))
 	if update.ID != 0 {
-		lines = append(lines, fmt.Sprintf("  ▸ <b>ID:</b>     <code>#%s</code>", formatUint64(update.ID)))
+		lines = append(lines, fmt.Sprintf("   ├ ID:       <code>#%s</code>", formatUint64(update.ID)))
 	}
-	lines = append(lines, fmt.Sprintf("  ▸ <b>Type:</b>   %s", filterTypeLabel(update.ListType)))
+	lines = append(lines, fmt.Sprintf("   ├ Loại:     %s", filterTypeLabel(update.ListType)))
 	if update.URL != "" {
-		lines = append(lines, fmt.Sprintf("  ▸ <b>Source:</b> <code>%s</code>", update.URL))
+		lines = append(lines, fmt.Sprintf("   ├ Nguồn:    <code>%s</code>", update.URL))
 	}
 
 	rules := update.RulesCount
 	if rules < 0 {
 		rules = 0
 	}
-	lines = append(lines, fmt.Sprintf("  ▸ <b>Rules:</b>  <code>%s</code> entries", formatInt64(int64(rules))))
+	lines = append(lines, fmt.Sprintf("   ├ Quy tắc:  <code>%s</code>", formatInt64(int64(rules))))
 	if update.BytesWritten > 0 {
-		lines = append(lines, fmt.Sprintf("  ▸ <b>Size:</b>   <code>%s</code>", formatBytesUint(uint64(update.BytesWritten))))
+		lines = append(lines, fmt.Sprintf("   ├ Dung lượng: <code>%s</code>", formatBytesUint(uint64(update.BytesWritten))))
 	}
 
-	statusIcon := "✅"
-	statusLabel := "Enabled"
+	statusIcon := statusDot(update.Enabled)
+	statusLabel := "Đang hoạt động"
 	if !update.Enabled {
-		statusIcon = "🚫"
-		statusLabel = "Disabled"
+		statusLabel = "Đã tắt"
 	}
-	lines = append(lines, fmt.Sprintf("  ▸ <b>Status:</b> %s %s", statusIcon, statusLabel))
+	lines = append(lines, fmt.Sprintf("   └ Trạng thái: %s %s", statusIcon, statusLabel))
 	lines = append(lines, "")
 	lines = append(lines, systemOverviewLines(info)...)
 	lines = append(lines, "")
@@ -201,15 +208,14 @@ func composeCertExpiryMessage(cfg TelegramConfig, ev CertExpiryReminder, info sy
 		icon = "🚨"
 	}
 
-	lines = append(lines, fmt.Sprintf("%s <b>TLS CERTIFICATE EXPIRING</b>", icon))
+	lines = append(lines, fmt.Sprintf("%s <b>CHỨNG CHỈ SẮP HẾT HẠN</b>", icon))
 	lines = append(lines, divider())
 	lines = append(lines, "")
-	lines = append(lines, sectionHeader("🔐", "Certificate"))
-	lines = append(lines, fmt.Sprintf("  ▸ <b>Domains:</b>    %s", fallbackString(strings.Join(ev.Domains, ", "))))
-	lines = append(lines, fmt.Sprintf("  ▸ <b>Expires:</b>    <code>%s</code>", ev.NotAfter.Format(time.RFC1123)))
-	lines = append(lines, fmt.Sprintf("  ▸ <b>Days left:</b>  <code>%d</code>", ev.DaysLeft))
+	lines = append(lines, fmt.Sprintf("   ├ Tên miền:   %s", fallbackString(strings.Join(ev.Domains, ", "))))
+	lines = append(lines, fmt.Sprintf("   ├ Hết hạn:    <code>%s</code>", ev.NotAfter.Format("02/01/2006 15:04")))
+	lines = append(lines, fmt.Sprintf("   └ Còn lại:    <code>%d ngày</code>", ev.DaysLeft))
 	lines = append(lines, "")
-	lines = append(lines, "Renew it manually in AdGuard Home's encryption settings.")
+	lines = append(lines, "<i>Vui lòng gia hạn thủ công trong cài đặt mã hóa.</i>")
 	lines = append(lines, "")
 	lines = append(lines, systemOverviewLines(info)...)
 	lines = append(lines, "")
@@ -229,21 +235,19 @@ func composeCertRenewalMessage(cfg TelegramConfig, ev CertRenewalResult, info sy
 	}
 
 	if ev.Err != nil {
-		lines = append(lines, "🚨 <b>TLS CERTIFICATE AUTO-RENEWAL FAILED</b>")
+		lines = append(lines, "🚨 <b>GIA HẠN TỰ ĐỘNG THẤT BẠI</b>")
 		lines = append(lines, divider())
 		lines = append(lines, "")
-		lines = append(lines, sectionHeader("🔐", "Certificate"))
-		lines = append(lines, fmt.Sprintf("  ▸ <b>Domains:</b> %s", fallbackString(strings.Join(ev.Domains, ", "))))
-		lines = append(lines, fmt.Sprintf("  ▸ <b>Error:</b>   <code>%s</code>", ev.Err.Error()))
+		lines = append(lines, fmt.Sprintf("   ├ Tên miền: %s", fallbackString(strings.Join(ev.Domains, ", "))))
+		lines = append(lines, fmt.Sprintf("   └ Lỗi:      <code>%s</code>", ev.Err.Error()))
 		lines = append(lines, "")
-		lines = append(lines, "Renew it manually in AdGuard Home's encryption settings.")
+		lines = append(lines, "<i>Vui lòng gia hạn thủ công trong cài đặt mã hóa.</i>")
 	} else {
-		lines = append(lines, "✅ <b>TLS CERTIFICATE AUTO-RENEWED</b>")
+		lines = append(lines, "✅ <b>ĐÃ GIA HẠN TỰ ĐỘNG</b>")
 		lines = append(lines, divider())
 		lines = append(lines, "")
-		lines = append(lines, sectionHeader("🔐", "Certificate"))
-		lines = append(lines, fmt.Sprintf("  ▸ <b>Domains:</b>     %s", fallbackString(strings.Join(ev.Domains, ", "))))
-		lines = append(lines, fmt.Sprintf("  ▸ <b>New expiry:</b>  <code>%s</code>", ev.NotAfter.Format(time.RFC1123)))
+		lines = append(lines, fmt.Sprintf("   ├ Tên miền: %s", fallbackString(strings.Join(ev.Domains, ", "))))
+		lines = append(lines, fmt.Sprintf("   └ Hết hạn:  <code>%s</code>", ev.NotAfter.Format("02/01/2006 15:04")))
 	}
 
 	lines = append(lines, "")
@@ -256,22 +260,22 @@ func composeCertRenewalMessage(cfg TelegramConfig, ev CertRenewalResult, info sy
 }
 
 func alertHeadline(metric string) string {
-	return fmt.Sprintf("%s exceeded threshold", metricDisplayName(metric))
+	return fmt.Sprintf("%s vượt ngưỡng", metricDisplayName(metric))
 }
 
 func metricDisplayName(metric string) string {
 	switch strings.ToLower(metric) {
 	case "cpu":
-		return "CPU Usage"
+		return "CPU"
 	case "memory":
-		return "Memory Usage"
+		return "Bộ nhớ"
 	case "disk":
-		return "Disk Usage"
+		return "Ổ đĩa"
 	case "protection":
-		return "DNS Protection"
+		return "Bảo vệ DNS"
 	default:
 		if metric == "" {
-			return "Metric"
+			return "Chỉ số"
 		}
 		return strings.ToUpper(metric[:1]) + strings.ToLower(metric[1:])
 	}
@@ -280,21 +284,21 @@ func metricDisplayName(metric string) string {
 func filterUpdateHeader(listType FilterListType) string {
 	switch listType {
 	case FilterListTypeAllow:
-		return "Allowlist Updated"
+		return "Đã cập nhật DS cho phép"
 	case FilterListTypeBlock:
-		return "Blocklist Updated"
+		return "Đã cập nhật DS chặn"
 	default:
-		return "Filter Updated"
+		return "Đã cập nhật bộ lọc"
 	}
 }
 
 func filterTypeLabel(listType FilterListType) string {
 	switch listType {
 	case FilterListTypeAllow:
-		return "Allowlist"
+		return "Cho phép"
 	case FilterListTypeBlock:
-		return "Blocklist"
+		return "Chặn"
 	default:
-		return "Filter"
+		return "Bộ lọc"
 	}
 }

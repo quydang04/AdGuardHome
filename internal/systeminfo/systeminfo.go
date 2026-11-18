@@ -11,6 +11,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/shirou/gopsutil/v4/cpu"
@@ -457,10 +458,30 @@ const (
 )
 
 var (
-	publicIPMu      sync.RWMutex
-	publicIPValue   string
-	publicIPFetched time.Time
+	publicIPMu         sync.RWMutex
+	publicIPValue      string
+	publicIPFetched    time.Time
+	publicIPRefreshing atomic.Bool
 )
+
+// CachedPublicIP returns the most recently cached public IP address without
+// blocking on network I/O. If the cache is empty or stale, a single background
+// refresh goroutine is triggered.
+func CachedPublicIP() string {
+	publicIPMu.RLock()
+	val := publicIPValue
+	fresh := !publicIPFetched.IsZero() && time.Since(publicIPFetched) < publicIPCacheTTL
+	publicIPMu.RUnlock()
+
+	if !fresh && publicIPRefreshing.CompareAndSwap(false, true) {
+		go func() {
+			defer publicIPRefreshing.Store(false)
+			_ = lookupPublicIP()
+		}()
+	}
+
+	return val
+}
 
 func lookupPublicIP() string {
 	publicIPMu.RLock()

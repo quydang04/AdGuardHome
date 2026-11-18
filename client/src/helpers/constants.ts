@@ -140,6 +140,7 @@ export const MENU_URLS = {
     logs: '/logs',
     guide: '/guide',
     systemOverview: '/system-overview',
+    about: '/about',
 };
 
 export const DASHBOARD_STATS_URLS = {
@@ -202,6 +203,7 @@ export const BLOCKING_MODES = {
     nxdomain: 'nxdomain',
     null_ip: 'null_ip',
     custom_ip: 'custom_ip',
+    block_page: 'block_page',
 };
 
 // Note that translation strings contain these modes (theme_CONSTANT)

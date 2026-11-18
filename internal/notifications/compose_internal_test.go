@@ -39,7 +39,7 @@ func TestComposeCertRenewalMessage(t *testing.T) {
 		}
 
 		msg := composeCertRenewalMessage(cfg, ev, info)
-		if !strings.Contains(msg, "AUTO-RENEWED") {
+		if !strings.Contains(msg, "ĐÃ GIA HẠN TỰ ĐỘNG") {
 			t.Errorf("expected success message, got: %s", msg)
 		}
 	})
@@ -51,7 +51,7 @@ func TestComposeCertRenewalMessage(t *testing.T) {
 		}
 
 		msg := composeCertRenewalMessage(cfg, ev, info)
-		if !strings.Contains(msg, "FAILED") {
+		if !strings.Contains(msg, "THẤT BẠI") {
 			t.Errorf("expected failure message, got: %s", msg)
 		}
 		if !strings.Contains(msg, "connection refused") {
@@ -65,9 +65,9 @@ func TestMetricDisplayName(t *testing.T) {
 		metric string
 		want   string
 	}{
-		{metric: "cpu", want: "CPU Usage"},
-		{metric: "protection", want: "DNS Protection"},
-		{metric: "", want: "Metric"},
+		{metric: "cpu", want: "CPU"},
+		{metric: "protection", want: "Bảo vệ DNS"},
+		{metric: "", want: "Chỉ số"},
 	}
 
 	for _, tc := range testCases {
@@ -95,10 +95,10 @@ func TestComposeCertStatusMessage(t *testing.T) {
 		if !strings.Contains(msg, "example.com") {
 			t.Errorf("expected message to contain domain, got: %s", msg)
 		}
-		if !strings.Contains(msg, "ENABLED") {
+		if !strings.Contains(msg, "BẬT") {
 			t.Errorf("expected message to show ENABLED, got: %s", msg)
 		}
-		if !strings.Contains(msg, "ON") {
+		if !strings.Contains(msg, "BẬT") {
 			t.Errorf("expected message to show auto-renew ON, got: %s", msg)
 		}
 	})
@@ -111,7 +111,7 @@ func TestComposeCertStatusMessage(t *testing.T) {
 		}
 
 		msg := composeCertStatusMessage(status)
-		if !strings.Contains(msg, "DISABLED") {
+		if !strings.Contains(msg, "TẮT") {
 			t.Errorf("expected message to show DISABLED, got: %s", msg)
 		}
 		if !strings.Contains(msg, "cloudflare api token is required") {

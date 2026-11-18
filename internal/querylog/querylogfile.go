@@ -44,7 +44,10 @@ func (l *queryLog) encodeEntries(ctx context.Context) (b *bytes.Buffer, err erro
 
 	start := time.Now()
 
-	b = &bytes.Buffer{}
+	// Pre-allocate buffer based on estimated entry size to reduce
+	// re-allocations during JSON encoding.
+	const estimatedEntrySize = 768
+	b = bytes.NewBuffer(make([]byte, 0, bufLen*estimatedEntrySize))
 	e := json.NewEncoder(b)
 
 	l.buffer.Range(func(entry *logEntry) (cont bool) {

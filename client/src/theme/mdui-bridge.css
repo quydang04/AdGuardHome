@@ -651,12 +651,7 @@ label,
     box-shadow: none !important;
 }
 
-.ReactTable.card-table-overflow,
-.ReactTable.card-table-overflow--limited {
-    overflow-x: auto !important;
-    overflow-y: auto !important;
-    -webkit-overflow-scrolling: touch;
-}
+/* Scroll handled by Card.css */
 
 .table thead th,
 .ReactTable .rt-thead .rt-th {

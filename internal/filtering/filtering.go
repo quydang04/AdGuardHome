@@ -221,6 +221,10 @@ const (
 
 	// BlockingModeREFUSED means respond with the REFUSED code.
 	BlockingModeREFUSED BlockingMode = "refused"
+
+	// BlockingModeBlockPage means respond with AdGuard Home's own reachable IP
+	// so HTTP requests display a friendly block page.
+	BlockingModeBlockPage BlockingMode = "block_page"
 )
 
 // LookupStats store stats collected during safebrowsing or parental checks

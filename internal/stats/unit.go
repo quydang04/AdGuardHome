@@ -6,6 +6,7 @@ import (
 	"encoding/gob"
 	"fmt"
 	"maps"
+	"strconv"
 	"slices"
 	"time"
 
@@ -375,7 +376,7 @@ func (u *unit) add(e *Entry) {
 	} else {
 		u.blockedDomains[e.Domain]++
 		if e.FilterListID != 0 {
-			u.blockedFilterLists[fmt.Sprintf("%d", e.FilterListID)]++
+			u.blockedFilterLists[strconv.FormatInt(e.FilterListID, 10)]++
 		}
 	}
 

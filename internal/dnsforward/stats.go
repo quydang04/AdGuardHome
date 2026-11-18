@@ -62,7 +62,7 @@ func (s *Server) processQueryLogsAndStats(
 	}
 
 	if s.shouldCountStat(host, qt, cl, ids) {
-		s.updateStats(dctx, ipStr, processingTime)
+		s.updateStats(dctx, host, ipStr, processingTime)
 	} else {
 		l.DebugContext(
 			ctx,
@@ -140,7 +140,7 @@ func (s *Server) logQuery(dctx *dnsContext, ip net.IP, processingTime time.Durat
 }
 
 // updateStats writes the request data into statistics.
-func (s *Server) updateStats(dctx *dnsContext, clientIP string, processingTime time.Duration) {
+func (s *Server) updateStats(dctx *dnsContext, domain, clientIP string, processingTime time.Duration) {
 	pctx := dctx.proxyCtx
 
 	var upstreamStats []*proxy.UpstreamStatistics
@@ -157,7 +157,7 @@ func (s *Server) updateStats(dctx *dnsContext, clientIP string, processingTime t
 
 	e := &stats.Entry{
 		UpstreamStats:  upstreamStats,
-		Domain:         aghnet.NormalizeDomain(pctx.Req.Question[0].Name),
+		Domain:         domain,
 		Result:         stats.RNotFiltered,
 		ProcessingTime: processingTime,
 		IsEncrypted:    isEncrypted,

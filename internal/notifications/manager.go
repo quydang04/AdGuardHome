@@ -796,6 +796,8 @@ func (m *Manager) handleUpdate(ctx context.Context, cfg TelegramConfig, u tgUpda
 	switch command {
 	case "/start", "/menu", "cmd:menu":
 		m.sendMainMenu(ctx, cfg, chatID, messageID)
+	case "/help", "cmd:help":
+		m.sendHelp(ctx, cfg, chatID, messageID)
 	case "/status", "cmd:status":
 		m.sendSystemStatus(ctx, cfg, chatID, messageID)
 	case "/stats", "cmd:stats":
@@ -866,6 +868,21 @@ func extractCommand(text string) string {
 	return cmd
 }
 
+func (m *Manager) sendHelp(ctx context.Context, cfg TelegramConfig, chatID int64, messageID int64) {
+	text := composeHelpMessage()
+	kb := backToMenuKeyboard()
+
+	if messageID > 0 {
+		if err := m.editMessageWithKeyboard(ctx, cfg, chatID, messageID, text, kb); err != nil {
+			_ = m.sendMessageWithKeyboard(ctx, cfg, chatID, text, kb)
+		}
+	} else {
+		if err := m.sendMessageWithKeyboard(ctx, cfg, chatID, text, kb); err != nil {
+			m.logger.Debug("send help failed", slog.String("error", err.Error()))
+		}
+	}
+}
+
 func (m *Manager) sendMainMenu(ctx context.Context, cfg TelegramConfig, chatID int64, messageID int64) {
 	info := systeminfo.Collect()
 
@@ -897,7 +914,7 @@ func (m *Manager) sendSystemStatus(ctx context.Context, cfg TelegramConfig, chat
 	info := systeminfo.Collect()
 	ioStats := m.GetIOStats()
 	text := composeSystemStatusMessage(info, ioStats)
-	kb := backToMenuKeyboard()
+	kb := backToMenuKeyboard("cmd:status")
 
 	if messageID > 0 {
 		if err := m.editMessageWithKeyboard(ctx, cfg, chatID, messageID, text, kb); err != nil {
@@ -923,7 +940,7 @@ func (m *Manager) sendDNSStats(ctx context.Context, cfg TelegramConfig, chatID i
 		text = composeDNSStatsMessage(nq, nb, nsb, np, avg)
 	}
 
-	kb := backToMenuKeyboard()
+	kb := backToMenuKeyboard("cmd:stats")
 
 	if messageID > 0 {
 		if err := m.editMessageWithKeyboard(ctx, cfg, chatID, messageID, text, kb); err != nil {
@@ -950,7 +967,7 @@ func (m *Manager) sendFilterInfo(ctx context.Context, cfg TelegramConfig, chatID
 		text = composeFilterDetailedMessage(totalRules, blockLists, allowLists)
 	}
 
-	kb := backToMenuKeyboard()
+	kb := backToMenuKeyboard("cmd:filters")
 
 	if messageID > 0 {
 		if err := m.editMessageWithKeyboard(ctx, cfg, chatID, messageID, text, kb); err != nil {
@@ -1079,7 +1096,7 @@ func (m *Manager) issueCertNow(ctx context.Context, cfg TelegramConfig, chatID i
 func (m *Manager) sendProcessInfo(ctx context.Context, cfg TelegramConfig, chatID int64, messageID int64) {
 	info := systeminfo.Collect()
 	text := composeProcessInfoMessage(m.startTime, info)
-	kb := backToMenuKeyboard()
+	kb := backToMenuKeyboard("cmd:processes")
 
 	if messageID > 0 {
 		if err := m.editMessageWithKeyboard(ctx, cfg, chatID, messageID, text, kb); err != nil {
@@ -1105,7 +1122,7 @@ func (m *Manager) sendRecentLogs(ctx context.Context, cfg TelegramConfig, chatID
 		text = composeRecentLogsMessage(entries)
 	}
 
-	kb := backToMenuKeyboard()
+	kb := backToMenuKeyboard("cmd:logs")
 
 	if messageID > 0 {
 		if err := m.editMessageWithKeyboard(ctx, cfg, chatID, messageID, text, kb); err != nil {

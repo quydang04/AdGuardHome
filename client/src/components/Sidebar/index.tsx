@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink, Link, useLocation } from 'react-router-dom';
 import { useTranslation, Trans } from 'react-i18next';
-import { shallowEqual, useDispatch, useSelector } from 'react-redux';
+import { shallowEqual, useSelector } from 'react-redux';
 import ReactModal from 'react-modal';
 import cn from 'clsx';
 
-import { getVersion } from '../../actions';
 import { RootState } from '../../initialState';
 import { SETTINGS_URLS, FILTERS_URLS, MENU_URLS } from '../../helpers/constants';
 import './Sidebar.css';
@@ -60,6 +59,14 @@ const GuideIcon = () => (
         <circle cx="12" cy="12" r="10" />
         <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
         <line x1="12" y1="17" x2="12.01" y2="17" />
+    </svg>
+);
+
+const AboutIcon = () => (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="10" />
+        <line x1="12" y1="16" x2="12" y2="12" />
+        <line x1="12" y1="8" x2="12.01" y2="8" />
     </svg>
 );
 
@@ -182,6 +189,20 @@ export const Sidebar = ({ isMobileOpen, closeMobile }: SidebarProps) => {
         }
     }, [isSettingsPath, isFiltersPath]);
 
+    useEffect(() => {
+        if (typeof document === 'undefined') {
+            return undefined;
+        }
+        if (isMobileOpen) {
+            const prevOverflow = document.body.style.overflow;
+            document.body.style.overflow = 'hidden';
+            return () => {
+                document.body.style.overflow = prevOverflow;
+            };
+        }
+        return undefined;
+    }, [isMobileOpen]);
+
     const handleLinkClick = () => {
         closeMobile();
     };
@@ -195,14 +216,10 @@ export const Sidebar = ({ isMobileOpen, closeMobile }: SidebarProps) => {
         window.location.href = 'control/logout';
     };
 
-    const dispatch = useDispatch();
-    const { dnsVersion, processingVersion, checkUpdateFlag } = useSelector(
+    const { isUpdateAvailable } = useSelector(
         (state: RootState) => state?.dashboard || ({} as any),
         shallowEqual,
     );
-    const installVersion = useSelector((state: RootState) => state?.install?.dnsVersion);
-    const rawVersion = dnsVersion || installVersion;
-    const formattedVersion = rawVersion ? `v${String(rawVersion).replace(/^v/i, '')}` : '';
 
     const effectiveCollapsed = isCollapsed && !isMobileOpen;
 
@@ -220,7 +237,7 @@ export const Sidebar = ({ isMobileOpen, closeMobile }: SidebarProps) => {
                     'app-sidebar--mobile-open': isMobileOpen,
                     'app-sidebar--collapsed': effectiveCollapsed,
                 })}>
-                <div>
+                <div className="app-sidebar__top">
                     {/* Header with Brand Logo & Desktop Collapse Button directly beside it */}
                     <div className="app-sidebar__header">
                         <div className="app-sidebar__brand-row">
@@ -405,73 +422,34 @@ export const Sidebar = ({ isMobileOpen, closeMobile }: SidebarProps) => {
                                 </div>
                             </NavLink>
                         </div>
+
+                        {/* 7. Giới thiệu (About) */}
+                        <div className="app-sidebar__item-wrap">
+                            <NavLink
+                                to={MENU_URLS.about}
+                                className="app-sidebar__link"
+                                activeClassName="app-sidebar__link--active"
+                                onClick={handleLinkClick}
+                                title={t('about_title', 'Giới thiệu')}>
+                                <div className="app-sidebar__link-left">
+                                    <span className="app-sidebar__icon">
+                                        <AboutIcon />
+                                    </span>
+                                    <span><Trans>about_title</Trans></span>
+                                </div>
+                                {!effectiveCollapsed && isUpdateAvailable && (
+                                    <span
+                                        className="app-sidebar__update-dot"
+                                        title={t('updates_checked', 'Phiên bản mới của AdGuard Home có sẵn')}
+                                    />
+                                )}
+                            </NavLink>
+                        </div>
                     </nav>
                 </div>
 
-                {/* Bottom Version & Sign Out with Confirmation Modal */}
+                {/* Bottom Sign Out with Confirmation Modal */}
                 <div className="app-sidebar__bottom">
-                    {formattedVersion && (
-                        <div
-                            className={cn('app-sidebar__version', {
-                                'app-sidebar__version--collapsed': effectiveCollapsed,
-                            })}
-                            title={`AdGuard Home ${formattedVersion}`}>
-                            {effectiveCollapsed ? (
-                                checkUpdateFlag ? (
-                                    <button
-                                        type="button"
-                                        className="app-sidebar__version-badge app-sidebar__version-badge--compact app-sidebar__version-badge--clickable"
-                                        onClick={() => dispatch(getVersion(true) as any)}
-                                        disabled={processingVersion}
-                                        aria-label={t('check_updates_now', 'Check for updates now')}
-                                        title={`${formattedVersion} · ${t('check_updates_now', 'Check for updates now')}`}>
-                                        {formattedVersion}
-                                    </button>
-                                ) : (
-                                    <span className="app-sidebar__version-badge app-sidebar__version-badge--compact">
-                                        {formattedVersion}
-                                    </span>
-                                )
-                            ) : (
-                                <>
-                                    <div className="app-sidebar__version-left">
-                                        <span className="app-sidebar__version-dot" aria-hidden="true" />
-                                        <span className="app-sidebar__version-label">
-                                            {t('sidebar_version_label', 'Phiên bản')}
-                                        </span>
-                                    </div>
-                                    <div className="app-sidebar__version-right">
-                                        <span className="app-sidebar__version-badge">{formattedVersion}</span>
-                                        {checkUpdateFlag && (
-                                            <button
-                                                type="button"
-                                                className="app-sidebar__version-refresh"
-                                                onClick={() => dispatch(getVersion(true) as any)}
-                                                disabled={processingVersion}
-                                                aria-label={t('check_updates_now', 'Check for updates now')}
-                                                title={t('check_updates_now', 'Check for updates now')}>
-                                                <svg
-                                                    width="13"
-                                                    height="13"
-                                                    viewBox="0 0 24 24"
-                                                    fill="none"
-                                                    stroke="currentColor"
-                                                    strokeWidth="2.3"
-                                                    strokeLinecap="round"
-                                                    strokeLinejoin="round"
-                                                    className={processingVersion ? 'app-sidebar__version-spin' : ''}>
-                                                    <polyline points="23 4 23 10 17 10" />
-                                                    <polyline points="1 20 1 14 7 14" />
-                                                    <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
-                                                </svg>
-                                            </button>
-                                        )}
-                                    </div>
-                                </>
-                            )}
-                        </div>
-                    )}
-
                     <button
                         type="button"
                         className="app-sidebar__logout"

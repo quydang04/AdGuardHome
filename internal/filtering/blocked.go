@@ -129,6 +129,9 @@ func (d *DNSFilter) ApplyBlockedServices(setts *Settings) {
 	setts.ServicesRules = []ServiceEntry{}
 
 	bsvc := d.conf.BlockedServices
+	if bsvc == nil || bsvc.Schedule == nil {
+		return
+	}
 
 	// TODO(s.chzhen):  Use startTime from [dnsforward.dnsContext].
 	if !bsvc.Schedule.Contains(time.Now()) {

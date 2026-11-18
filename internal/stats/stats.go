@@ -283,10 +283,12 @@ func (s *StatsCtx) Close() (err error) {
 // Update implements the [Interface] interface for *StatsCtx.  e must not be
 // nil.
 func (s *StatsCtx) Update(e *Entry) {
-	s.confMu.Lock()
-	defer s.confMu.Unlock()
+	s.confMu.RLock()
+	enabled := s.enabled
+	limit := s.limit
+	s.confMu.RUnlock()
 
-	if !s.enabled || s.limit == 0 {
+	if !enabled || limit == 0 {
 		return
 	}
 

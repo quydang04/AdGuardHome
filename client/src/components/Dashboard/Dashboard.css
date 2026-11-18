@@ -766,12 +766,7 @@
     border-radius: 0 !important;
 }
 
-.dashboard .ReactTable.card-table-overflow--limited {
-    max-height: 292px !important;
-    overflow-x: auto !important;
-    overflow-y: auto !important;
-    -webkit-overflow-scrolling: touch;
-}
+/* Scroll handled by Card.css .card-table-overflow--limited */
 
 .dashboard .ReactTable .rt-table {
     overflow: visible !important;
@@ -881,12 +876,7 @@
         overflow: hidden !important;
     }
 
-    .dashboard .ReactTable.card-table-overflow--limited {
-        max-height: none !important;
-        overflow-x: auto !important;
-        overflow-y: hidden !important;
-        -webkit-overflow-scrolling: touch;
-    }
+    /* Scroll handled by Card.css */
 
     .dashboard .ReactTable .rt-table {
         display: flex !important;
@@ -946,8 +936,8 @@
 /* Scrollbar styling */
 .card-table-overflow--limited::-webkit-scrollbar,
 .general-stats::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
+    width: 5px;
+    height: 5px;
 }
 
 .card-table-overflow--limited::-webkit-scrollbar-thumb,
@@ -964,6 +954,7 @@
 .card-table-overflow--limited::-webkit-scrollbar-track,
 .general-stats::-webkit-scrollbar-track {
     background: transparent;
+    margin-top: 38px;
 }
 
 /* ── Desktop vs Mobile Card Views ── */

@@ -134,6 +134,8 @@ class Settings extends Component<SettingsProps, SettingsState> {
         importExportProcessing: false,
     };
 
+    private hasScrolledToHash = false;
+
     componentDidMount() {
         this.props.initSettings(SETTINGS);
         this.props.getStatsConfig();
@@ -149,6 +151,8 @@ class Settings extends Component<SettingsProps, SettingsState> {
         if (profileName) {
             this.setState({ username: profileName });
         }
+
+        this.scrollToHash();
     }
 
     componentDidUpdate(prevProps: SettingsProps) {
@@ -162,6 +166,26 @@ class Settings extends Component<SettingsProps, SettingsState> {
         const prevName = prevProps.dashboard?.name || '';
         if (profileName && profileName !== prevName && this.state.username === '') {
             this.setState({ username: profileName });
+        }
+
+        if (!this.hasScrolledToHash) {
+            this.scrollToHash();
+        }
+    }
+
+    scrollToHash() {
+        const { hash } = window.location;
+        if (!hash) {
+            return;
+        }
+
+        const id = hash.replace('#', '');
+        const el = document.getElementById(id);
+        if (el) {
+            this.hasScrolledToHash = true;
+            setTimeout(() => {
+                el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 100);
         }
     }
 

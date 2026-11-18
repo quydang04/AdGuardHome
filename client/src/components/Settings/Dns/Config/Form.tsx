@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 
@@ -49,37 +49,6 @@ const customIps: {
     },
 ];
 
-const blockingModeOptions = [
-    {
-        value: BLOCKING_MODES.default,
-        label: i18next.t('default'),
-    },
-    {
-        value: BLOCKING_MODES.refused,
-        label: i18next.t('refused'),
-    },
-    {
-        value: BLOCKING_MODES.nxdomain,
-        label: i18next.t('nxdomain'),
-    },
-    {
-        value: BLOCKING_MODES.null_ip,
-        label: i18next.t('null_ip'),
-    },
-    {
-        value: BLOCKING_MODES.custom_ip,
-        label: i18next.t('custom_ip'),
-    },
-];
-
-const blockingModeDescriptions = [
-    i18next.t(`blocking_mode_default`),
-    i18next.t(`blocking_mode_refused`),
-    i18next.t(`blocking_mode_nxdomain`),
-    i18next.t(`blocking_mode_null_ip`),
-    i18next.t(`blocking_mode_custom_ip`),
-];
-
 type FormData = {
     ratelimit: number;
     ratelimit_subnet_len_ipv4: number;
@@ -105,15 +74,58 @@ type Props = {
 const Form = ({ processing, initialValues, onSubmit }: Props) => {
     const { t } = useTranslation();
 
+    const blockingModeOptions = [
+        {
+            value: BLOCKING_MODES.default,
+            label: t('default'),
+        },
+        {
+            value: BLOCKING_MODES.refused,
+            label: t('refused'),
+        },
+        {
+            value: BLOCKING_MODES.nxdomain,
+            label: t('nxdomain'),
+        },
+        {
+            value: BLOCKING_MODES.null_ip,
+            label: t('null_ip'),
+        },
+        {
+            value: BLOCKING_MODES.block_page,
+            label: t('block_page'),
+        },
+        {
+            value: BLOCKING_MODES.custom_ip,
+            label: t('custom_ip'),
+        },
+    ];
+
+    const blockingModeDescriptions = [
+        t('blocking_mode_default'),
+        t('blocking_mode_refused'),
+        t('blocking_mode_nxdomain'),
+        t('blocking_mode_null_ip'),
+        t('blocking_mode_block_page'),
+        t('blocking_mode_custom_ip'),
+    ];
+
     const {
         handleSubmit,
         watch,
+        setValue,
         control,
         formState: { isSubmitting, isDirty },
     } = useForm<FormData>({
         mode: 'onBlur',
         defaultValues: initialValues,
     });
+
+    useEffect(() => {
+        if (initialValues?.blocking_mode) {
+            setValue('blocking_mode', initialValues.blocking_mode, { shouldDirty: false });
+        }
+    }, [initialValues?.blocking_mode, setValue]);
 
     const blocking_mode = watch('blocking_mode');
     const edns_cs_enabled = watch('edns_cs_enabled');
