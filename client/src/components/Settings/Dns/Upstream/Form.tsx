@@ -146,7 +146,7 @@ const Form = ({ initialValues, onSubmit }: FormProps) => {
 
                 <div className="col-12">
                     <Examples />
-                    <hr />
+                    <hr className="settings-divider" />
                 </div>
 
                 <div className="col-12 mb-4">
@@ -188,7 +188,7 @@ const Form = ({ initialValues, onSubmit }: FormProps) => {
                 </div>
 
                 <div className="col-12">
-                    <hr />
+                    <hr className="settings-divider" />
                 </div>
 
                 <div className="col-12">
@@ -219,7 +219,7 @@ const Form = ({ initialValues, onSubmit }: FormProps) => {
                 </div>
 
                 <div className="col-12">
-                    <hr />
+                    <hr className="settings-divider" />
                 </div>
 
                 <div className="col-12">
@@ -245,6 +245,7 @@ const Form = ({ initialValues, onSubmit }: FormProps) => {
                                 {...field}
                                 id="local_ptr_upstreams"
                                 data-testid="local_ptr_upstreams"
+                                wrapperClassName="mb-0"
                                 placeholder={t('local_ptr_placeholder')}
                                 disabled={processingSetConfig}
                                 trimOnBlur
@@ -252,7 +253,7 @@ const Form = ({ initialValues, onSubmit }: FormProps) => {
                         )}
                     />
 
-                    <div className="mt-4">
+                    <div className="mt-4 settings-checkbox-row">
                         <Controller
                             name="use_private_ptr_resolvers"
                             control={control}
@@ -270,10 +271,10 @@ const Form = ({ initialValues, onSubmit }: FormProps) => {
                 </div>
 
                 <div className="col-12">
-                    <hr />
+                    <hr className="settings-divider" />
                 </div>
 
-                <div className="col-12 mb-4">
+                <div className="col-12 settings-checkbox-row">
                     <Controller
                         name="resolve_clients"
                         control={control}
@@ -290,7 +291,7 @@ const Form = ({ initialValues, onSubmit }: FormProps) => {
                 </div>
 
                 <div className="col-12">
-                    <hr />
+                    <hr className="settings-divider" />
                 </div>
 
                 <div className="col-12 col-md-7">

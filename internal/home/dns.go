@@ -122,12 +122,6 @@ func initDNS(
 			EtcHosts:          hc,
 			LocalDomain:       config.DHCP.LocalDomainName,
 			TLSConfigProvider: tlsMgr,
-			WebBindAddr: func() netip.AddrPort {
-				config.RLock()
-				defer config.RUnlock()
-
-				return config.HTTPConfig.Address
-			},
 		},
 		httpReg,
 		tlsMgr,

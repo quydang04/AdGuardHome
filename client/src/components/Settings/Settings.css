@@ -357,3 +357,17 @@
     opacity: 0;
     cursor: pointer;
 }
+
+/* Uniform vertical rhythm between sections in settings forms. */
+.settings-divider {
+    margin: 24px 0;
+}
+
+.settings-checkbox-row {
+    display: flex;
+    align-items: flex-start;
+}
+
+.settings-checkbox-row .checkbox {
+    margin: 0;
+}

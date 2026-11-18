@@ -9,8 +9,6 @@ import Access from './Access';
 
 import Config from './Config';
 
-import BlockPage from './BlockPage';
-
 import PageTitle from '../../ui/PageTitle';
 
 import Loading from '../../ui/Loading';
@@ -43,9 +41,6 @@ const Dns = () => {
             ) : (
                 <>
                     <Upstream />
-
-                    <BlockPage />
-
                     <Config />
 
                     <CacheConfig />

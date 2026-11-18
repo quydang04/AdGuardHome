@@ -673,7 +673,7 @@ class Settings extends Component<SettingsProps, SettingsState> {
                                 </div>
                             )}
                         </form>
-                        <hr />
+                        <hr className="settings-divider" />
                     </>
                 )}
 
@@ -719,7 +719,7 @@ class Settings extends Component<SettingsProps, SettingsState> {
 
                 {profileName && (
                     <>
-                        <hr />
+                        <hr className="settings-divider" />
                         <h6 className="settings__section-title">{t('change_password')}</h6>
                         <form className="settings__password-form" onSubmit={this.onPasswordChange}>
                             {this.renderPasswordField(
@@ -886,7 +886,7 @@ class Settings extends Component<SettingsProps, SettingsState> {
             <Card title={t('import_export_settings') as string} bodyType="card-body box-body--settings">
                 <p className="form__desc form__desc--top">{t('import_export_settings_desc')}</p>
                 <div className="settings__import-export">
-                    <div className="settings__import-export-section">
+                    <div className="settings__import-export-section mb-0">
                         <h6 className="settings__section-title">{t('export_settings')}</h6>
                         <p className="form__desc form__desc--top">{t('export_settings_desc')}</p>
                         <button
@@ -897,7 +897,7 @@ class Settings extends Component<SettingsProps, SettingsState> {
                             {t('export_settings')}
                         </button>
                     </div>
-                    <hr />
+                    <hr className="settings-divider" />
                     <div className="settings__import-export-section">
                         <h6 className="settings__section-title">{t('import_settings')}</h6>
                         <p className="form__desc form__desc--top">{t('import_settings_desc')}</p>

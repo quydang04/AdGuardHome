@@ -186,13 +186,6 @@ type Server struct {
 
 	// isRunning is true if the DNS server is running.
 	isRunning bool
-
-	// webBindAddr returns the HTTP server's current bind address, if set.
-	webBindAddr func() netip.AddrPort
-
-	// blockPage tracks recent blocked domains and cached outbound IP for
-	// BlockingModeBlockPage.  Zero value is ready for use.
-	blockPage blockPageTracker
 }
 
 // defaultLocalDomainSuffix is the default suffix used to detect internal hosts
@@ -222,10 +215,6 @@ type DNSCreateParams struct {
 	Logger *slog.Logger
 
 	LocalDomain string
-
-	// WebBindAddr optionally returns the HTTP web server's current bind
-	// address for resolving the reachable block-page IP.
-	WebBindAddr func() netip.AddrPort
 }
 
 // NewServer creates a new instance of the dnsforward.Server
@@ -271,7 +260,6 @@ func NewServer(p DNSCreateParams) (s *Server, err error) {
 			ServePlainDNS: true,
 		},
 		tlsConfigProvider: p.TLSConfigProvider,
-		webBindAddr:       p.WebBindAddr,
 	}
 
 	s.sysResolvers, err = sysresolv.NewSystemResolvers(nil, defaultPlainDNSPort)
@@ -751,8 +739,7 @@ func validateBlockingMode(
 		filtering.BlockingModeDefault,
 		filtering.BlockingModeNXDOMAIN,
 		filtering.BlockingModeREFUSED,
-		filtering.BlockingModeNullIP,
-		filtering.BlockingModeBlockPage:
+		filtering.BlockingModeNullIP:
 		return nil
 	case filtering.BlockingModeCustomIP:
 		if !blockingIPv4.Is4() {

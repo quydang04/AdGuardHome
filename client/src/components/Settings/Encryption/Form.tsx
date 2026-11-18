@@ -238,36 +238,41 @@ export const Form = ({
         <form onSubmit={handleSubmit(onFormSubmit)}>
             <div className="row">
                 <div className="col-12">
-                    <div className="form__group form__group--settings mb-3">
+                    <div className="form__group settings-checkbox-row">
                         <Controller
                             name="enabled"
                             control={control}
                             render={({ field }) => (
-                                <Checkbox {...field} title={t('encryption_enable')} onBlur={handleBlur} />
+                                <Checkbox
+                                    {...field}
+                                    title={t('encryption_enable')}
+                                    subtitle={<Trans>encryption_enable_desc</Trans>}
+                                    onBlur={handleBlur}
+                                />
                             )}
                         />
                     </div>
 
-                    <div className="form__desc">
-                        <Trans>encryption_enable_desc</Trans>
-                    </div>
-
-                    <div className="form__group mb-3 mt-5">
+                    <div className="form__group settings-checkbox-row">
                         <Controller
                             name="serve_plain_dns"
                             control={control}
                             rules={{
                                 validate: (value) => validatePlainDns(value, getValues()),
                             }}
-                            render={({ field }) => <Checkbox {...field} title={t('encryption_plain_dns_enable')} />}
+                            render={({ field }) => (
+                                <Checkbox
+                                    {...field}
+                                    title={t('encryption_plain_dns_enable')}
+                                    subtitle={<Trans>encryption_plain_dns_desc</Trans>}
+                                />
+                            )}
                         />
                     </div>
+                </div>
 
-                    <div className="form__desc">
-                        <Trans>encryption_plain_dns_desc</Trans>
-                    </div>
-
-                    <hr />
+                <div className="col-12">
+                    <hr className="settings-divider" />
                 </div>
 
                 <div className="col-12">
@@ -300,19 +305,20 @@ export const Form = ({
                     </div>
                 </div>
 
-                <div className="col-lg-6">
-                    <div className="form__group form__group--settings">
+                <div className="col-12">
+                    <div className="form__group form__group--settings settings-checkbox-row">
                         <Controller
                             name="force_https"
                             control={control}
                             render={({ field }) => (
-                                <Checkbox {...field} title={t('encryption_redirect')} disabled={!isEnabled} />
+                                <Checkbox
+                                    {...field}
+                                    title={t('encryption_redirect')}
+                                    subtitle={<Trans>encryption_redirect_desc</Trans>}
+                                    disabled={!isEnabled}
+                                />
                             )}
                         />
-
-                        <div className="form__desc">
-                            <Trans>encryption_redirect_desc</Trans>
-                        </div>
                     </div>
                 </div>
             </div>
@@ -520,24 +526,26 @@ export const Form = ({
 
                         {privateKeySource === ENCRYPTION_SOURCE.CONTENT ? (
                             <>
-                                <Controller
-                                    name="private_key_saved"
-                                    control={control}
-                                    render={({ field }) => (
-                                        <Checkbox
-                                            {...field}
-                                            title={t('use_saved_key')}
-                                            disabled={!isEnabled}
-                                            onChange={(checked: boolean) => {
-                                                if (checked) {
-                                                    setValue('private_key', '');
-                                                }
-                                                field.onChange(checked);
-                                            }}
-                                            onBlur={handleBlur}
-                                        />
-                                    )}
-                                />
+                                <div className="form__group mb-3 settings-checkbox-row">
+                                    <Controller
+                                        name="private_key_saved"
+                                        control={control}
+                                        render={({ field }) => (
+                                            <Checkbox
+                                                {...field}
+                                                title={t('use_saved_key')}
+                                                disabled={!isEnabled}
+                                                onChange={(checked: boolean) => {
+                                                    if (checked) {
+                                                        setValue('private_key', '');
+                                                    }
+                                                    field.onChange(checked);
+                                                }}
+                                                onBlur={handleBlur}
+                                            />
+                                        )}
+                                    />
+                                </div>
 
                                 <Controller
                                     name="private_key"

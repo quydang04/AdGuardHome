@@ -9,7 +9,7 @@ interface ExamplesProps {
 const Examples = (props: ExamplesProps) => (
     <div className="list leading-loose">
         <Trans>examples_title</Trans>:
-        <ol className="leading-loose">
+        <ol className="leading-loose mb-0">
             <li>
                 <code>94.140.14.140</code>, <code>2a10:50c0::1:ff</code>: {props.t('example_upstream_regular')}
             </li>

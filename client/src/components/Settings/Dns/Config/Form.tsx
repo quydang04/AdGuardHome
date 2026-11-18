@@ -92,10 +92,6 @@ const Form = ({ processing, initialValues, onSubmit }: Props) => {
             label: t('null_ip'),
         },
         {
-            value: BLOCKING_MODES.block_page,
-            label: t('block_page'),
-        },
-        {
             value: BLOCKING_MODES.custom_ip,
             label: t('custom_ip'),
         },
@@ -106,7 +102,6 @@ const Form = ({ processing, initialValues, onSubmit }: Props) => {
         t('blocking_mode_refused'),
         t('blocking_mode_nxdomain'),
         t('blocking_mode_null_ip'),
-        t('blocking_mode_block_page'),
         t('blocking_mode_custom_ip'),
     ];
 

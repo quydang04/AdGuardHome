@@ -86,7 +86,7 @@ export const AcmeForm = ({
 
     return (
         <form onSubmit={handleSubmit(onSave)}>
-            <div className="form__group form__group--settings">
+            <div className="form__group form__group--settings settings-checkbox-row">
                 <Controller
                     name="enabled"
                     control={control}
@@ -95,13 +95,11 @@ export const AcmeForm = ({
                             {...field}
                             data-testid="acme_enabled"
                             title={t('acme_enable')}
+                            subtitle={<Trans>acme_enable_desc</Trans>}
                             disabled={processing}
                         />
                     )}
                 />
-                <div className="form__desc">
-                    <Trans>acme_enable_desc</Trans>
-                </div>
             </div>
 
             <div className="form__group form__group--settings">
@@ -231,7 +229,7 @@ export const AcmeForm = ({
                 </div>
             )}
 
-            <div className="form__group form__group--settings">
+            <div className="form__group form__group--settings settings-checkbox-row">
                 <Controller
                     name="autoRenew"
                     control={control}
@@ -240,13 +238,11 @@ export const AcmeForm = ({
                             {...field}
                             data-testid="acme_auto_renew"
                             title={t('acme_auto_renew')}
+                            subtitle={<Trans>acme_auto_renew_desc</Trans>}
                             disabled={processing}
                         />
                     )}
                 />
-                <div className="form__desc">
-                    <Trans>acme_auto_renew_desc</Trans>
-                </div>
             </div>
 
             <div className="form__group form__group--settings">
