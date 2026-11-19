@@ -33,7 +33,7 @@ const Check = ({ onSubmit }: Props) => {
         handleSubmit,
         formState: { isValid },
     } = useForm<FilteringCheckFormValues>({
-        mode: 'onBlur',
+        mode: 'onChange',
         defaultValues: {
             name: '',
             client: '',

@@ -221,7 +221,7 @@ const UPTIME_ICON = (
 const CPU_USAGE_ICON = (
     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M3 3v18h18" />
-        <polyline points="18.7 8l-5.1 5.2-2.8-2.7L7 14.3" />
+        <path d="M18.7 8l-5.1 5.2-2.8-2.7L7 14.3" />
     </svg>
 );
 
